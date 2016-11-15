@@ -1,7 +1,7 @@
 #!/bin/bash
 THIS="${0##*/}"
 CDIR=$([ -n "${0%/*}" ] && cd "${0%/*}" 2>/dev/null; pwd)
-DDIR=$([ -n "$CDIR" ] && cd "$CDIR/../" 2>/dev/null; pwd)
+DDIR=$(pwd)
 
 DOCKER_HOST="${DOCKER_HOST:-tcp://127.0.0.1:4243}"
 DOCKER_TAG="${DOCKER_TAG:-}"

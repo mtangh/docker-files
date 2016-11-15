@@ -1,13 +1,19 @@
 # docker.rc
+DOCKER_RC_FILE="${BASH_SOURCE##*/}"
+DOCKERFILESDIR=$([ -n "${BASH_SOURCE%/*}" ] && cd "${BASH_SOURCE%/*}" 2>/dev/null; pwd)
 
 echo "$PATH" |
-grep -E '^(.+:|)'"{BASH_SOURCE%/*}/_docker-bin"'(:.+|)$' 1>/dev/null 2>&1 || {
-  PATH="${PATH}:${BASH_SOURCE%/*}/_docker-bin"
+grep -E '^(.+:|)'"${DOCKERFILESDIR}/_docker-bin"'(:.+|)$' 1>/dev/null 2>&1 || {
+  PATH="${PATH}:${DOCKERFILESDIR}/_docker-bin"
   export PATH
 }
 
 # DOCKER Host
-export DOCKER_HOST="${DOCKER_HOST:-tcp://127.0.0.1:4243}"
+[ -z "${DOCKER_HOST}" ] &&
+[ -x "$(type -P docker-machine)" ] &&
+DOCKER_HOST=$(docker-machine url)
+DOCKER_HOST="${DOCKER_HOST:-tcp://127.0.0.1:4243}"
+export DOCKER_HOST
 
 # Aliases
 alias docker-ssh='ssh -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no'
