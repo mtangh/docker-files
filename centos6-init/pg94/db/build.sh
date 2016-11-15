@@ -67,7 +67,7 @@ do
     break
   done
 
-  for data_dir in $CDIR{,/db}/{init-data,$PGDATABASE}
+  for data_dir in $CDIR/{init-data,$PGDATABASE}
   do
   
     echo "$THIS: $PGDATABASE: LOAD FROM ${data_dir}.d"
