@@ -1,0 +1,13 @@
+# docker.rc
+
+echo "$PATH" |
+grep -E '^(.+:|)'"{BASH_SOURCE%/*}/_docker-bin"'(:.+|)$' 1>/dev/null 2>&1 || {
+  PATH="${PATH}:${BASH_SOURCE%/*}/_docker-bin"
+  export PATH
+}
+
+# DOCKER Host
+export DOCKER_HOST="${DOCKER_HOST:-tcp://127.0.0.1:4243}"
+
+# Aliases
+alias docker-ssh='ssh -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no'
