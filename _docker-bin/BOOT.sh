@@ -8,40 +8,52 @@ DOCKER_TAG="${DOCKER_TAG:-}"
 
 export DOCKER_HOST DOCKER_TAG
 
-# container hostname
-CONTAINER_HOST_NAME="${CONTAINER_HOST_NAME:-}"      
-
-# docker container ID
-DOCKER_CONTAINER_ID=""
+# docker build options
+DOCKER_BUILDER_OPTS=""
 # docker startup(run) options
 DOCKER_STARTUP_OPTS=""
 
+# Dockerfile
+[ -r "$DDIR/Dockerfile" ] && {
+
+  SED=""
+  [ -z "$SED" -a -n "$(type -P gaed)" ] &&
+  SED="$(type -P gsed)"
+  [ -z "$SED" -a -n "$(type -P sed)" ] &&
+  SED="$(type -P sed)"
+  
+  eval $(cat "$DDIR/Dockerfile" |$SED -ne \
+  's;^#@[ ]*\([^ =]*\)[ ]*=[ ]*\([^ ]*\)[ ]*$;echo \1=\2 && \1=\2;gp' \
+  ) 2>/dev/null
+
+} || :
+
+# docker container ID
+DOCKER_CONTAINER_ID=""
+
 # BOOT options
 __docker_build_only=0
-_in_docker_run_opts=0
+_in_docker_ext_opts=0
 _check_process_name=""
 
+# Parsing an options
 while [ $# -gt 0 ]
 do
   if [ $_in_docker_run_opts -eq 0 ]
   then
     case "$1" in
-    -b|--build*)
+    -b|-build*|--build*)
       __docker_build_only=1
       ;;
-    -h|--host)
-      if [ -n "$2" ]
-      then
-        CONTAINER_HOST_NAME="$2"      
-      fi
-      shift
-      ;;
-    -p|--process)
+    -p|-proc*|--proc*)
       _check_process_name="$2"
       shift
       ;;
-    -XS)
-      _in_docker_run_opts=1
+    -X[Bb])
+      _in_docker_ext_opts=1
+      ;;
+    -X[RrSs])
+      _in_docker_ext_opts=2
       ;;
     -*)
       ;;
@@ -54,14 +66,14 @@ do
     esac
   else
     case "$1" in
-    -XE)
-      _in_docker_run_opts=0
+    -X[Ee])
+      _in_docker_ext_opts=0
       ;;
     *)
-      [ -n "$DOCKER_STARTUP_OPTS" ] &&
-      DOCKER_STARTUP_OPTS="${DOCKER_STARTUP_OPTS} $1"
-      [ -n "$DOCKER_STARTUP_OPTS" ] ||
-      DOCKER_STARTUP_OPTS="$1"
+      [ $_in_docker_ext_opts -eq 1 ] &&
+      DOCKER_BUILDER_OPTS=$(echo ${DOCKER_BUILDER_OPTS} $1)
+      [ $_in_docker_ext_opts -eq 2 ] &&
+      DOCKER_STARTUP_OPTS=$(echo ${DOCKER_STARTUP_OPTS} $1)
       ;;
     esac
   fi
@@ -72,16 +84,13 @@ done
   echo "$THIS: ERROR: 'DOCKER_HOST' not set." 1>&2
   exit 127
 }
+
 [ -n "${DOCKER_TAG}" ] || {
   echo "$THIS: ERROR: 'DOCKER_TAG' not set." 1>&2
   exit 127
 }
 
 export DOCKER_HOST DOCKER_TAG
-
-# Container hostname
-[ -n "$CONTAINER_HOST_NAME" ] &&
-DOCKER_STARTUP_OPTS="-h ${CONTAINER_HOST_NAME} ${DOCKER_STARTUP_OPTS}"
 
 # Exit status
 EXIT_STATE=0
@@ -100,8 +109,8 @@ EXIT_STATE=0
     cd "${DDIR:-.}" && {
 
       echo "$THIS: BUILD: START." &&
-      echo "$THIS: BUILD: docker build -t ${DOCKER_TAG} ." &&
-      docker build -t "${DOCKER_TAG}" . 2>&1 |
+      echo "$THIS: BUILD: docker build -t ${DOCKER_TAG} ${DOCKER_BUILDER_OPTS} ." &&
+      docker build -t "${DOCKER_TAG}" ${DOCKER_BUILDER_OPTS} . 2>&1 |
       while read stdoutln
       do
         echo "$THIS: BUILD: $stdoutln"

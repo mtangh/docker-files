@@ -1,6 +1,9 @@
 #
 # centos6-init:ssh
 #
+#@ DOCKER_TAG="centos6-init:ssh"
+#@ DOCKER_STARTUP_OPTS="--host ssh-server"
+#
 FROM centos:centos6
 
 RUN \

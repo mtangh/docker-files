@@ -1,10 +1,10 @@
 #
-# centos6-init:pg94
+# centos6-init:tc6
 #
-#@ DOCKER_TAG="centos6-init:pg94"
-#@ DOCKER_STARTUP_OPTS="--host pg94-server"
+#@ DOCKER_TAG="centos6-init:tc6"
+#@ DOCKER_STARTUP_OPTS="--host tc6-server"
 #
-FROM centos6-init:ssh
+FROM centos6-init:java7
 
 # Install packages for PostgreSQL (and pgTAP)
 RUN \

@@ -1,8 +1,0 @@
-# docker.rc
-
-# docker tag
-export DOCKER_TAG="centos6-init:pg94"
-
-# boot options
-export BOOT_OPTIONS="--host pg94-server -XS -p 22500:22 -p 54800:5480"
-

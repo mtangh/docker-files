@@ -1,8 +1,0 @@
-# docker.rc
-
-# docker tag
-export DOCKER_TAG="centos6-init:ssh"
-
-# boot options
-export BOOT_OPTIONS="--host ssh-server"
-
