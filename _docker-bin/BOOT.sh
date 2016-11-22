@@ -16,15 +16,17 @@ DOCKER_STARTUP_OPTS=""
 # Dockerfile
 [ -r "$DDIR/Dockerfile" ] && {
 
-  SED=""
-  [ -z "$SED" -a -n "$(type -P gaed)" ] &&
-  SED="$(type -P gsed)"
-  [ -z "$SED" -a -n "$(type -P sed)" ] &&
-  SED="$(type -P sed)"
+  eval $(
+  $CDIR/get-opts-from-dockerfile.sh "$DDIR/Dockerfile"
+  )
   
-  eval $(cat "$DDIR/Dockerfile" |$SED -ne \
-  's;^#@[ ]*\([^ =]*\)[ ]*=[ ]*\([^ ]*\)[ ]*$;echo \1=\2 && \1=\2;gp' \
-  ) 2>/dev/null
+  # Build only
+  [ -n "$CONTAINER_NOT_START" ] &&
+  _docker_not_running=1
+
+  # Confirm startup
+  [ -n "$CONFIRM_STARTUP_CMD" ] &&
+  _confirm_start_cmnd="$CONFIRM_STARTUP_CMD"
 
 } || :
 
@@ -32,9 +34,11 @@ DOCKER_STARTUP_OPTS=""
 DOCKER_CONTAINER_ID=""
 
 # BOOT options
-__docker_build_only=0
+_docker_not_running=0
+_confirm_start_cmnd=""
+
+# Flags
 _in_docker_ext_opts=0
-_check_process_name=""
 
 # Parsing an options
 while [ $# -gt 0 ]
@@ -43,10 +47,14 @@ do
   then
     case "$1" in
     -b|-build*|--build*)
-      __docker_build_only=1
+      _docker_not_running=1
+      ;;
+    -c|-command*|--command*)
+      _confirm_start_cmnd="$2"
+      shift
       ;;
     -p|-proc*|--proc*)
-      _check_process_name="$2"
+      _confirm_start_cmnd="ps -ef|grep '$2'"
       shift
       ;;
     -X[Bb])
@@ -95,55 +103,60 @@ export DOCKER_HOST DOCKER_TAG
 # Exit status
 EXIT_STATE=0
 
+# FIND CONTAINER ID BY TAG
+DOCKER_CONTAINER_ID=$($CDIR/get-container-id.sh "${DOCKER_TAG}")
+
 # Build and run
-: && {
+if [ -z "$DOCKER_CONTAINER_ID" ]
+then
 
-  DOCKER_CONTAINER_ID=$($CDIR/get-container-id.sh "${DOCKER_TAG}")
+  echo "$THIS: docker container not found."
+  echo "$THIS: docker build and run: tag='${DOCKER_TAG}'."
 
-  if [ -z "$DOCKER_CONTAINER_ID" ]
-  then
+  cd "${DDIR:-.}" && {
 
-    echo "$THIS: docker not found."
-    echo "$THIS: docker build and run: tag='${DOCKER_TAG}'."
+    : && {
+      echo "START." &&
+      echo "docker build -t ${DOCKER_TAG} ${DOCKER_BUILDER_OPTS} ." &&
+      docker build -t "${DOCKER_TAG}" ${DOCKER_BUILDER_OPTS} . ||
+      echo "ERROR OCCURED; ret($?)."
+      echo "END."
+    } 2>&1 |
+    while read stdoutln
+    do
+      echo "$THIS: BUILD: $stdoutln"
+    done
 
-    cd "${DDIR:-.}" && {
+  } && {
 
-      echo "$THIS: BUILD: START." &&
-      echo "$THIS: BUILD: docker build -t ${DOCKER_TAG} ${DOCKER_BUILDER_OPTS} ." &&
-      docker build -t "${DOCKER_TAG}" ${DOCKER_BUILDER_OPTS} . 2>&1 |
+    [ $_docker_not_running -ne 0 ] || {
+      
+      : && {
+        echo "START." &&
+        echo "docker run -P -d ${DOCKER_STARTUP_OPTS} ${DOCKER_TAG}" &&
+        docker run -P -d ${DOCKER_STARTUP_OPTS} "${DOCKER_TAG}" ||
+        echo "ERROR OCCURED; ret($?)."
+        echo "END."
+      } 2>&1 |
       while read stdoutln
       do
-        echo "$THIS: BUILD: $stdoutln"
-      done &&
-      echo "$THIS: BUILD: END."
-
-    } && {
-
-      [ $__docker_build_only -ne 0 ] || {
+        echo "$THIS: RUN: $stdoutln"
+      done
       
-        echo "$THIS: RUN: START." &&
-        echo "$THIS: RUN: docker run -P -d ${DOCKER_STARTUP_OPTS} ${DOCKER_TAG}" &&
-        docker run -P -d ${DOCKER_STARTUP_OPTS} "${DOCKER_TAG}" 2>&1 |
-        while read stdoutln
-        do
-          echo "$THIS: RUN: $stdoutln"
-        done &&
-        echo "$THIS: RUN: END."
-      
-      }
+    } # [ $_docker_not_running -ne 0 ] || {
 
-    }
+  }
 
-    EXIT_STATE=$?
+  EXIT_STATE=$?
 
-  else
+else
 
-    echo "$THIS: docker found: tag=$DOCKER_TAG, ID=$DOCKER_CONTAINER_ID."
-    EXIT_STATE=0
+  echo "$THIS: docker container found."
+  echo "$THIS:  Tag: $DOCKER_TAG"
+  echo "$THIS:  ID : $DOCKER_CONTAINER_ID"
+  EXIT_STATE=0
 
-  fi # if [ -z "$DOCKER_CONTAINER_ID" ]
-
-}
+fi # if [ -z "$DOCKER_CONTAINER_ID" ]
 
 # Checking exit status
 [ $EXIT_STATE -eq 0 ] &&
@@ -152,55 +165,66 @@ DOCKER_CONTAINER_ID=$($CDIR/get-container-id.sh "${DOCKER_TAG}")
 DOCKER_CONTAINER_ID=""
 
 # Checking build only mode
-[ $__docker_build_only -ne 0 ] &&
+[ $_docker_not_running -ne 0 ] &&
 DOCKER_CONTAINER_ID="" || :
 
 # Print ports
 [ -n "$DOCKER_CONTAINER_ID" ] && {
 
-  echo "$THIS: DOCKER ID=$DOCKER_CONTAINER_ID was started."
-
+  echo "$THIS: $DOCKER_CONTAINER_ID: ID '$DOCKER_CONTAINER_ID' was started."
+  
   docker port "$DOCKER_CONTAINER_ID" 2>/dev/null |
   while read stdoutln
   do
-    echo "$THIS: DOCKER ID=$DOCKER_CONTAINER_ID: portmap $stdoutln"
+    echo "$THIS: $DOCKER_CONTAINER_ID: portmap $stdoutln"
   done
 
-}
+} # [ -n "$DOCKER_CONTAINER_ID" ] && {
 
 # Check running process
 [ -n "$DOCKER_CONTAINER_ID" ] &&
-[ -n "$_check_process_name" ] && {
+[ -n "$_confirm_start_cmnd" ] && {
 
+  _retrymax=5
+  _wait_for=3
+  
   retry_cnt=0 
   retryover=1
+  dexec_ret=1
 
   sleep 1s
 
-  echo "$THIS: DOCKER ID=$DOCKER_CONTAINER_ID: Check the status of the process '$_check_process_name'."
+  : && {
+  
+    echo "Check the status of the command '$_confirm_start_cmnd'."
 
-  while [ $retry_cnt -le 5 ]
+    while [ $retry_cnt -le $_retrymax ]
+    do
+      docker exec \
+        "$DOCKER_CONTAINER_ID" "$_confirm_start_cmnd" 1>/dev/null 2>&1
+      dexec_ret=$?
+      [ $dexec_ret -eq 0 ] && {
+        echo "SUCCESS; command=[$_confirm_start_cmnd]"
+        retryover=0
+        break
+      }
+      retry_cnt=$(expr $retry_cnt + 1 2>/dev/null)
+      echo "FAILED($retry_cnt/$_retrymax); command=[$_confirm_start_cmnd], ret=[$dexec_ret]"
+      sleep $_wait_for
+    done
+
+    if [ $retryover -ne 0 ]
+    then
+      echo "GIVE-UP; command=[$_confirm_start_cmnd]"
+    fi
+  
+  } 2>&1 |
+  while read stdoutln
   do
-    _proc_cnt=$(
-      docker top "$DOCKER_CONTAINER_ID" |
-      grep "$_check_process_name" |wc -l 2>/dev/null )
-    [ -n "$_proc_cnt" ] &&
-    [ $_proc_cnt -ge 1 ] 1>/dev/null 2>&1 && {
-      echo "$THIS: DOCKER ID=$DOCKER_CONTAINER_ID: process ($_check_process_name) was started."
-      retryover=0
-      break
-    }
-    retry_cnt=$(expr $retry_cnt + 1 2>/dev/null)
-    echo "$THIS: DOCKER ID=$DOCKER_CONTAINER_ID: Wait for the process ($_check_process_name) to start ($retry_cnt/5)."
-    sleep 5s 
+    echo "$THIS: $DOCKER_CONTAINER_ID: $stdoutln"
   done
 
-  if [ $retryover -ne 0 ]
-  then
-    echo "$THIS: DOCKER ID=$DOCKER_CONTAINER_ID: Wait for the process ($_check_process_name) to start -> give up."
-  fi
-
-} # [ -n "$DOCKER_CONTAINER_ID" ] && [ -n "$_check_process_name" ]
+} # [ -n "$DOCKER_CONTAINER_ID" ] && ...
 
 # end
 exit $EXIT_STATE

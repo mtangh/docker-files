@@ -8,6 +8,16 @@ DOCKER_TAG="${DOCKER_TAG:-}"
 
 export DOCKER_HOST DOCKER_TAG
 
+# Dockerfile
+[ -r "$DDIR/Dockerfile" ] && {
+
+  eval $(
+  $CDIR/get-opts-from-dockerfile.sh "$DDIR/Dockerfile"
+  )
+
+} || :
+
+# Parse options
 while [ $# -gt 0 ]
 do
   case "$1" in

@@ -1,8 +1,11 @@
 #
 # centos6-init:java7
 #
-#@ DOCKER_TAG="centos6-init:java7"
-#@ DOCKER_STARTUP_OPTS="--host java7-machine"
+#@  DOCKER_TAG="centos6-init:java7"
+#@  DOCKER_BUILDER_OPTS=
+#@  DOCKER_STARTUP_OPTS="-h java7-machine"
+#@  CONTAINER_NOT_START="yes"
+#@  CONFIRM_STARTUP_CMD=""
 #
 FROM centos6-init:ssh
 
