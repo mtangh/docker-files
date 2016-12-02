@@ -33,7 +33,7 @@ done
   
   cat "${_dockerf}" |
   $SED -ne \
-  's;^#@[ ]*\([^ =]*\)[ ]*=[ ]*\([^ ]*\)[ ]*$;\1=\2;gp' \
+  's;^#@[ ]*\([_A-Za-z][_0-9A-Za-z]*\)[ ]*=[ ]*\(.*\)[ ]*$;\1=\2;gp' \
   2>/dev/null |
   while read variable
   do
