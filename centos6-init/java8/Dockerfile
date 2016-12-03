@@ -11,10 +11,11 @@ FROM centos6-init:ssh
 
 # Install packages
 RUN \
- cd /tmp && \
+ set -x; \
  url_base="http://download.oracle.com/otn-pub/java/jdk" && \
- curlopts='-s -LO -b "oraclelicense=accept-securebackup-cookie"' && \
- curl $curlopts "${url_base}/8u112-b15/jdk-8u112-linux-x64.rpm" && \
+ cd /tmp && \
+ curl -s -LO -b "oraclelicense=accept-securebackup-cookie" \
+ "${url_base}/8u112-b15/jdk-8u112-linux-x64.rpm" && \
  rpm -Uvh *.rpm && \
  rm -f *.rpm
 

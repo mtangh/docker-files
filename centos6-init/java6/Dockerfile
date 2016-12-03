@@ -11,12 +11,14 @@ FROM centos6-init:ssh
 
 # Install packages
 RUN \
- cd /tmp && \
+ set -x; \
  url_base="http://download.oracle.com/otn-pub/java/jdk" && \
- curlopts='-s -LO -b "oraclelicense=accept-securebackup-cookie"' && \
- curl $curlopts "${url_base}/6u45-b15/jdk-6u45-linux-x64.rpm" && \
- rpm -Uvh *.rpm && \
- rm -f *.rpm
+ yum -y update && \
+ cd /tmp && \
+ curl -s -LO -b "oraclelicense=accept-securebackup-cookie" \
+ "${url_base}/6u45-b06/jdk-6u45-linux-x64-rpm.bin" && \
+ sh *.bin && \
+ rm -f *.bin *.rpm
 
 # Bind port
 EXPOSE 22

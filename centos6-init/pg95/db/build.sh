@@ -3,7 +3,7 @@ THIS="${0##*/}"
 CDIR=$([ -n "${0%/*}" ] && cd "${0%/*}" 2>/dev/null; pwd)
 
 # Load the docker-pg.rc
-for dir in /root $CDIR{,/db,/..,/../db}
+for dir in $CDIR{,/db,/..,/../db}
 do
   [ -e "$dir/docker-pg.rc" ] && {
     . $dir/docker-pg.rc ||

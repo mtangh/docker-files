@@ -1,7 +1,7 @@
 # docker-pg.rc
 
 # PostgreSQL Install Source
-PGSQL_VER=9.4.10
+PGSQL_VER=9.5.5
 PGSQLBASE="postgresql-${PGSQL_VER}"
 PGSQL_SRC="https://ftp.postgresql.org/pub/source/v${PGSQL_VER}/${PGSQLBASE}.tar.gz"
 
