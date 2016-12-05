@@ -1,6 +1,5 @@
 #!/bin/sh
 # postgresql   This is the init script for starting up the PostgreSQL
-#              server For JCI Service System
 #
 # chkconfig: - 64 36
 # description: Starts and stops the PostgreSQL backend daemon that handles \
@@ -9,56 +8,54 @@
 # pidfile: /var/run/postmaster.pid
 
 # Source function library.
-. /etc/rc.d/init.d/functions
+[ -r "/etc/rc.d/init.d/functions" ] &&
+  . /etc/rc.d/init.d/functions
+
+# Get config.
+[ -r "/etc/sysconfig/postgresql" ] &&
+  . /etc/sysconfig/postgresql
 
 # Get function listing for cross-distribution logic.
 TYPESET=`typeset -f|grep "declare"`
 
-# Get config.
-. /etc/sysconfig/network
-
 # Find the name of the script
 NAME=`basename $0`
 unset ISBOOT
-if [ ${NAME:0:1} = "S" -o ${NAME:0:1} = "K" ]; then
+if [ ${NAME:0:1} = "S" -o ${NAME:0:1} = "K" ]
+then
   NAME=${NAME:3}
   ISBOOT=1
 fi
 
 # For SELinux we need to use 'runuser' not 'su'
-if [ -x /sbin/runuser ]; then
+if [ -x "/sbin/runuser" ]
+then
   SU=runuser
 else
   SU=su
 fi
 
 # PostgreSQL Super user
-PGUSER=postgres
-
-# postgresql commands
-POSTMASTER=/opt/postgresql/bin/postmaster
-PG_CONTROL=/opt/postgresql/bin/pg_ctl
+PGUSER="${PGUSER:-postgres}"
 
 # directories
-PGHOME=/home/postgres
-PGROOT=/opt/postgresql
-PGDATA=/opt/postgresql/data
-PGPORT=5480
+PGHOME="${PGHOME:-/opt/postgresql}"
+PGDATA="${PGDATA:-$PGHOME/data}"
+PGPORT="${PGPORT:-5432}"
+
+# postgresql commands
+POSTMASTER="${PGHOME}/bin/postmaster"
+PG_CONTROL="${PGHOME}/bin/pg_ctl"
 
 # log file
-PG_LOG=/var/log/postgresql.log
+PG_LOG="${PG_LOG:-/var/log/postgresql.log}"
 
 # export environment variables
-export PGDATA
-export PGPORT
-
-# Check that networking is up.
-if [ "${NETWORKING}" = "no" ]; then
-  exit 1
-fi
+export PGDATA PGPORT
 
 # Pretty much need it for postmaster.
-if [ ! -f "$POSTMASTER" ]; then
+if [ ! -f "$POSTMASTER" ]
+then
   exit 1
 fi
 
@@ -70,43 +67,47 @@ script_result=0
 ##
 
 start() {
-  PG_INIT_DB=$PGROOT/bin/initdb
   PSQL_START=$"Starting ${NAME} service: "
 
   # Make sure startup-time log file is valid
-  if [ ! -e "$PG_LOG" -a ! -h "$PG_LOG" ]; then
+  if [ ! -e "$PG_LOG" -a ! -h "$PG_LOG" ]
+  then
     touch "$PG_LOG" || exit 1
-    chown $PGUSER:$PGUSER "$PG_LOG"
+    chown "$PGUSER:$PGUSER" "$PG_LOG"
     chmod 0660 "$PG_LOG"
-    if [ -x /usr/bin/chcon ]; then
+    if [ -x /usr/bin/chcon ]
+    then
       /usr/bin/chcon -u system_u -r object_r -t postgresql_log_t "$PG_LOG" 2>/dev/null
     fi
   fi
 
-  echo -n "$PSQL_START"
-  $SU -l $PGUSER -c "$POSTMASTER -p '$PGPORT' -D '$PGDATA' ${PGOPTS} &" >> "$PG_LOG" 2>&1 < /dev/null
+  echo -n $"Starting ${NAME} service: "
+  $SU -l "$PGUSER" -c "$POSTMASTER -p '$PGPORT' -D '$PGDATA' ${PGOPTS} &" 1>>"$PG_LOG" 2>&1 </dev/null
   sleep 2
   pid=`pidof -s "$POSTMASTER"`
-  if [ $pid ] && [ -f "${PGDATA}/postmaster.pid" ]; then
-    success "$PSQL_START"
-    touch /var/lock/subsys/${NAME}
-    head -n 1 "${PGDATA}/postmaster.pid" > "/var/run/postmaster.${PGPORT}.pid"
-    echo
+  if [ -n "$pid" ] &&
+     [ -f "${PGDATA}/postmaster.pid" ]
+  then
+    echo_success
+    touch "/var/lock/subsys/${NAME}"
+    head -n 1 "${PGDATA}/postmaster.pid" >"/var/run/postmaster.${PGPORT}.pid"
   else
-    failure "$PSQL_START"
-    echo
+    echo_failure
     script_result=1
   fi
+  echo
   
+  return $script_result
 }
 
 stop() {
 
   # Stopping PostgreSQL Service
   echo -n $"Stopping ${NAME} service: "
-  $SU -l $PGUSER -c "$PG_CONTROL stop -D '$PGDATA' -s -m fast" > /dev/null 2>&1 < /dev/null
+  $SU -l "$PGUSER" -c "$PG_CONTROL stop -D '$PGDATA' -s -m fast" 1>/dev/null 2>&1 </dev/null
   ret=$?
-  if [ $ret -eq 0 ]; then
+  if [ $ret -eq 0 ]
+  then
     echo_success
   else
     echo_failure
@@ -116,14 +117,11 @@ stop() {
   rm -f "/var/run/postmaster.${PGPORT}.pid"
   rm -f "/var/lock/subsys/${NAME}"
 
+  return  $script_result
 }
 
 status() {
   status postmaster
-  script_result=$?
-}
-allstatus() {
-  status postmaster && status slon
   script_result=$?
 }
 
@@ -132,18 +130,31 @@ restart() {
   start
 }
 
-condrestart() {
-  if [ -e /var/lock/subsys/${NAME} ]; then
+condstart() {
+  if [ ! -e "/var/lock/subsys/${NAME}" ]
+  then
     restart
   fi
 }
+
 condstop() {
-  if [ -e /var/lock/subsys/${NAME} ]; then
+  if [ -e "/var/lock/subsys/${NAME}" ]
+  then
     stop
   fi
 }
+
+condrestart() {
+  if [ -e "/var/lock/subsys/${NAME}" ]
+  then
+    restart
+  else
+    start
+  fi
+}
+
 reload() {
-  $SU -l $PGUSER -c "$PG_CONTROL reload -D '$PGDATA' -s" > /dev/null 2>&1 < /dev/null
+  $SU -l "$PGUSER" -c "$PG_CONTROL reload -D '$PGDATA' -s" 1>/dev/null 2>&1 </dev/null
 }
 
 # This script is slightly unusual in that the name of the daemon (postmaster)
@@ -151,11 +162,14 @@ reload() {
 
 # See how we were called.
 case "$1" in
-start|stop|status|allstatus|restart|condrestart|condstop|reload)
+start|stop|restart|status|reload)
+  $1
+  ;;
+condrestart|condstop)
   $1
   ;;
 *)
-  echo $"Usage: $NAME {start|stop|status|allstatus|restart|condrestart|condstop|reload}"
+  echo $"Usage: $NAME {start|stop|restart|status|condrestart|condstop|reload}"
   script_result=1
   ;;
 esac

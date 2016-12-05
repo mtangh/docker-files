@@ -8,6 +8,10 @@ DOCKER_TAG="${DOCKER_TAG:-}"
 
 export DOCKER_HOST DOCKER_TAG
 
+# docker-bin functions
+. $CDIR/functions.sh 1>/dev/null 2>&1 ||
+  exit 127
+
 # docker build options
 DOCKER_BUILDER_OPTS=""
 # docker startup(run) options
@@ -39,6 +43,14 @@ _confirm_start_cmnd=""
 
 # Flags
 _in_docker_ext_opts=0
+
+# output filter
+__outfilter() {
+  __prefix="$THIS: "$([ -n "$1" ] && echo "$1: ")
+  col -bx |
+  awk -v p="$__prefix" '{$0=p$0;print}' 2>/dev/null
+  return 0
+}
 
 # Parsing an options
 while [ $# -gt 0 ]
@@ -110,50 +122,67 @@ DOCKER_CONTAINER_ID=$($CDIR/get-container-id.sh "${DOCKER_TAG}")
 if [ -z "$DOCKER_CONTAINER_ID" ]
 then
 
-  echo "$THIS: docker container not found."
-  echo "$THIS: docker build and run: tag='${DOCKER_TAG}'."
+  : && {
+    echo "docker container not found."
+    echo "docker build and run: tag='${DOCKER_TAG}'."
+  } |
+  __outfilter
 
-  cd "${DDIR:-.}" && {
+  # Build
+  __separator
+
+  : && {
+    __echo_start \
+    docker build -t "${DOCKER_TAG}" ${DOCKER_BUILDER_OPTS} .
+    docker build -t "${DOCKER_TAG}" ${DOCKER_BUILDER_OPTS} .
+    __echo_end $?
+  } 2>&1 |
+  while read stdoutln
+  do
+    echo "$THIS: BUILD: "$(echo "$stdoutln"|col -bx)
+  done
+
+  EXIT_STATE=${PIPESTATUS[0]}
+  test $EXIT_STATE -eq 0 || {
+    exit $EXIT_STATE
+  }
+
+  # Run
+  [ $_docker_not_running -ne 0 ] || {
+      
+    __separator
 
     : && {
-      echo "START." &&
-      echo "docker build -t ${DOCKER_TAG} ${DOCKER_BUILDER_OPTS} ." &&
-      docker build -t "${DOCKER_TAG}" ${DOCKER_BUILDER_OPTS} . ||
-      echo "ERROR OCCURED; ret($?)."
-      echo "END."
+      __echo_start \
+      docker run -P -d ${DOCKER_STARTUP_OPTS} "${DOCKER_TAG}"
+      docker run -P -d ${DOCKER_STARTUP_OPTS} "${DOCKER_TAG}"
+      __echo_end $?
     } 2>&1 |
     while read stdoutln
     do
-      echo "$THIS: BUILD: $stdoutln"
+      echo "$THIS: RUN: $stdoutln"
     done
 
-  } && {
+    EXIT_STATE=${PIPESTATUS[0]}
+    test $EXIT_STATE -eq 0 || {
+      exit $EXIT_STATE
+    }
 
-    [ $_docker_not_running -ne 0 ] || {
-      
-      : && {
-        echo "START." &&
-        echo "docker run -P -d ${DOCKER_STARTUP_OPTS} ${DOCKER_TAG}" &&
-        docker run -P -d ${DOCKER_STARTUP_OPTS} "${DOCKER_TAG}" ||
-        echo "ERROR OCCURED; ret($?)."
-        echo "END."
-      } 2>&1 |
-      while read stdoutln
-      do
-        echo "$THIS: RUN: $stdoutln"
-      done
-      
-    } # [ $_docker_not_running -ne 0 ] || {
+  } # [ $_docker_not_running -ne 0 ] || {
 
-  }
-
-  EXIT_STATE=$?
+  EXIT_STATUS=0
 
 else
 
-  echo "$THIS: docker container found."
-  echo "$THIS:  Tag: $DOCKER_TAG"
-  echo "$THIS:  ID : $DOCKER_CONTAINER_ID"
+  : && {
+    echo "docker container found."
+    echo "  Tag: $DOCKER_TAG"
+    echo "  ID : $DOCKER_CONTAINER_ID"
+  } 2>&1 |
+  while read stdoutln
+  do
+    echo "$THIS: BUILD: $stdoutln"
+  done
   EXIT_STATE=0
 
 fi # if [ -z "$DOCKER_CONTAINER_ID" ]
@@ -171,15 +200,25 @@ DOCKER_CONTAINER_ID="" || :
 # Print ports
 [ -n "$DOCKER_CONTAINER_ID" ] && {
 
-  echo "$THIS: $DOCKER_CONTAINER_ID: ID '$DOCKER_CONTAINER_ID' was started."
+  __separator
+
+  : && {
+
+    echo "ID '$DOCKER_CONTAINER_ID' was started."
   
-  docker port "$DOCKER_CONTAINER_ID" 2>/dev/null |
+    docker port "$DOCKER_CONTAINER_ID" 2>&1 |
+    while read stdoutln
+    do
+      echo "portmapD - $stdoutln"
+    done
+
+  } 2>&1 |
   while read stdoutln
   do
-    echo "$THIS: $DOCKER_CONTAINER_ID: portmap $stdoutln"
+    echo "$THIS: $DOCKER_CONTAINER_ID: $stdoutln"
   done
 
-} # [ -n "$DOCKER_CONTAINER_ID" ] && {
+}
 
 # Check running process
 [ -n "$DOCKER_CONTAINER_ID" ] &&
@@ -193,6 +232,8 @@ DOCKER_CONTAINER_ID="" || :
   dexec_ret=1
 
   sleep 1s
+
+  __separator
 
   : && {
   

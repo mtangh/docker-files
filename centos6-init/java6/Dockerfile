@@ -9,16 +9,41 @@
 #
 FROM centos6-init:ssh
 
-# Install packages
+# Maintainer
+MAINTAINER MT
+
+# JDK Version
+ARG jdk_version=6u45
+ARG jdk_build_no=b06
+ARG jdk_file_name="jdk-${jdk_version}-linux-x64-rpm.bin"
+
+# Work dir.
+ARG \
+ workdir=/tmp/workdir
+WORKDIR \
+ "${workdir}"
+
+# Install JDK
 RUN \
  set -x; \
  url_base="http://download.oracle.com/otn-pub/java/jdk" && \
+ jdk_path="/${jdk_version}-${jdk_build_no}/${jdk_file_name}" && \
+ curlopts="-s -LO" && \
+ o_cookie="oraclelicense=accept-securebackup-cookie" && \
  yum -y update && \
- cd /tmp && \
- curl -s -LO -b "oraclelicense=accept-securebackup-cookie" \
- "${url_base}/6u45-b06/jdk-6u45-linux-x64-rpm.bin" && \
- sh *.bin && \
- rm -f *.bin *.rpm
+ curl ${curlopts} -b "${o_cookie}" "${url_base}/${jdk_path}" && \
+ case "${jdk_file_name}" in \
+ *.bin)  sh *.bin ;; \
+ *.rpm)  rpm -Uvh *.rpm ;; \
+ *) ;; \
+ esac && \
+ rm -f ./*.*
+
+# Cleanup workdir
+WORKDIR \
+ /root
+RUN \
+ rm -rf "${workdir}"
 
 # Bind port
 EXPOSE 22
