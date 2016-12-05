@@ -9,12 +9,60 @@
 #
 FROM centos6-init:ssh
 
+# Maintainer
+MAINTAINER MT
+
+# OnBuild Trigger
+ONBUILD \
+ ARG workdir=/tmp/workdir
+ONBUILD \
+ WORKDIR ${workdir}/www
+ONBUILD \
+ COPY *.* ${workdir}/www/
+ONBUILD \
+ RUN \
+  set -x; \
+  bash /root/pg-dbbuild.sh -p "${PGPORT}" ${workdir}/db && \
+  rm -rf "${workdir}/db"
+ONBUILD \
+ WORKDIR /root
+ONBUILD \
+ RUN \
+  rm -rf "${workdir}"
+
+# Work dir.
+ARG \
+ workdir=/tmp/workdir
+WORKDIR \
+ "${workdir}"
+
 # Install packages for Apache (and PHP)
 RUN \
- yum check && \
+ set -x; \
  yum -y update && \
  yum -y install httpd mod-ssl php && \
- yum clean -y all
+ yum -y clean all
+
+# Change the httpd.conf
+RUN \
+ set -x; \
+ httpd_conf="/etc/httpd/httpd.conf"; \
+ [ -e "${httpdconf}.ORIG" ] || \
+ cp -Pf "${httpdconf}"{,.ORIG}; \
+ sed -ri 's###g' "$httpdconf" &&
+ /user/sbin/httpd -t
+
+# Add service
+RUN \
+ set -x; \
+ /sbin/chkconfig --add httpd 1>/dev/null 2>&1 || : ; \
+ /sbin/chkconfig --levels 2345 httpd on 1>/dev/null 2>&1 || : ;
+
+# Cleanup workdir
+WORKDIR \
+ /root
+RUN \
+ rm -rf "${workdir}"
 
 # Bind port
 EXPOSE 22 80 443 8080 8443
