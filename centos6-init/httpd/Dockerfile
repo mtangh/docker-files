@@ -22,7 +22,6 @@ ONBUILD \
 ONBUILD \
  RUN \
   set -x; \
-  bash /root/pg-dbbuild.sh -p "${PGPORT}" ${workdir}/db && \
   rm -rf "${workdir}/db"
 ONBUILD \
  WORKDIR /root
@@ -46,11 +45,13 @@ RUN \
 # Change the httpd.conf
 RUN \
  set -x; \
- httpd_conf="/etc/httpd/httpd.conf"; \
- [ -e "${httpdconf}.ORIG" ] || \
- cp -Pf "${httpdconf}"{,.ORIG}; \
- sed -ri 's###g' "$httpdconf" &&
- /user/sbin/httpd -t
+ httpd_conf="/etc/httpd/conf/httpd.conf"; \
+ [ -e "${httpdi_conf}.ORIG" ] || \
+ cp -Pf "${httpd_conf}"{,.ORIG}; \
+ sed -ri 's#^(ServerAdmin)[ ][ ]*.*$#\1 admin@localhost#g' "$httpd_conf" && \
+ sed -ri 's#^(ServerTokens)[ ][ ]*.*$#\1 Prod#g' "$httpd_conf" && \
+ sed -ri 's#^(ServerSignature)[ ][ ]*.*$#\1 Off#g' "$httpd_conf" && \
+ /usr/sbin/httpd -t
 
 # Add service
 RUN \
@@ -65,7 +66,7 @@ RUN \
  rm -rf "${workdir}"
 
 # Bind port
-EXPOSE 22 80 443 8080 8443
+EXPOSE 22 80 443
 
 # Start /sbin/init
 CMD /sbin/init
