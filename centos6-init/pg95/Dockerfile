@@ -1,7 +1,8 @@
 #
 # centos6-init:pg95
 #
-#@  DOCKER_TAG="centos6-init:pg95"
+#@  DOCKER_CONTAINER=""
+#@  DOCKER_IMAGE_TAG="centos6-init:pg95"
 #@  DOCKER_BUILDER_OPTS=
 #@  DOCKER_STARTUP_OPTS="-h pg95-server"
 #@  CONTAINER_NOT_START=""
@@ -73,7 +74,21 @@ RUN \
  set -x; . /etc/sysconfig/postgresql && \
  groupadd -g "${PG_UID:-26}" "${PGUSER}" && \
  useradd -u "${PG_UID:-26}" -g "${PGUSER}" -m "${PGUSER}" && \
- echo "${PGUSER}:${PGPASSWORD:-$PGUSER}" |chpasswd
+ echo "${PGUSER}:${PGPASSWORD:-$PGUSER}" |chpasswd && \
+ [ -d "/home/${PGUSER}" ] || { \
+  mkdir -p "/home/${PGUSER}" && \
+  chown "${PGUSER}:${PGUSER}" "/home/${PGUSER}" && \
+  chmod 0755 "/home/${PGUSER}"; \
+ }; \
+ : && { \
+  echo && \
+  echo '. /etc/sysconfig/postgresql' && \
+  echo 'export "${PGHOME}"' && \
+  echo 'export "${PGDATA}"' && \
+  echo 'export PATH="${PATH}:${PGHOME}/bin"' && \
+  echo; \
+ } >>"/home/${PGUSER}/.bashrc"
+
 
 # Install postgresql
 ARG \
@@ -183,7 +198,5 @@ RUN \
  rm -rf "${workdir}"
 
 # Bind port
-EXPOSE 22 "${PGPORT}"
+EXPOSE "${PGPORT}"
 
-# Start /sbin/init
-CMD /sbin/init

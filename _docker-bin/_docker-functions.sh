@@ -1,4 +1,4 @@
-# functions.sh
+# _docker-functions.sh
 THIS=${THIS:-DOCKER-BIN}
 
 # echo start
@@ -22,19 +22,6 @@ __echo_end() {
   return 0
 }
 
-# command
-__command() {
-  echo "START - $(date +'%Y%m%dT%H%M%S')"
-  echo "COMMAND=[$@]"
-  eval "$@"; _exit_st=$?
-  [ $_exit_st -ne 0 ] && {
-    echo "ERROR OCCURED - ret($_exit_st)."
-    exit $_exit_st
-  }
-  echo "END - $(date +'%Y%m%dT%H%M%S')"
-  return $_exit_st
-}
-
 # output filter
 __outfilter() {
   __prefix="$THIS: "$([ -n "$1" ] && echo "$1: ")
@@ -52,4 +39,5 @@ __separator() {
   return 0
 }
 
+# end
 return 0

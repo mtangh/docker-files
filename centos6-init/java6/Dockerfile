@@ -1,7 +1,8 @@
 #
 # centos6-init:java6
 #
-#@  DOCKER_TAG="centos6-init:java6"
+#@  DOCKER_CONTAINER=""
+#@  DOCKER_IMAGE_TAG="centos6-init:java6"
 #@  DOCKER_BUILDER_OPTS=
 #@  DOCKER_STARTUP_OPTS="-h java6-machine"
 #@  CONTAINER_NOT_START="yes"
@@ -33,10 +34,11 @@ RUN \
  yum -y update && \
  curl ${curlopts} -b "${o_cookie}" "${url_base}/${jdk_path}" && \
  case "${jdk_file_name}" in \
- *.bin)  sh *.bin ;; \
- *.rpm)  rpm -Uvh *.rpm ;; \
+ *.bin) sh *.bin ;; \
+ *.rpm) rpm -Uvh jdk*.rpm ;; \
  *) ;; \
  esac && \
+ yum -y clean all && \
  rm -f ./*.*
 
 # Cleanup workdir
@@ -45,8 +47,3 @@ WORKDIR \
 RUN \
  rm -rf "${workdir}"
 
-# Bind port
-EXPOSE 22
-
-# Start /sbin/init
-CMD /sbin/init

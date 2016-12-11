@@ -1,14 +1,14 @@
 #
-# centos6-init:ssh
+# centos7-init:ssh
 #
 #@  DOCKER_CONTAINER=""
-#@  DOCKER_IMAGE_TAG="centos6-init:ssh"
+#@  DOCKER_IMAGE_TAG="centos7-init:ssh"
 #@  DOCKER_BUILDER_OPTS=
 #@  DOCKER_STARTUP_OPTS="-h ssh-server"
 #@  CONTAINER_NOT_START=""
 #@  CONFIRM_STARTUP_CMD=""
 #
-FROM centos:centos6
+FROM centos:centos7
 
 # Maintainer
 MAINTAINER MT

@@ -4,12 +4,10 @@ CDIR=$([ -n "${0%/*}" ] && cd "${0%/*}" 2>/dev/null; pwd)
 DDIR=$(pwd)
 
 DOCKER_HOST="${DOCKER_HOST:-tcp://127.0.0.1:4243}"
-DOCKER_TAG="${DOCKER_TAG:-}"
-
-export DOCKER_HOST DOCKER_TAG
+export DOCKER_HOST
 
 # docker-bin functions
-. $CDIR/functions.sh 1>/dev/null 2>&1 ||
+. $CDIR/_docker-functions.sh 1>/dev/null 2>&1 ||
   exit 127
 
 # docker build options
@@ -21,7 +19,7 @@ DOCKER_STARTUP_OPTS=""
 [ -r "$DDIR/Dockerfile" ] && {
 
   eval $(
-  $CDIR/get-opts-from-dockerfile.sh "$DDIR/Dockerfile"
+  $CDIR/_docker-get-opts-from-dockerfile.sh "$DDIR/Dockerfile"
   )
   
   # Build only
@@ -43,14 +41,6 @@ _confirm_start_cmnd=""
 
 # Flags
 _in_docker_ext_opts=0
-
-# output filter
-__outfilter() {
-  __prefix="$THIS: "$([ -n "$1" ] && echo "$1: ")
-  col -bx |
-  awk -v p="$__prefix" '{$0=p$0;print}' 2>/dev/null
-  return 0
-}
 
 # Parsing an options
 while [ $# -gt 0 ]
@@ -78,9 +68,9 @@ do
     -*)
       ;;
     *)
-      if [ -z "$DOCKER_TAG" ]
+      if [ -z "$DOCKER_IMAGE_TAG" ]
       then
-        DOCKER_TAG="$1"
+        DOCKER_IMAGE_TAG="$1"
       fi
       ;;
     esac
@@ -105,18 +95,21 @@ done
   exit 127
 }
 
-[ -n "${DOCKER_TAG}" ] || {
-  echo "$THIS: ERROR: 'DOCKER_TAG' not set." 1>&2
+[ -n "${DOCKER_IMAGE_TAG}" ] || {
+  echo "$THIS: ERROR: 'DOCKER_IMAGE_TAG' not set." 1>&2
   exit 127
 }
-
-export DOCKER_HOST DOCKER_TAG
 
 # Exit status
 EXIT_STATE=0
 
 # FIND CONTAINER ID BY TAG
-DOCKER_CONTAINER_ID=$($CDIR/get-container-id.sh "${DOCKER_TAG}")
+[ -n "${DOCKER_CONTAINER}" ] &&
+[ -z "${DOCKER_CONTAINER_ID}" ] &&
+DOCKER_CONTAINER_ID=$($CDIR/_docker-get-container-id.sh "${DOCKER_CONTAINER}")
+[ -n "${DOCKER_IMAGE_TAG}" ] &&
+[ -z "${DOCKER_CONTAINER_ID}" ] &&
+DOCKER_CONTAINER_ID=$($CDIR/_docker-get-container-id.sh "${DOCKER_IMAGE_TAG}")
 
 # Build and run
 if [ -z "$DOCKER_CONTAINER_ID" ]
@@ -124,7 +117,7 @@ then
 
   : && {
     echo "docker container not found."
-    echo "docker build and run: tag='${DOCKER_TAG}'."
+    echo "docker build and run: tag='${DOCKER_IMAGE_TAG}'."
   } |
   __outfilter
 
@@ -133,8 +126,8 @@ then
 
   : && {
     __echo_start \
-    docker build -t "${DOCKER_TAG}" ${DOCKER_BUILDER_OPTS} .
-    docker build -t "${DOCKER_TAG}" ${DOCKER_BUILDER_OPTS} .
+    docker build -t "${DOCKER_IMAGE_TAG}" ${DOCKER_BUILDER_OPTS} .
+    docker build -t "${DOCKER_IMAGE_TAG}" ${DOCKER_BUILDER_OPTS} .
     __echo_end $?
   } 2>&1 |
   while read stdoutln
@@ -152,10 +145,14 @@ then
       
     __separator
 
+    [ -n "$DOCKER_CONTAINER" ] && {
+      DOCKER_STARTUP_OPTS="--name $DOCKER_CONTAINER ${DOCKER_STARTUP_OPTS}"
+    }
+
     : && {
       __echo_start \
-      docker run -P -d ${DOCKER_STARTUP_OPTS} "${DOCKER_TAG}"
-      docker run -P -d ${DOCKER_STARTUP_OPTS} "${DOCKER_TAG}"
+      docker run -P -d ${DOCKER_STARTUP_OPTS} "${DOCKER_IMAGE_TAG}"
+      docker run -P -d ${DOCKER_STARTUP_OPTS} "${DOCKER_IMAGE_TAG}"
       __echo_end $?
     } 2>&1 |
     while read stdoutln
@@ -176,7 +173,7 @@ else
 
   : && {
     echo "docker container found."
-    echo "  Tag: $DOCKER_TAG"
+    echo "  Tag: $DOCKER_IMAGE_TAG"
     echo "  ID : $DOCKER_CONTAINER_ID"
   } 2>&1 |
   while read stdoutln
@@ -188,8 +185,14 @@ else
 fi # if [ -z "$DOCKER_CONTAINER_ID" ]
 
 # Checking exit status
-[ $EXIT_STATE -eq 0 ] &&
-DOCKER_CONTAINER_ID=$($CDIR/get-container-id.sh "${DOCKER_TAG}")
+[ $EXIT_STATE -eq 0 ] && {
+  [ -n "${DOCKER_CONTAINER}" ] &&
+  [ -z "${DOCKER_CONTAINER_ID}" ] &&
+  DOCKER_CONTAINER_ID=$($CDIR/_docker-get-container-id.sh "${DOCKER_CONTAINER}")
+  [ -n "${DOCKER_IMAGE_TAG}" ] &&
+  [ -z "${DOCKER_CONTAINER_ID}" ] &&
+  DOCKER_CONTAINER_ID=$($CDIR/_docker-get-container-id.sh "${DOCKER_IMAGE_TAG}")
+}
 [ $EXIT_STATE -eq 0 ] ||
 DOCKER_CONTAINER_ID=""
 

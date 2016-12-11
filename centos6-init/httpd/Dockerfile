@@ -1,7 +1,8 @@
 #
 # centos6-init:httpd
 #
-#@  DOCKER_TAG="centos6-init:httpd"
+#@  DOCKER_CONTAINER=""
+#@  DOCKER_IMAGE_TAG="centos6-init:httpd"
 #@  DOCKER_BUILDER_OPTS=
 #@  DOCKER_STARTUP_OPTS="-h httpd-server"
 #@  CONTAINER_NOT_START=""
@@ -66,7 +67,5 @@ RUN \
  rm -rf "${workdir}"
 
 # Bind port
-EXPOSE 22 80 443
+EXPOSE 80 443
 
-# Start /sbin/init
-CMD /sbin/init

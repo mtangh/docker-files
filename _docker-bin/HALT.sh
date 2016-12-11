@@ -4,19 +4,17 @@ CDIR=$([ -n "${0%/*}" ] && cd "${0%/*}" 2>/dev/null; pwd)
 DDIR=$(pwd)
 
 DOCKER_HOST="${DOCKER_HOST:-tcp://127.0.0.1:4243}"
-DOCKER_TAG="${DOCKER_TAG:-}"
-
-export DOCKER_HOST DOCKER_TAG
+export DOCKER_HOST
 
 # docker-bin functions
-. $CDIR/functions.sh 1>/dev/null 2>&1 ||
+. $CDIR/_docker-functions.sh 1>/dev/null 2>&1 ||
   exit 127
 
 # Dockerfile
 [ -r "$DDIR/Dockerfile" ] && {
 
   eval $(
-  $CDIR/get-opts-from-dockerfile.sh "$DDIR/Dockerfile"
+  $CDIR/_docker-get-opts-from-dockerfile.sh "$DDIR/Dockerfile"
   )
 
 } || :
@@ -34,9 +32,9 @@ do
   -*)
     ;;
   *)
-    if [ -z "$DOCKER_TAG" ]
+    if [ -z "$DOCKER_IMAGE_TAG" ]
     then
-      DOCKER_TAG="$1"
+      DOCKER_IMAGE_TAG="$1"
     fi
     ;;
   esac
@@ -47,29 +45,32 @@ done
   echo "$THIS: ERROR: 'DOCKER_HOST' not set." 1>&2
   exit 127
 }
-[ -n "${DOCKER_TAG}" ] || {
-  echo "$THIS: ERROR: 'DOCKER_TAG' not set." 1>&2
+[ -n "${DOCKER_IMAGE_TAG}" ] || {
+  echo "$THIS: ERROR: 'DOCKER_IMAGE_TAG' not set." 1>&2
   exit 1
 }
-
-export DOCKER_HOST DOCKER_TAG
 
 # Exit status
 EXIT_STATE=0
 
 # FIND CONTAINER ID BY TAG
-DOCKER_CONTAINER_ID=$($CDIR/get-container-id.sh "${DOCKER_TAG}")
+[ -n "${DOCKER_CONTAINER}" ] &&
+[ -z "${DOCKER_CONTAINER_ID}" ] &&
+DOCKER_CONTAINER_ID=$($CDIR/_docker-get-container-id.sh "${DOCKER_CONTAINER}")
+[ -n "${DOCKER_IMAGE_TAG}" ] &&
+[ -z "${DOCKER_CONTAINER_ID}" ] &&
+DOCKER_CONTAINER_ID=$($CDIR/_docker-get-container-id.sh "${DOCKER_IMAGE_TAG}")
 
 # Found container ?
 if [ -z "$DOCKER_CONTAINER_ID" ]
 then
-  echo "$THIS: ERROR: docker not found: tag=$DOCKER_TAG." 1>&2
+  echo "$THIS: ERROR: docker not found: tag=$DOCKER_IMAGE_TAG." 1>&2
   exit 1
 fi
 
 # Stop and remove
 : && {
-  echo "docker found: tag=$DOCKER_TAG, ID=$DOCKER_CONTAINER_ID."
+  echo "docker found: tag=$DOCKER_IMAGE_TAG, ID=$DOCKER_CONTAINER_ID."
   [ $_stop_only_noremove -ne 0 ] &&
   echo "Stop docker-container '${DOCKER_CONTAINER_ID}'."
   [ $_stop_only_noremove -ne 0 ] ||

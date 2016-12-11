@@ -164,3 +164,4 @@ Dockerfile    text eol=crlf
 *.dbproj      text eol=crlf
 *.props       text eol=crlf
 *.filters     text eol=crlf
+

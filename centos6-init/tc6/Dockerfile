@@ -1,7 +1,8 @@
 #
 # centos6-init:tc6
 #
-#@  DOCKER_TAG="centos6-init:tc6"
+#@  DOCKER_CONTAINER=""
+#@  DOCKER_IMAGE_TAG="centos6-init:tc6"
 #@  DOCKER_BUILDER_OPTS=
 #@  DOCKER_STARTUP_OPTS="-h tomcat6-server"
 #@  CONTAINER_NOT_START=""

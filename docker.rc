@@ -1,19 +1,192 @@
 # docker.rc
 DOCKER_RC_FILE="${BASH_SOURCE##*/}"
 DOCKERFILESDIR=$([ -n "${BASH_SOURCE%/*}" ] && cd "${BASH_SOURCE%/*}" 2>/dev/null; pwd)
+DOCKER_BIN_DIR="${DOCKERFILESDIR}/_docker-bin"
 
-echo "$PATH" |
-grep -E '^(.+:|)'"${DOCKERFILESDIR}/_docker-bin"'(:.+|)$' 1>/dev/null 2>&1 || {
-  PATH="${PATH}:${DOCKERFILESDIR}/_docker-bin"
-  export PATH
-}
+if [ -d "$DOCKER_BIN_DIR" ]
+then
+  echo "$PATH" |
+  grep -E '^(.+:|)'"${DOCKERFILESDIR}/_docker-bin"'(:.+|)$' 1>/dev/null 2>&1 || {
+    PATH="${PATH}:${DOCKERFILESDIR}/_docker-bin"
+    export PATH
+  }
+fi
 
 # DOCKER Host
 [ -z "${DOCKER_HOST}" ] &&
 [ -x "$(type -P docker-machine)" ] &&
 DOCKER_HOST=$(docker-machine url)
+[ -z "${DOCKER_HOST}" ] &&
 DOCKER_HOST="${DOCKER_HOST:-tcp://127.0.0.1:4243}"
 export DOCKER_HOST
 
+# docker container env
+docker-container-env() {
+  [ -r "$(pwd)/Dockerfile" ] &&
+  [ -n "$(type -P _docker-get-opts-from-dockerfile.sh)" ] && {
+    $DOCKER_BIN_DIR/_docker-get-opts-from-dockerfile.sh "$(pwd)/Dockerfile"
+  }
+  return $?
+}
+
+# docker host addr
+docker-host-addr() {
+  local _docker_host="${DOCKER_HOST}"
+  [ -z "$_docker_host" ] &&
+  [ -n "$(type -P docker-machine)" ] && {
+    _docker_host="$(docker-machine url)"
+  }
+  [ -n "$_docker_host" ] && {
+    _docker_host="${_docker_host##*//}"
+    _docker_host="${_docker_host%%:*}"
+    echo "$_docker_host"
+  }
+  return $?;
+}
+
+# docker host port
+docker-host-port() {
+  local _docker_host="${DOCKER_HOST}"
+  [ -z "$_docker_host" ] &&
+  [ -n "$(type -P docker-machine)" ] && {
+    _docker_host="$(docker-machine url)"
+  }
+  [ -n "$_docker_host" ] && {
+    _docker_host="${_docker_host##*//}"
+    _docker_host="${_docker_host##*:}"
+    echo "$_docker_host"
+  }
+  return $?;
+}
+
+# docker ssh
+docker-ssh() {
+  local _container=""
+  local c_ssh_host=$(docker-host-addr)
+  local c_ssh_port=
+  local c_ssh_user="root"
+  local c_ssh_opts="-oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no"
+  eval $(docker-container-env)
+  [ -z "$c_ssh_host" ] &&
+  [ -n "$(type -P docker-machine)" ] && {
+    c_ssh_host="$(docker-machine ip)"
+  }
+  while [ $# -gt 0 ]
+  do
+    case "$1" in
+    --name)
+      [ -n "${2}" ] && {
+        DOCKER_CONTAINER_NAME="${2}"
+        shift
+      }
+      ;;
+    --tag)
+      [ -n "${2}" ] && {
+        DOCKER_IMAGE_TAG_NAME="${2}"
+        shift
+      }
+      ;;
+    -l*)
+      if [ -n "${1##*-l}" ]
+      then
+        c_ssh_user="${1##*-l}"
+      elif [ -n "$2" ]
+      then
+        c_ssh_user="$2"
+        shift
+      fi
+      ;;
+    -p*)
+      [ -n "${1##*-p}" ] || {
+        shift
+      }
+      ;;
+    -*)
+      c_ssh_opts=$(echo "$c_ssh_opts" "$1")
+      ;;
+    [A-Za-z]*@[0-9A-Za-z]*)
+      c_ssh_user="${1%%@*}"
+      c_ssh_host="${1#*@}"
+      ;;
+    *)
+      c_ssh_opts=$(echo "$c_ssh_opts" "$1")
+      ;;
+    esac
+    shift
+  done
+  for key in "$DOCKER_CONTAINER" "$DOCKER_IMAGE_TAG"
+  do
+    [ -n "$key" ] && {
+      _container=$(
+        ${DOCKER_BIN_DIR}/_docker-get-container-id.sh "$key" |
+        sort |head -n 1)
+    } &&
+    break
+  done
+  [ -n "${_container}" ] || {
+    echo "docker-ssh: ERROR: container not found." 1>&2 
+    return 127
+  }
+  [ -n "${_container}" ] && {
+    c_ssh_port=$(
+    ${DOCKER_BIN_DIR}/_docker-get-container-port.sh -id "$_container" 22)
+  }
+  ssh $c_ssh_opts -p "$c_ssh_port" -l "$c_ssh_user" "$c_ssh_host"
+  return $?
+}
+
+# container id
+get-container-id() {
+  local _container=""
+  eval $(docker-container-env)
+  for key in "$DOCKER_CONTAINER" "$DOCKER_IMAGE_TAG"
+  do
+    [ -n "$key" ] &&
+    ${DOCKER_BIN_DIR}/_docker-get-container-id.sh "$key" |sort |head -n 1 &&
+    return 0
+  done
+  ${DOCKER_BIN_DIR}/_docker-get-container-id.sh $@
+  return $?
+}
+
+# container id
+get-container-port() {
+  local _container=$(get-container-id)
+  if [ -n "$_container" ]
+  then
+    ${DOCKER_BIN_DIR}/_docker-get-container-port.sh -id "$_container" $@
+  else
+    ${DOCKER_BIN_DIR}/_docker-get-container-port.sh $@
+  fi
+  return $?
+}
+
+# container id
+get-image-id() {
+  local _docker_image_tag=""
+  local _docker_image_cnt=0
+  eval $(docker-container-env)
+  [ -n "$DOCKER_IMAGE_TAG" ] && {
+    docker images --format '{{ .ID }}' "${DOCKER_IMAGE_TAG}" 2>/dev/null &&
+    return $?
+  }
+  for _docker_image_tag in $@
+  do
+    [ -n "$_docker_image_tag" ] &&
+    case "$_docker_image_tag" in
+    -*)
+      ;;
+    *)
+      docker images --format '{{ .ID }}' "$_docker_image_tag" 2>/dev/null &&
+      _docker_image_cnt=$(( $_docker_image_cnt + 1 ))
+      ;;
+    esac
+  done
+  [ $_docker_image_cnt -ge 0 ]
+  return $?
+}
+
 # Aliases
-alias docker-ssh='ssh -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no'
+alias DOCKER-BOOT="BOOT.sh"
+alias DOCKER-HALT="HALT.sh"
+
