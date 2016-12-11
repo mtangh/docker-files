@@ -66,6 +66,7 @@ docker-ssh() {
   local c_ssh_port=
   local c_ssh_user="root"
   local c_ssh_opts="-oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no"
+  unset DOCKER_CONTAINER DOCKER_IMAGE_TAG
   eval $(docker-container-env)
   [ -z "$c_ssh_host" ] &&
   [ -n "$(type -P docker-machine)" ] && {
@@ -76,13 +77,13 @@ docker-ssh() {
     case "$1" in
     --name)
       [ -n "${2}" ] && {
-        DOCKER_CONTAINER_NAME="${2}"
+        DOCKER_CONTAINER="${2}"
         shift
       }
       ;;
     --tag)
       [ -n "${2}" ] && {
-        DOCKER_IMAGE_TAG_NAME="${2}"
+        DOCKER_IMAGE_TAG="${2}"
         shift
       }
       ;;
@@ -135,9 +136,36 @@ docker-ssh() {
   return $?
 }
 
+# docker exec
+docker-exec() {
+  local _container="$(get-container-id)"
+  local _exec_opts=""
+  local _ends_opts=0
+  if [ -n "$_container" ] 
+  then
+    while [ $# -gt 0 -a $_ends_opts -eq 0 ]
+    do
+      case "$1" in
+      --)
+        _ends_opts=1
+        ;;
+      *)
+        _exec_opts=$(echo $_exec_opts $1)
+        ;;
+      esac
+      shift
+    done
+    docker exec $_exec_opts "$_container" $@
+  else
+    docker exec $@
+  fi
+  return $?
+}
+
 # container id
 get-container-id() {
   local _container=""
+  unset DOCKER_CONTAINER DOCKER_IMAGE_TAG
   eval $(docker-container-env)
   for key in "$DOCKER_CONTAINER" "$DOCKER_IMAGE_TAG"
   do
@@ -165,6 +193,7 @@ get-container-port() {
 get-image-id() {
   local _docker_image_tag=""
   local _docker_image_cnt=0
+  unset DOCKER_CONTAINER DOCKER_IMAGE_TAG
   eval $(docker-container-env)
   [ -n "$DOCKER_IMAGE_TAG" ] && {
     docker images --format '{{ .ID }}' "${DOCKER_IMAGE_TAG}" 2>/dev/null &&
