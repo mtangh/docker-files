@@ -74,20 +74,7 @@ RUN \
  set -x; . /etc/sysconfig/postgresql && \
  groupadd -g "${PG_UID:-26}" "${PGUSER}" && \
  useradd -u "${PG_UID:-26}" -g "${PGUSER}" -m "${PGUSER}" && \
- echo "${PGUSER}:${PGPASSWORD:-$PGUSER}" |chpasswd && \
- [ -d "/home/${PGUSER}" ] || { \
-  mkdir -p "/home/${PGUSER}" && \
-  chown "${PGUSER}:${PGUSER}" "/home/${PGUSER}" && \
-  chmod 0755 "/home/${PGUSER}"; \
- }; \
- : && { \
-  echo && \
-  echo '. /etc/sysconfig/postgresql' && \
-  echo 'export "${PGHOME}"' && \
-  echo 'export "${PGDATA}"' && \
-  echo 'export PATH="${PATH}:${PGHOME}/bin"' && \
-  echo; \
- } >>"/home/${PGUSER}/.bashrc"
+ echo "${PGUSER}:${PGPASSWORD:-$PGUSER}" |chpasswd
 
 # Install postgresql
 ARG \
@@ -140,6 +127,23 @@ RUN \
  cpan -i Module::Build && \
  cpan -i TAP::Parser::SourceHandler::pgTAP && \
  rm -rf /root/.cpan
+
+# Setup postgres/.bashrc
+RUN \
+ set -x; . /etc/sysconfig/postgresql && \
+ [ -d "/home/${PGUSER}" ] || { \
+  mkdir -p "/home/${PGUSER}" && \
+  chown "${PGUSER}:${PGUSER}" "/home/${PGUSER}" && \
+  chmod 0755 "/home/${PGUSER}"; \
+ }; \
+ : && { \
+  echo && \
+  echo '# For PostgreSQL' && \
+  echo '. /etc/sysconfig/postgresql' && \
+  echo 'export PGHOME PGDATA PGPORT' && \
+  echo 'export PATH="${PATH}:${PGHOME}/bin"' && \
+  echo; \
+ } >>"/home/${PGUSER}/.bashrc"
 
 # Init database
 ARG \
