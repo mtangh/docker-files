@@ -136,6 +136,30 @@ docker-ssh() {
   return $?
 }
 
+# docker start
+docker-start() {
+  local _container="$(get-container-id-all)"
+  if [ -n "$_container" ] 
+  then
+    docker start "$_container" $@
+  else
+    docker start $@
+  fi
+  return $?
+}
+
+# docker stop
+docker-stop() {
+  local _container="$(get-container-id)"
+  if [ -n "$_container" ] 
+  then
+    docker stop "$_container" $@
+  else
+    docker stop $@
+  fi
+  return $?
+}
+
 # docker exec
 docker-exec() {
   local _container="$(get-container-id)"
@@ -162,18 +186,36 @@ docker-exec() {
   return $?
 }
 
+# docker top
+docker-top() {
+  local _container="$(get-container-id)"
+  if [ -n "$_container" ] 
+  then
+    docker top $_container $@
+  else
+    docker exec $@
+  fi
+  return $?
+}
+
 # container id
 get-container-id() {
   local _container=""
   unset DOCKER_CONTAINER DOCKER_IMAGE_TAG
   eval $(docker-container-env)
-  for key in "$DOCKER_CONTAINER" "$DOCKER_IMAGE_TAG"
+  for _container in "$DOCKER_CONTAINER" "$DOCKER_IMAGE_TAG"
   do
-    [ -n "$key" ] &&
-    ${DOCKER_BIN_DIR}/_docker-get-container-id.sh "$key" |sort |head -n 1 &&
+    [ -n "$_container" ] &&
+    ${DOCKER_BIN_DIR}/_docker-get-container-id.sh "$_container" $@ |sort |head -n 1 &&
     return 0
   done
   ${DOCKER_BIN_DIR}/_docker-get-container-id.sh $@
+  return $?
+}
+
+# container id
+get-container-id-all() {
+  get-container-id --all $@
   return $?
 }
 
