@@ -34,11 +34,13 @@ get-container-id() {
   local _container=""
   unset DOCKER_CONTAINER DOCKER_IMAGE_TAG
   eval $(docker-container-env)
-  for _container in "$DOCKER_CONTAINER" "$DOCKER_IMAGE_TAG"
+  for _container in \
+    "$DOCKER_CONTAINER" \
+    "$DOCKER_IMAGE_TAG"
   do
     [ -n "$_container" ] &&
-    ${DOCKER_BIN_DIR}/_docker-get-container-id.sh "$_container" $@ |sort |head -n 1 &&
-    return 0
+    ${DOCKER_BIN_DIR}/_docker-get-container-id.sh "$_container" $@ |
+    sort |head -n 1 && return 0
   done
   ${DOCKER_BIN_DIR}/_docker-get-container-id.sh $@
   return $?
