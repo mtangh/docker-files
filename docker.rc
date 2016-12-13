@@ -147,8 +147,12 @@ docker-exec() {
 
 # docker bash
 docker-bash() {
-  local _container="$(get-container-id $1)"
-  docker-exec $_container -it -- /bin/bash $@
+  local _container="$(get-container-id)"
+  [ -n "$_container" ] || {
+    _container="$(get-container-id $1)" &&
+    shift
+  }
+  docker exec -it $_container /bin/bash $@
   return $?
 }
 
