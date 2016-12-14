@@ -14,18 +14,13 @@ FROM centos:centos6
 MAINTAINER MT
 
 # Root password
-ARG ROOTPASSWD="root"
+ARG ROOTPASSWD=root
 
 # Default user and passwd
 ARG DOCKERUSER=dockeruser
 ARG DOCKERPASS=dockeruser
 
-# Work dir.
-ARG \
- workdir=/tmp/workdir
-WORKDIR \
- "${workdir}"
-
+# Install packages
 RUN \
  set -x; \
  yum -y install initscripts MAKEDEV && \
@@ -34,10 +29,12 @@ RUN \
  yum -y install openssh-server sudo && \
  yum -y clean all
 
+# Change root passwor
 RUN \
  set -x; \
  echo "root:${ROOTPASSWD:-root}" |chpasswd
 
+# Create default user
 RUN \
  set -x; \
  dockeruser="${DOCKERUSER:-dockeruser}"; \
@@ -46,6 +43,20 @@ RUN \
  useradd -u 500 -g "${dockeruser}" -m "${dockeruser}" && \
  echo "${dockeruser}:${dockerpass}" |chpasswd
 
+# Change upstart's scripts
+RUN \
+ set -x; \
+ sed -ri 's/^/#/g' /etc/init/tty.conf && \
+ sed -ri 's/wn -r now/wn -h now/g' /etc/init/control-alt-delete.conf
+
+# SUDOers
+RUN \
+ set -x; \
+ sudoers="/etc/sudoers"; \
+ newline="# For docker user\n${DOCKERUSER:-dockeruser}\tALL=(ALL)\tALL"; \
+ sed -ri '/^root[ \t]*ALL.*$/a '"${newline}" "${sudoers}"
+
+# Change sshd's settings
 RUN \
  set -x; \
  sshd_config="/etc/ssh/sshd_config"; \
@@ -53,19 +64,38 @@ RUN \
  sed -ri 's/^UsePAM yes/UsePAM no/' "${sshd_config}" && \
  cat /etc/ssh/sshd_config
 
-RUN \
- set -x; \
- sudoers="/etc/sudoers"; \
- newline="# For docker user\n${DOCKERUSER:-dockeruser}\tALL=(ALL)\tALL"; \
- sed -ri '/^root[ \t]*ALL.*$/a '"${newline}" "${sudoers}"
-
+# sshd
 RUN \
  set -x; \
  /sbin/chkconfig --add sshd 1>/dev/null 2>&1 || : ; \
  /sbin/chkconfig --levels 2345 sshd on 1>/dev/null 2>&1 || : ;
 
+# timezone
+ARG \
+ timezone=Asia/Tokyo
+RUN \
+ set -x; \
+ [ ! -e "/usr/share/zoneinfo/${timezone}" ] || { \
+  cp -pf /etc/localtime{,.ORIG} && \
+  ln -sf /usr/share/zoneinfo/${timezone} /etc/localtime; \
+ }; \
+ ls -l /etc/localtime
+
+# Cleanup
+RUN \
+ set -x; \
+ for log in /var/log/*; do \
+  cat /dev/null >"$log"; \
+ done; \
+ for log in /tmp/*.log; do \
+  rm -f "$log"; \
+ done
+
+# STOP SIGNAL
+STOPSIGNAL SIGINT
+
 # Bind port
 EXPOSE 22
 
 # Start /sbin/init
-CMD ["/sbin/init"]
+CMD ["/sbin/init","3"]

@@ -159,14 +159,29 @@ docker-bash() {
 # docker start
 docker-start() {
   local _container="$(get-container-id-all)"
-  docker start $_container $@
+  [ -n "$_container" ] || {
+    _container="$(get-container-id $1)" &&
+    shift
+  }
+  docker start $_container
   return $?
 }
 
 # docker stop
 docker-stop() {
   local _container="$(get-container-id)"
-  docker stop $_container $@
+  [ -n "$_container" ] || {
+    _container="$(get-container-id $1)" &&
+    shift
+  }
+  docker stop $_container
+  return $?
+}
+
+# docker restart
+docker-restart() {
+  echo "stop: $(docker-stop $@ 2>/dev/null)"
+  echo "start: $(docker-start $@ 2>/dev/null)"
   return $?
 }
 
