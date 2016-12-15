@@ -6,7 +6,7 @@
 #@  DOCKER_BUILDER_OPTS=
 #@  DOCKER_STARTUP_OPTS="-h pg94-server"
 #@  CONTAINER_NOT_START=""
-#@  CONFIRM_STARTUP_CMD="ps -ef|grep 'postgres: '"
+#@  CONFIRM_STARTUP_CMD="psql -l"
 #
 FROM centos6-init:ssh
 
@@ -196,7 +196,7 @@ RUN \
 
 # Cleanup workdir
 WORKDIR \
- /root
+ /
 RUN \
  rm -rf "${workdir}"
 

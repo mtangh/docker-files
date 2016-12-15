@@ -8,6 +8,9 @@ PGSCFG=/etc/sysconfig/postgresql
 # Source dir.
 SRCDIR=
 
+# Shutdown flag
+PGSHUT=0
+
 # PG* Envs
 PGUSER=
 PGHOME=
@@ -36,6 +39,9 @@ do
       PGPORT="$2"
       shift
     fi
+    ;;
+  -shutdown)
+    PGSHUT=1
     ;;
   -*)
     cat <<_USAGE_
@@ -117,8 +123,13 @@ do
   }
 done
 
-# Startup postgres
+# Startup postgresql
 /etc/init.d/postgresql condrestart #1>/dev/null 2>&1
+
+# Trap signal
+[ $PGSHUT -ne 0 ] && {
+  trap -- "/etc/init.d/postgresql stop" EXIT SIGTERM SIGINT SIGQUIT
+}
 
 # Waiting for startup
 for retrycnt in 0 1 2 3 4 5 6 7 8 9

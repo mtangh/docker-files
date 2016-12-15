@@ -105,7 +105,7 @@ RUN \
  su "${PGUSER}" -c "LANG= ${PGHOME}/bin/initdb ${PG_INITDB_OPTIONS} ${PGDATA}"
 
 # Setup default config
-ONBUILD\
+ONBUILD \
 COPY \
  *.conf ${WORKDIR}/
 ONBUILD \
@@ -179,10 +179,11 @@ RUN \
  : && { \
   echo && \
   echo '# For PostgreSQL' && \
-  echo '[ -r "/etc/sysconfig/postgresql" ] && {' && \
+  echo 'if [ -r "/etc/sysconfig/postgresql" ]' && \
+  echo 'then' && \
   echo '  . /etc/sysconfig/postgresql' && \
   echo '  export PGHOME PGDATA PGPORT' && \
-  echo '}' \
+  echo 'fi' && \
   echo '[ -n "${PGHOME}" ] &&' && \
   echo '[ -d "${PGHOME}/bin" ] &&' && \
   echo '[ -z "$(type -p psql)" ] &&' && \
@@ -196,9 +197,9 @@ RUN \
  mkdir -p ${PGHOME} && cd "${PGHOME}" && \
  chown -R "${PGUSER}:${PGUSER}" . && chmod -R 2755 . && \
  for dir in "${PGHOME}/archivelogs" "${PGDATA}"; do \
-  { mkdir -p $dir && \
-    chown "${PGUSER}:${PGUSER}" $dir && \
-    chmod 0700 $dir; } || break; \
+  { mkdir -p "$dir" && \
+    chown "${PGUSER}:${PGUSER}" "$dir" && \
+    chmod 0700 "$dir"; } || break; \
  done
 
 # Install init and db build script
@@ -213,4 +214,14 @@ RUN \
  chmod 0755 /etc/init.d/postgresql && \
  chown "root:${PGUSER}" "${PGHOME}/dbbuild.sh" && \
  chmod 0775 "${PGHOME}/dbbuild.sh"
+
+# Cleanup
+RUN \
+ set -x; \
+ for log in /var/log/*; do \
+  cat /dev/null >"$log"; \
+ done; \
+ for log in /tmp/*.log; do \
+  rm -f "$log"; \
+ done
 
