@@ -48,7 +48,7 @@ POSTMASTER="${PGHOME}/bin/postmaster"
 PG_CONTROL="${PGHOME}/bin/pg_ctl"
 
 # log file
-PG_LOG="${PG_LOG:-/var/log/postgresql.log}"
+PG_LOG="${PG_LOG:-/var/log/$NAME.log}"
 
 # lock file
 LOCKDILE="/var/lock/subsys/${NAME}"
@@ -75,7 +75,7 @@ script_result=0
 start() {
 
   # Make sure startup-time log file is valid
-  if [ ! -e "$PG_LOG" -a ! -h "$PG_LOG" ]
+  if [ ! -e "$PG_LOG" ]
   then
     touch "$PG_LOG" || exit 1
     chown "$PGUSER:$PGUSER" "$PG_LOG"

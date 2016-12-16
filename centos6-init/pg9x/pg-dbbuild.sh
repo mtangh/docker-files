@@ -62,8 +62,14 @@ done
 [ -x "/etc/init.d/postgresql" ] || exit 95
 [ -x "${PGHOME}/bin/psql" ]     || exit 96
 
+# PCTL
+PGINIT="/etc/init.d/postgresql"
+
 # PSQL
 PSQL="${PGHOME}/bin/psql -U ${PGUSER} -p ${PGPORT}"
+
+# PostgreSQL state
+PGSTAT=$($PGINIT status 1>/dev/null 2>&1 && echo OK)
 
 # print PG*
 cat <<_EOF_
@@ -98,9 +104,9 @@ then
   cat "$PGSCFG" |
   grep -E '^[ ]*PGPORT='${PGPORT}'[ ]*$' 1>/dev/null 2>&1 || {
     echo "$THIS: Change the server port: PGPORT=$PGPORT."
-    /etc/init.d/postgresql condstop #1>/dev/null 2>&1
+    ${PGINIT} condstop #1>/dev/null 2>&1
     sed -i 's/^[ ]*PGPORT=[0-9]*[ ]*$/PGPORT='${PGPORT}'/g' "$PGSCFG"
-    /etc/init.d/postgresql start #1>/dev/null 2>&1
+    ${PGINIT} start #1>/dev/null 2>&1
   }
 fi
 
@@ -118,7 +124,7 @@ do
 done
 
 # Startup postgres
-/etc/init.d/postgresql condrestart #1>/dev/null 2>&1
+${PGINIT} condrestart #1>/dev/null 2>&1
 
 # Waiting for startup
 for retrycnt in 0 1 2 3 4 5 6 7 8 9
