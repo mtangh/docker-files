@@ -1,0 +1,14 @@
+# docker-bash
+
+# docker bash
+docker-bash() {
+  local _this="${BASH_SOURCE##*/}"
+  local _container="$(get-container-id)"
+  [ -n "$_container" ] || {
+    _container="$(get-container-id $1)" &&
+    shift
+  }
+  docker exec -it $_container /bin/bash $@
+  return $?
+}
+

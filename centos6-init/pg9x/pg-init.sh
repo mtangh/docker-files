@@ -129,8 +129,14 @@ stop() {
 }
 
 status() {
-  status postmaster
-  script_result=$?
+  if [ -n "$(/usr/bin/pgrep postmaster|head -n 1)" ]
+  then
+    echo $"${NAME} (pid $pid) is running..."
+    script_result=0
+  else
+    echo $"${NAME} is stopped"
+    script_result=3
+  fi
   return $script_result
 }
 
@@ -175,7 +181,7 @@ case "$1" in
 start|stop|restart|status|reload)
   $1
   ;;
-condrestart|condstarr|condstop)
+condrestart|condstart|condstop)
   $1
   ;;
 *)

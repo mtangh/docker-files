@@ -3,7 +3,7 @@
 #
 #@  DOCKER_CONTAINER=""
 #@  DOCKER_IMAGE_TAG="centos6-init:httpd"
-#@  DOCKER_BUILDER_OPTS=
+#@  DOCKER_BUILDER_OPTS=""
 #@  DOCKER_STARTUP_OPTS="-h httpd-server"
 #@  CONTAINER_NOT_START=""
 #@  CONFIRM_STARTUP_CMD=""
@@ -15,26 +15,30 @@ MAINTAINER MT
 
 # OnBuild Trigger
 ONBUILD \
- ARG workdir=/tmp/workdir
-ONBUILD \
- WORKDIR ${workdir}/www
-ONBUILD \
- COPY *.* ${workdir}/www/
-ONBUILD \
- RUN \
-  set -x; \
-  rm -rf "${workdir}/db"
-ONBUILD \
- WORKDIR /root
-ONBUILD \
- RUN \
-  rm -rf "${workdir}"
-
-# Work dir.
 ARG \
- workdir=/tmp/workdir
+ WORKDIR=/tmp/workdir
+ONBUILD \
 WORKDIR \
- "${workdir}"
+ ${WORKDIR}/www
+ONBUILD \
+COPY \
+ *.* ${WORKDIR}/www/
+ONBUILD \
+RUN \
+ set -x; \
+ rm -rf "${WORKDIR}/db"
+ONBUILD \
+WORKDIR \
+ /
+ONBUILD \
+RUN \
+ rm -rf "${WORKDIR}"
+
+# Work dir
+ARG \
+ WORKDIR=/tmp/WORKDIR
+WORKDIR \
+ "${WORKDIR}"
 
 # Install packages for Apache (and PHP)
 RUN \
@@ -60,12 +64,20 @@ RUN \
  /sbin/chkconfig --add httpd 1>/dev/null 2>&1 || : ; \
  /sbin/chkconfig --levels 2345 httpd on 1>/dev/null 2>&1 || : ;
 
-# Cleanup workdir
-WORKDIR \
- /root
+# Cleanup
 RUN \
- rm -rf "${workdir}"
+ set -x; \
+ for log in /var/log/*; do cat /dev/null >"$log"; done; \
+ for log in /tmp/*.log; do rm -f "$log"; done
 
-# Bind port
+# Reset Work dir
+ONBUILD \
+WORKDIR \
+ /
+ONBUILD \
+RUN \
+ rm -rf "${WORKDIR}"
+
+# Publish a container's port(s) to the host
 EXPOSE 80 443
 

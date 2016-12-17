@@ -1,0 +1,28 @@
+# container-image
+
+# container image id
+get-image-id() {
+  local _docker_image_tag=""
+  local _docker_image_cnt=0
+  unset DOCKER_CONTAINER DOCKER_IMAGE_TAG
+  eval $(docker-container-env)
+  [ -n "$DOCKER_IMAGE_TAG" ] && {
+    docker images --format '{{ .ID }}' "${DOCKER_IMAGE_TAG}" 2>/dev/null &&
+    return $?
+  }
+  for _docker_image_tag in $@
+  do
+    [ -n "$_docker_image_tag" ] &&
+    case "$_docker_image_tag" in
+    -*)
+      ;;
+    *)
+      docker images --format '{{ .ID }}' "$_docker_image_tag" 2>/dev/null &&
+      _docker_image_cnt=$(( $_docker_image_cnt + 1 ))
+      ;;
+    esac
+  done
+  [ $_docker_image_cnt -ge 0 ]
+  return $?
+}
+

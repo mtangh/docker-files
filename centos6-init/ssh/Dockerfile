@@ -84,18 +84,15 @@ RUN \
 # Cleanup
 RUN \
  set -x; \
- for log in /var/log/*; do \
-  cat /dev/null >"$log"; \
- done; \
- for log in /tmp/*.log; do \
-  rm -f "$log"; \
- done
+ for log in /var/log/*; do cat /dev/null >"$log"; done; \
+ for log in /tmp/*.log; do rm -f "$log"; done
 
 # STOP SIGNAL
 STOPSIGNAL SIGINT
 
-# Bind port
+# Publish a container's port(s) to the host
 EXPOSE 22
 
 # Start /sbin/init
 CMD ["/sbin/init","3"]
+

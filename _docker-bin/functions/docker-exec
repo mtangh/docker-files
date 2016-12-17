@@ -1,0 +1,27 @@
+# docker-exec
+
+# docker exec
+docker-exec() {
+  local _container="$(get-container-id)"
+  local _exec_opts=""
+  local _endofopts=0
+  [ -n "$_container" ] || {
+    _container="$(get-container-id $1)" &&
+    shift
+  }
+  while [ $# -gt 0 -a $_endofopts -eq 0 ]
+  do
+    case "$1" in
+    --)
+      _endofopts=1
+      ;;
+    *)
+      _exec_opts=$(echo $_exec_opts $1)
+      ;;
+    esac
+    shift
+  done
+  docker exec $_exec_opts $_container $@
+  return $?
+}
+

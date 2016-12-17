@@ -1,0 +1,84 @@
+# docker-ssh
+
+# docker ssh
+docker-ssh() {
+  local _container=""
+  local c_ssh_host=$(docker-host-addr)
+  local c_ssh_port=
+  local c_ssh_user="root"
+  local c_ssh_opts="-oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no"
+  eval $(docker-container-env)
+  [ -z "$c_ssh_host" ] &&
+  [ -n "$(type -P docker-machine)" ] && {
+    c_ssh_host="$(docker-machine ip)"
+  }
+  while [ $# -gt 0 ]
+  do
+    case "$1" in
+    --name)
+      [ -n "${2}" ] && {
+        DOCKER_CONTAINER="${2}"
+        shift
+      }
+      ;;
+    --tag)
+      [ -n "${2}" ] && {
+        DOCKER_IMAGE_TAG="${2}"
+        shift
+      }
+      ;;
+    -l*)
+      if [ -n "${1##*-l}" ]
+      then
+        c_ssh_user="${1##*-l}"
+      elif [ -n "$2" ]
+      then
+        c_ssh_user="$2"
+        shift
+      fi
+      ;;
+    -p*)
+      if [ -n "${1##*-p}" ]
+      then
+        c_ssh_port="${1##*-p}"
+      elif [ -n "$2" ]
+      then
+        c_ssh_port="$2"
+        shift
+      fi
+      ;;
+    -*)
+      c_ssh_opts=$(echo "$c_ssh_opts" "$1")
+      ;;
+    [A-Za-z]*@[0-9A-Za-z]*)
+      c_ssh_user="${1%%@*}"
+      c_ssh_host="${1#*@}"
+      ;;
+    *)
+      c_ssh_opts=$(echo "$c_ssh_opts" "$1")
+      ;;
+    esac
+    shift
+  done
+  if [ -z "${c_ssh_port}" ]
+  then
+    for key in "$DOCKER_CONTAINER" "$DOCKER_IMAGE_TAG"
+    do
+      [ -n "$key" ] && {
+        _container=$(
+          ${DOCKER_BIN_DIR}/_docker-get-container-id.sh "$key" |
+          sort |head -n 1)
+      } &&
+      break
+    done
+    if [ -z "${_container}" ]
+    then
+      c_ssh_port=$(
+        ${DOCKER_BIN_DIR}/_docker-get-container-port.sh -id \
+        "$_container" 22)
+    fi
+  fi
+  ssh $c_ssh_opts -p "${c_ssh_port:-22}" -l "$c_ssh_user" "$c_ssh_host"
+  return $?
+}
+

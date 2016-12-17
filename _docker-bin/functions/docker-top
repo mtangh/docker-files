@@ -1,0 +1,9 @@
+# docker-top
+
+# docker top
+docker-top() {
+  local _container="$(get-container-id)"
+  docker top $_container $@
+  return $?
+}
+

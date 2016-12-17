@@ -1,0 +1,32 @@
+# docker-host
+
+# docker host addr
+docker-host-addr() {
+  local _docker_host="${DOCKER_HOST}"
+  [ -z "$_docker_host" ] &&
+  [ -n "$(type -P docker-machine)" ] && {
+    _docker_host="$(docker-machine url)"
+  }
+  [ -n "$_docker_host" ] && {
+    _docker_host="${_docker_host##*//}"
+    _docker_host="${_docker_host%%:*}"
+    echo "$_docker_host"
+  }
+  return $?;
+}
+
+# docker host port
+docker-host-port() {
+  local _docker_host="${DOCKER_HOST}"
+  [ -z "$_docker_host" ] &&
+  [ -n "$(type -P docker-machine)" ] && {
+    _docker_host="$(docker-machine url)"
+  }
+  [ -n "$_docker_host" ] && {
+    _docker_host="${_docker_host##*//}"
+    _docker_host="${_docker_host##*:}"
+    echo "$_docker_host"
+  }
+  return $?;
+}
+

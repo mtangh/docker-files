@@ -1,0 +1,19 @@
+# docker-cleanup
+
+# docker cleanup
+docker-cleanup() {
+  local _rmcids=$(
+    docker ps -a --format="{{ .ID }}" \
+                 --filter="status=created" \
+                 --filter="status=exited" \
+                 --filter="status=dead")
+  local _rmiids=$(
+    docker images -a --format="{{ .ID }}" \
+                 --filter="dangling=true")
+  : && {
+    printf "cleanup: container ... %3d deleted.\n" "$(docker rm ${_rmcids}| wc -l)"
+    printf "cleanup: image     ... %3d deleted.\n" "$(docker rmi ${_rmiids}| wc -l)"
+  } 2>/dev/null
+  return $?
+}
+

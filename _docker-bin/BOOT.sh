@@ -15,6 +15,10 @@ DOCKER_BUILDER_OPTS=""
 # docker startup(run) options
 DOCKER_STARTUP_OPTS=""
 
+# BOOT options
+_docker_not_running=0
+_confirm_start_cmnd=""
+
 # Dockerfile
 [ -r "$DDIR/Dockerfile" ] && {
 
@@ -35,17 +39,13 @@ DOCKER_STARTUP_OPTS=""
 # docker container ID
 DOCKER_CONTAINER_ID=""
 
-# BOOT options
-_docker_not_running=0
-_confirm_start_cmnd=""
-
 # Flags
 _in_docker_ext_opts=0
 
 # Parsing an options
 while [ $# -gt 0 ]
 do
-  if [ $_in_docker_run_opts -eq 0 ]
+  if [ $_in_docker_ext_opts -eq 0 ]
   then
     case "$1" in
     -b|-build*|--build*)
@@ -244,8 +244,9 @@ DOCKER_CONTAINER_ID="" || :
 
     while [ $retry_cnt -le $_retrymax ]
     do
-      docker exec \
-        "$DOCKER_CONTAINER_ID" "$_confirm_start_cmnd" 1>/dev/null 2>&1
+      eval $(
+      echo docker exec -it "$DOCKER_CONTAINER_ID" $_confirm_start_cmnd
+      ) 1>/dev/null 2>&1
       dexec_ret=$?
       [ $dexec_ret -eq 0 ] && {
         echo "SUCCESS; command=[$_confirm_start_cmnd]"
