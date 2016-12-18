@@ -3,9 +3,9 @@
 # docker ssh
 docker-ssh() {
   local _container=""
+  local c_ssh_user="root"
   local c_ssh_host=$(docker-host-addr)
   local c_ssh_port=
-  local c_ssh_user="root"
   local c_ssh_opts="-oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no"
   eval $(docker-container-env)
   [ -z "$c_ssh_host" ] &&
@@ -71,7 +71,7 @@ docker-ssh() {
       } &&
       break
     done
-    if [ -z "${_container}" ]
+    if [ -n "${_container}" ]
     then
       c_ssh_port=$(
         ${DOCKER_BIN_DIR}/_docker-get-container-port.sh -id \

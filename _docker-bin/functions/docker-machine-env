@@ -1,0 +1,14 @@
+# docker machine env
+
+if [ -n "$(type -P docker-machine)" ]
+then
+
+# docker machine env
+docker-machine-env() {
+  eval $(docker-machine env $@)
+  return $?
+}
+
+fi
+
+return 0

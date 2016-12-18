@@ -20,6 +20,12 @@ DOCKER_HOST=$(docker-machine url)
 DOCKER_HOST="${DOCKER_HOST:-tcp://127.0.0.1:4243}"
 export DOCKER_HOST
 
+# Reload
+docker-rc-reload() {
+  . "${DOCKERFILESDIR}/${DOCKER_RC_FILE}" 1>/dev/null 2>&1
+  return $?
+}
+
 # Functions
 for func in "${DOCKER_BIN_DIR}"/functions/*
 do
@@ -28,8 +34,11 @@ done
 unset func
 
 # Aliases
+alias DOCKER-REBOOT="HALT.sh && BOOT.sh"
 alias DOCKER-BOOT="BOOT.sh"
 alias DOCKER-HALT="HALT.sh --no-remove"
+
+alias DOCKER-REBUILD="HALT.sh && BOOT.sh --build-only"
 alias DOCKER-BUILD="BOOT.sh --build-only"
 alias DOCKER-DROP="HALT.sh"
 
