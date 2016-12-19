@@ -28,7 +28,7 @@ done
 unset func
 
 # Aliases
-alias docker-rc-reload=". ${DOKTFILESDIR}/${DOKER_RC_FILE} && echo OK"
+alias docker-rc-reload=". ${DOCKERFILESDIR}/${DOCKER_RC_FILE} && echo OK"
 
 alias DOCKER-REBOOT="HALT.sh && BOOT.sh"
 alias DOCKER-BOOT="BOOT.sh"
