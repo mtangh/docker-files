@@ -5,7 +5,7 @@ docker-container-env() {
   unset DOCKER_CONTAINER DOCKER_IMAGE_TAG
   [ -r "$(pwd)/Dockerfile" ] &&
   [ -n "$(type -P _docker-get-opts-from-dockerfile.sh)" ] && {
-    $DOCKER_BIN_DIR/_docker-get-opts-from-dockerfile.sh "$(pwd)/Dockerfile"
+    ${DOCKER_BIN_DIR}/_docker-get-opts-from-dockerfile.sh "$(pwd)/Dockerfile"
   }
   return $?
 }
@@ -13,7 +13,8 @@ docker-container-env() {
 # container id
 get-container-id() {
   local _container=""
-  unset DOCKER_CONTAINER DOCKER_IMAGE_TAG
+  local DOCKER_CONTAINER=""
+  local DOCKER_IMAGE_TAG=""
   eval $(docker-container-env)
   for _container in \
     "$DOCKER_CONTAINER" \

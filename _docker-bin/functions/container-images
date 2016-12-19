@@ -4,7 +4,8 @@
 get-image-id() {
   local _docker_image_tag=""
   local _docker_image_cnt=0
-  unset DOCKER_CONTAINER DOCKER_IMAGE_TAG
+  local DOCKER_CONTAINER=""
+  local DOCKER_IMAGE_TAG=""
   eval $(docker-container-env)
   [ -n "$DOCKER_IMAGE_TAG" ] && {
     docker images --format '{{ .ID }}' "${DOCKER_IMAGE_TAG}" 2>/dev/null &&
