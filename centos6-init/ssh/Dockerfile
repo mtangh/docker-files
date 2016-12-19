@@ -24,6 +24,7 @@ ARG DOCKERPASS=dockeruser
 RUN \
  set -x; \
  yum -y install initscripts MAKEDEV && \
+ yum -y install epel-release && \
  yum check && \
  yum -y update && \
  yum -y install openssh-server sudo && \

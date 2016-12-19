@@ -24,7 +24,10 @@ ARG DOCKERPASS=dockeruser
 RUN \
  set -x; \
  yum -y update && \
+ yum -y install systemd-sysv && \
  yum -y install openssh-server sudo && \
+ yum -y install epel-release && \
+ yum -y update && \
  yum -y clean all
 
 # Change root passwor
@@ -40,13 +43,6 @@ RUN \
  groupadd -g 500 "${dockeruser}" && \
  useradd -u 500 -g "${dockeruser}" -m "${dockeruser}" && \
  echo "${dockeruser}:${dockerpass}" |chpasswd
-
-# Change upstart's scripts
-RUN \
- set -x; \
- sed -ri 's/^/#/g' /etc/init/tty.conf; \
- sed -ri 's/wn -r now/wn -h now/g' /etc/init/control-alt-delete.conf; \
- :;
 
 # SUDOers
 RUN \
@@ -83,7 +79,7 @@ RUN \
 RUN \
  set -x; \
  for log in /var/log/*; do cat /dev/null >"$log"; done; \
- for log in /tmp/*.log; do rm -f "$log"; done
+ for log in /tmp/*.log /*.log; do rm -f "$log"; done
 
 # STOP SIGNAL
 STOPSIGNAL SIGINT
