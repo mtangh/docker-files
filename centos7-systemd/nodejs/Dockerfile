@@ -20,25 +20,19 @@ WORKDIR \
  ${WORKDIR}
 
 # Install packages
-RUN \
- set -x; \
- yum -y update && \
- yum -y clean all
-
 ARG \
- NVM_VER=v0.30.1
+ NODEJS_SETUP_SUFFIX=7.x
 RUN \
  set -x; \
- curl -o- https://raw.githubusercontent.com/creationix/nvm/${NVM_VER}/install.sh |bash && \
- . ${HOME}/.bash_profile && \
- nvm install stable && \
- node -v && \
- npm -v
+ curl -sL https://rpm.nodesource.com/setup_${NODEJS_SETUP_SUFFIX} |bash - && \
+ yum -y update && \
+ yum -y install nodejs && \
+ yum -y clean all
 
 # Install nodejs packages
 RUN \
  set -x; \
- npm update -g && \
+ npm up -g && \
  npm install -g n encoding-japanese && \
  npm cache clean && \
  npm ls -g

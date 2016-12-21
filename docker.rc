@@ -12,6 +12,11 @@ then
   }
 fi
 
+# Docker machine env
+[ -x "$(type -P docker-machine)" ] && {
+  eval $(docker-machine env)
+}
+
 # DOCKER Host
 [ -z "${DOCKER_HOST}" ] &&
 [ -x "$(type -P docker-machine)" ] &&
