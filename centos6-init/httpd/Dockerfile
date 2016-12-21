@@ -50,17 +50,17 @@ RUN \
  for log in /var/log/*; do cat /dev/null >"$log"; done; \
  for log in /tmp/*.log; do rm -f "$log"; done
 
-# Health check
-HEALTHCHECK \
---interval=60s --timeout=15s --retries=3 \
-CMD \
- curl -sL --no-keepalive -o /dev/null "http://localhost/"
-
 # Reset Work dir
 WORKDIR \
  /
 RUN \
  rm -rf "${WORKDIR}"
+
+# Health check
+HEALTHCHECK \
+--interval=60s --timeout=15s --retries=3 \
+CMD \
+ curl -sL --no-keepalive -o /dev/null "http://localhost/"
 
 # Publish a container's port(s) to the host
 EXPOSE 80 443

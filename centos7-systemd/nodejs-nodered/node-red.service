@@ -1,0 +1,22 @@
+[Unit]
+Description=Node-RED Server
+
+[Service]
+Type=forking
+ExecStart=/usr/bin/node-red ${NODERED_OPTS}
+User=${NODERED_USER}
+Group=${NODERED_GROUP}
+WorkingDirectory=${NODERED_HOME}
+PIDFile=/var/run/node-red.pid
+
+Restart=always
+RestartSec=10
+
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=node-red
+
+EnvironmentFile=/etc/sysconfig/node-red
+
+[Install]
+WantedBy=multi-user.target

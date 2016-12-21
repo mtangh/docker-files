@@ -23,11 +23,10 @@ ARG DOCKERPASS=dockeruser
 # Install packages
 RUN \
  set -x; \
+ yum -y install epel-release && \
  yum -y update && \
  yum -y install systemd-sysv && \
  yum -y install openssh-server sudo && \
- yum -y install epel-release && \
- yum -y update && \
  yum -y clean all
 
 # Change root passwor
@@ -79,7 +78,8 @@ RUN \
 RUN \
  set -x; \
  for log in /var/log/*; do cat /dev/null >"$log"; done; \
- for log in /tmp/*.log /*.log; do rm -f "$log"; done
+ for log in {,/root,/tmp}/*.log; do rm -f "$log"; done; \
+ [ -n "${WORKDIR}" -a -d "${WORKDIR}" ] && rm -rf "${WORKDIR}" || :
 
 # STOP SIGNAL
 STOPSIGNAL SIGINT
