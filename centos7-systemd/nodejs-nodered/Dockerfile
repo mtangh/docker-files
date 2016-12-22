@@ -22,10 +22,10 @@ WORKDIR \
 # Install node-red
 RUN \
  set -x; \
- npm update -g && \
- npm install -g node-red && \
- npm cache clean && \
- npm info -g node-red
+ npm -g up && \
+ npm -g install node-red && \
+ npm -g cache clean && \
+ npm -g info node-red
 
 # Create node-red user
 COPY \

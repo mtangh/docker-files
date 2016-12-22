@@ -21,21 +21,27 @@ WORKDIR \
 
 # Install packages
 ARG \
- NODEJS_SETUP_SUFFIX=7.x
+ NODEJS_SETUP=setup_7.x
+ARG \
+ NODEJS_URL=https://rpm.nodesource.com/${NODEJS_SETUP}
 RUN \
  set -x; \
- curl -sL https://rpm.nodesource.com/setup_${NODEJS_SETUP_SUFFIX} |bash - && \
+ curl -sL "${NODESOURCE_URL}" |bash - && \
  yum -y update && \
  yum -y install nodejs && \
- yum -y clean all
+ yum -y clean all && { \
+   echo "$(type -P node): $(node --version)"; \
+   echo "$(type -P npm): $(npm --version)"; \
+ }
 
 # Install nodejs packages
 RUN \
  set -x; \
- npm up -g && \
- npm install -g n encoding-japanese && \
- npm cache clean && \
- npm ls -g
+ npm -g install semver && \
+ npm -g install n encoding-japanese && \
+ npm -g up && \
+ npm -g cache clean && \
+ npm -g ls
 
 # Cleanup
 RUN \
