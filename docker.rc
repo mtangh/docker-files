@@ -6,11 +6,11 @@ DOCKER_BIN_DIR="${DOCKERFILESDIR}/_docker-bin"
 if [ -d "$DOCKER_BIN_DIR" ]
 then
   echo "$PATH" |
-  grep -E '^(.+:|)'"${DOCKERFILESDIR}/_docker-bin"'(:.+|)$' 1>/dev/null 2>&1 || {
+  grep -E '^(.+:|)'"${DOCKERFILESDIR}/_docker-bin"'(:.+|)$' || {
     PATH="${PATH}:${DOCKERFILESDIR}/_docker-bin"
     export PATH
   }
-fi
+fi 1>/dev/null 2>&1
 
 # Docker machine env
 [ -x "$(type -P docker-machine)" ] && {
@@ -28,18 +28,19 @@ export DOCKER_HOST
 # Functions
 for func in "${DOCKER_BIN_DIR}"/functions/*
 do
-  . "${func}" 1>/dev/null 2>&1
-done
+  . "${func}"
+done 1>/dev/null 2>&1
 unset func
 
 # Aliases
 alias docker-rc-reload=". ${DOCKERFILESDIR}/${DOCKER_RC_FILE} && echo OK"
 
-alias DOCKER-REBOOT="HALT.sh && BOOT.sh"
-alias DOCKER-BOOT="BOOT.sh"
-alias DOCKER-HALT="HALT.sh --no-remove"
+alias docker-make="MAKE.sh --build-only"
+alias docker-make-boot="MAKE.sh"
+alias docker-make-rebuild="MAKE.sh --build-only --rebuild"
+alias docker-make-clean="MAKE.sh --clean"
 
-alias DOCKER-REBUILD="HALT.sh && BOOT.sh --build-only"
-alias DOCKER-BUILD="BOOT.sh --build-only"
-alias DOCKER-DROP="HALT.sh"
+alias docker-clean=docker-cleanup
 
+# end
+return 0

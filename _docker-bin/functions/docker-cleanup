@@ -4,16 +4,18 @@
 docker-cleanup() {
   local _rmcids=$(
     docker ps -a --format="{{ .ID }}" \
-                 --filter="status=created" \
-                 --filter="status=exited" \
-                 --filter="status=dead")
+      --filter="status=created" \
+      --filter="status=exited" \
+      --filter="status=dead" \
+      2>/dev/null)
   local _rmiids=$(
     docker images -a --format="{{ .ID }}" \
-                 --filter="dangling=true")
+      --filter="dangling=true" \
+      2>/dev/null)
   : && {
-    printf "cleanup: container ... %3d deleted.\n" "$(docker rm ${_rmcids}| wc -l)"
-    printf "cleanup: image     ... %3d deleted.\n" "$(docker rmi ${_rmiids}| wc -l)"
+    printf "$FUNCNAME: container ... %3d deleted.\n" "$(docker rm ${_rmcids}| wc -l)"
+    printf "$FUNCNAME: image     ... %3d deleted.\n" "$(docker rmi ${_rmiids}| wc -l)"
   } 2>/dev/null
-  return $?
+  return 0
 }
 

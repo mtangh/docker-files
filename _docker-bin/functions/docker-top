@@ -3,6 +3,7 @@
 # docker top
 docker-top() {
   local _container="$(get-container-id)"
+  [ -n "$(echo ${_container}${@})" ] &&
   docker top $_container $@
   return $?
 }

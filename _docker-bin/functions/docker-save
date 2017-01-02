@@ -1,0 +1,12 @@
+# docker-save
+
+# docker save
+docker-save() {
+  local _cimage_id=$(get-image-id)
+  local _cimagetag=$(get-image-tag)
+  [ -n "$_cimage_id" ] &&
+  [ -n "$_cimagetag" ] &&
+  docker save -o "${_cimagetag}".tgz "$_cimage_id"
+  return $?
+}
+

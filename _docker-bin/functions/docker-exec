@@ -2,18 +2,28 @@
 
 # docker exec
 docker-exec() {
-  local _container="$(get-container-id)"
+  local _container="$(get-container-id-all)"
   local _exec_opts=""
   local _endofopts=0
   [ -n "$_container" ] || {
-    _container="$(get-container-id $1)" &&
+    _container="$(get-container-id-all $1)" &&
     shift
+  }
+  [ -n "${_container}" ] || {
+    cat <<_USAGE_
+Usage: $_func_name [CONTAINER] [OPTIONS] -- COMMAND [ARG...]
+
+_USAGE_
+    return 1
   }
   while [ $# -gt 0 -a $_endofopts -eq 0 ]
   do
     case "$1" in
     --)
-      _endofopts=1
+      if [ $_endofopts -ne 0 ]
+      then _endofopts=0
+      else _endofopts=1
+      fi
       ;;
     *)
       _exec_opts=$(echo $_exec_opts $1)

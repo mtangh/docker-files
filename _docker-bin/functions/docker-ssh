@@ -3,82 +3,70 @@
 # docker ssh
 docker-ssh() {
   local _container=""
+  local _cinstance=""
+  local _cimagetag=""
+  local _buildpath=""
   local c_ssh_user="root"
   local c_ssh_host=$(docker-host-addr)
   local c_ssh_port=
   local c_ssh_opts="-oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no"
-  eval $(docker-container-env)
+  local c_cmndopts=""
+  local _endofopts=0
+  local _getoptopt=""
+  local _getoptarg=""
+  local _getoptcnt=0
+  local _getopt_ARGV=""
+  local _getopt_ARGC=0
+  _getoptopt=$(echo $_getoptopt "|file:=_buildpath")
+  _getoptopt=$(echo $_getoptopt "|name:=_cinstance")
+  _getoptopt=$(echo $_getoptopt "|tag:=_cimagetag")
+  _getoptopt=$(echo $_getoptopt "l|:=c_ssh_user")
+  _getoptopt=$(echo $_getoptopt "p|:=c_ssh_port")
+  eval $(_getopt "$_getoptopt" "$@")
   [ -z "$c_ssh_host" ] &&
   [ -n "$(type -P docker-machine)" ] && {
     c_ssh_host="$(docker-machine ip)"
   }
-  while [ $# -gt 0 ]
+  for _getoptarg in $_getopt_ARGV
   do
-    case "$1" in
-    --name)
-      [ -n "${2}" ] && {
-        DOCKER_CONTAINER="${2}"
-        shift
-      }
-      ;;
-    --tag)
-      [ -n "${2}" ] && {
-        DOCKER_IMAGE_TAG="${2}"
-        shift
-      }
-      ;;
-    -l*)
-      if [ -n "${1##*-l}" ]
-      then
-        c_ssh_user="${1##*-l}"
-      elif [ -n "$2" ]
-      then
-        c_ssh_user="$2"
-        shift
-      fi
-      ;;
-    -p*)
-      if [ -n "${1##*-p}" ]
-      then
-        c_ssh_port="${1##*-p}"
-      elif [ -n "$2" ]
-      then
-        c_ssh_port="$2"
-        shift
+    case "$_getoptarg" in
+    --)
+      if [ $_endofopts -ne 0 ]
+      then _endofopts=0
+      else _endofopts=1
       fi
       ;;
     -*)
-      c_ssh_opts=$(echo "$c_ssh_opts" "$1")
+      c_ssh_opts=$(echo $c_ssh_opts "$_getoptarg")
       ;;
     [A-Za-z]*@[0-9A-Za-z]*)
-      c_ssh_user="${1%%@*}"
-      c_ssh_host="${1#*@}"
+      c_ssh_user="${_getoptarg%%@*}"
+      c_ssh_host="${_getoptarg#*@}"
       ;;
     *)
-      c_ssh_opts=$(echo "$c_ssh_opts" "$1")
+      if [ $_endofopts -eq 0 ]
+      then c_ssh_opts=$(echo $c_ssh_opts "$_getoptarg")
+      else c_cmndopts=$(echo $c_cmndopts "$_getoptarg")
+      fi
       ;;
     esac
-    shift
   done
-  if [ -z "${c_ssh_port}" ]
-  then
-    for key in "$DOCKER_CONTAINER" "$DOCKER_IMAGE_TAG"
-    do
-      [ -n "$key" ] && {
-        _container=$(
-          ${DOCKER_BIN_DIR}/_docker-get-container-id.sh "$key" |
-          sort |head -n 1)
-      } &&
-      break
-    done
-    if [ -n "${_container}" ]
-    then
-      c_ssh_port=$(
-        ${DOCKER_BIN_DIR}/_docker-get-container-port.sh -id \
-        "$_container" 22)
-    fi
-  fi
-  ssh $c_ssh_opts -p "${c_ssh_port:-22}" -l "$c_ssh_user" "$c_ssh_host"
+  [ -z "$buildpath" ] &&
+  _buildpath="$(pwd)/Dockerfile"
+  [ -r "$buildpath" -a -z "$_cinstance" ] &&
+  _cinstance=$(docker-container-env DOCKER_CONTAINER "$_buildpath")
+  [ -r "$buildpath" -a -z "$_cimagetag" ] &&
+  _cimagetag=$(docker-container-env DOCKER_IMAGE_TAG "$_buildpath")
+  [ -z "${c_ssh_port}" ] &&
+  _container=$(
+    get-container-id-all "$_cinstance" ||
+    get-container-id-all "$_cimagetag" ||
+    echo "")
+  [ -z "${c_ssh_port}" ] &&
+  [ -n "${_container}" ] &&
+  c_ssh_port=$(get-container-port "$_container" 22)
+  [ -n "${c_ssh_port}" ] &&
+  ssh $c_ssh_opts -p "${c_ssh_port}" -l "$c_ssh_user" "$c_ssh_host" $c_cmndopts
   return $?
 }
 

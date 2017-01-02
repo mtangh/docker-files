@@ -1,9 +1,0 @@
-# node-red
-
-NODERED_USER=node-red
-
-NODERED_GROUP=${NODERED_GROUP:-$NODERED_USER}
-
-NODERED_HOME=${NODERED_HOME:-/home/$NODERED_USER}
-
-NODERED_OPTS="-s ${NODERED_HOME}/.node-red/settings.js"

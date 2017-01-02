@@ -1,22 +1,21 @@
+# node-red.service
+
 [Unit]
 Description=Node-RED Server
+After=network.target
 
 [Service]
-Type=forking
-ExecStart=/usr/bin/node-red ${NODERED_OPTS}
-User=${NODERED_USER}
-Group=${NODERED_GROUP}
-WorkingDirectory=${NODERED_HOME}
-PIDFile=/var/run/node-red.pid
-
-Restart=always
-RestartSec=10
-
-StandardOutput=syslog
-StandardError=syslog
-SyslogIdentifier=node-red
-
+Type=simple
+ExecStart=/usr/local/bin/node-red $NODERED_OPTIONS
+ExecStop=/bin/kill -INT $MAINPID
 EnvironmentFile=/etc/sysconfig/node-red
+WorkingDirectory=/home/node-red
+User=node-red
+Group=node-red
+KillMode=process
+Restart=always
+RestartSec=32
 
 [Install]
 WantedBy=multi-user.target
+

@@ -1,0 +1,76 @@
+# docker-build
+
+# docker build
+docker-build() {
+  local _cimagetag=""
+  local _buildpath=""
+  local _buildfile=""
+  local _build_dir=""
+  local _buildopts=""
+  local _labelopts=""
+  local _dockerret=0
+  local _getoptarg=""
+  local _getoptcnt=0
+  local _getopt_ARGV=""
+  local _getopt_ARGC=0
+  eval $(_getopt "f|file:=_buildpath t|tag:=_cimagetag" "$@")
+  if [ -n "$_buildpath" ] &&
+     [ "$_buildpath" != "${_buildpath##*/}" ]
+  then
+    _buildfile="${_buildpath##*/}"
+    _build_dir="${_buildpath%/*}"
+  fi
+  for _getoptarg in $_getopt_ARGV
+  do
+    _getoptcnt=$(( $_getoptcnt + 1 ))
+    case "$_getoptarg" in
+    -*)
+      _buildopts=$(echo $_buildopts "$_getoptarg")
+      ;;
+    *)
+      if [ $_getoptcnt -ge $_getopt_ARGC ]
+      then
+        if [ -d "$_getoptarg" ]
+        then
+          _build_dir="$_getoptarg"
+          _buildfile="${_buildfile:-Dockerfile}"
+        elif [ -f "$_getoptarg" ] &&
+             [ "$_getoptarg" != "${_getoptarg%/*}" ]
+        then
+          [ -z "$_buildfile" ] &&
+          _buildfile="${_getoptarg##*/}"
+          _build_dir="${_getoptarg%/*}"
+        fi 1>/dev/null 2>&1 
+      else
+        _buildopts=$(echo $_buildopts "$_getoptarg")
+      fi
+      ;;
+    esac
+    shift
+  done
+  [ -z "$_build_dir" ] &&
+  _build_dir="$(pwd)"
+  [ -z "$_buildfile" ] &&
+  _buildfile="Dockerfile"
+  [ -z "$_buildpath" ] &&
+  _buildpath="$_build_dir/$_buildfile"
+  [ -r "$_buildpath" ] && [ -z "$_cimagetag" ] &&
+  _cimagetag=$(docker-container-env DOCKER_IMAGE_TAG "$_buildpath")
+  [ -r "$_buildpath" ] && [ -z "$_buildopts" ] &&
+  _buildopts=$(docker-container-env DOCKER_BUILDOPTS "$_buildpath")
+  if [ -n "${_cimagetag}" ]
+  then
+    _labelopts=$(echo $_labelopts --label "build-date=$(date +'%Y%m%d')")
+    _labelopts=$(echo $_labelopts --label "docker.build.options=\"$_buildopts\"")
+    echo docker build $_buildopts $_labelopts \
+      ${_cimagetag:+-t $_cimagetag} ${_buildpath:+-f $_buildpath} "${_build_dir:-.}" &&
+    eval $(echo \
+      docker build $_buildopts $_labelopts \
+      ${_cimagetag:+-t $_cimagetag} ${_buildpath:+-f $_buildpath} "${_build_dir:-.}")
+    _dockerret=$?
+  else
+    docker build --help; echo; _dockerret=1
+  fi
+  return $_dockerret
+}
+

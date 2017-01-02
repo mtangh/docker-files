@@ -1,0 +1,129 @@
+# container-id
+
+get-container-id() {
+  local _container=""
+  local _cmnd_opts=""
+  local _buildpath=""
+  local _ps_allids=0
+  local _ps_latest=0
+  local _ps_last_n=""
+  local _find_file=0
+  local _find_keys=""
+  local _found_cnt=0
+  local _searchval=""
+  local _getoptarg=""
+  local _getoptcnt=0
+  local _getopt_ARGV=""
+  local _getopt_ARGC=0
+  eval $(_getopt "f|file:=_buildpath a|all=_ps_allids l|latest=_ps_latest n|last:=_ps_last_n" "$@")
+  for _getoptarg in $_getopt_ARGV
+  do
+    case "$_getoptarg" in
+    -*)
+      ;;
+    *)
+      _find_keys=$(echo $_find_keys "$_getoptarg")
+      ;;
+    esac
+  done
+  [ -z "$_buildpath" ] && {
+    _buildpath="$(pwd)/Dockerfile"
+  }
+  [ -r "$_buildpath" -a -z "$_find_keys" ] && {
+    _find_file=1
+    _find_keys=$(echo \
+      $(docker-container-env DOCKER_CONTAINER "$_buildpath") \
+      $(docker-container-env DOCKER_IMAGE_TAG "$_buildpath") \
+      "" )
+  }
+  [ $_ps_allids -ne 0 ] &&
+  _cmnd_opts=$(echo $_cmnd_opts "--all")
+  [ $_ps_latest -ne 0 ] &&
+  _cmnd_opts=$(echo $_cmnd_opts "--latest")
+  [ -n "$_ps_last_n" ] &&
+  expr "$_ps_last_n" + 0 1>/dev/null 2>&1 &&
+  _cmnd_opts=$(echo $_cmnd_opts "-n$_ps_last_n")
+  for _searchval in $_find_keys
+  do
+    _container=""
+    [ -n "$_searchval" ] && {
+      _container=$(
+        docker ps $_cmnd_opts --format='{{.ID}} {{.Image}} {{.Names}}' |
+        grep -E '(^|[ ])'"${_searchval}"'([ ].*|$)' |
+        awk '{print($1)}')
+    }
+    [ -n "$_container" ] && {
+      echo "$_container"
+      _found_cnt=$(( $_found_cnt + 1 ))
+      [ $_find_file -ne 0 ] && break
+    }
+  done
+  [ $_found_cnt -gt 0 ]
+  return $?
+}
+
+# container all ids
+get-container-id-all() {
+  get-container-id --all $@
+  return $?
+}
+
+# container latest id
+get-container-id-latest() {
+  get-container-id --all --latest $@
+  return $?
+}
+
+# container latest id
+get-container-id-last() {
+  get-container-id --all --last=1 $@
+  return $?
+}
+
+# container running
+container-is-running() {
+  local _container=$(get-container-id-last $@)
+  [ -n "$_container" ] && {
+    docker ps -a --format="{{ .ID }}" --filter "status=running" |
+    grep -E '^'"$_container"'$'
+  } 1>/dev/null 2>&1
+  return $?
+}
+
+# container port
+get-container-port() {
+  local _container=""
+  local _cont_opts=""
+  local _find_port=""
+  local _portmapln=""
+  while [ $# -gt 0 ]
+  do
+    case "$1" in
+    -*)
+      _cont_opts=$(echo $_cont_opts "$1") 
+      ;;
+    *)
+      echo "$1" |
+      grep -E '^[1-9][0-9]*$' 1>/dev/null 2>&1
+      if [ $? -eq 0 ]
+      then _find_port=$(echo $_find_port "$1")
+      else _cont_opts=$(echo $_cont_opts "$1") 
+      fi
+      ;;
+    esac
+    shift
+  done
+  _container=$(get-container-id $_cont_opts)
+  [ -n "${_container}" ] && {
+    docker port "${_container}" $_find_port 2>/dev/null |
+    while read _portmapln
+    do
+      [ -n "$_find_port" ] &&
+      echo "${_portmapln##*:}"
+      [ -n "$_find_port" ] ||
+      echo "${_portmapln##*:}" ${_portmapln%->*}
+    done |sort -u
+  }
+  return $?
+}
+

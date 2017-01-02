@@ -1,0 +1,59 @@
+# container-env
+
+# docker container env
+docker-container-env() {
+  local _cattrvalue=""
+  local _cattribute="$1"; shift
+  local _dockerfile="$1"; shift
+  [ -z "${_dockerfile}" ] &&
+  _dockerfile="$(pwd)/Dockerfile"
+  [  -r "$_dockerfile" ] && {
+    if [ -z "$_cattribute" ]
+    then
+      get-dockerfile-attributes "$_dockerfile"
+    else
+      _cattrvalue=$(eval $(
+        get-dockerfile-attributes "$_dockerfile" |
+        grep -E '^'"$_cattribute"'=.*' && echo 'echo $'"$_cattribute") )
+      [ -n "$_cattrvalue" ] && {
+        echo "$_cattrvalue"
+      }
+    fi 2>/dev/null
+  }
+  return $?
+}
+
+get-dockerfile-attributes() {
+  local _dockerfile=""
+  local _exportvars=""
+  local _d_variable=""
+  local SED=""
+  while [ $# -gt 0 ]
+  do
+    case "$1" in
+    -E|--export)
+      _exportvars="export "
+      ;;
+    -*)
+      ;;
+    *)
+      _dockerfile="$1"
+      ;;
+    esac
+    shift
+  done
+  [ -r "${_dockerfile}" ] && {
+    SED=""
+    [ -z "$SED" -a -n "$(type -P gsed)" ] && SED="$(type -P gsed)"
+    [ -z "$SED" -a -n "$(type -P sed)" ]  && SED="$(type -P sed)"
+    cat "${_dockerfile}" |
+    $SED -ne 's;^#@[ ]*\([_A-Za-z][_0-9A-Za-z]*\)[ ]*=[ ]*\(.*\)[ ]*$;\1=\2;gp' |
+    while read _d_variable
+    do
+      [ -n "$_d_variable" ] &&
+      echo $_exportvars"${_d_variable};"
+    done
+  } 2>/dev/null
+  return $?
+}
+

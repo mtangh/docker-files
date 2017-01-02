@@ -2,11 +2,18 @@
 
 # docker bash
 docker-bash() {
-  local _this="${BASH_SOURCE##*/}"
+  local _func_name="${FUNCNAME}"
   local _container="$(get-container-id)"
   [ -n "$_container" ] || {
     _container="$(get-container-id $1)" &&
     shift
+  }
+  [ -n "$_container" ] || {
+    cat <<_USAGE_
+Usage: $_func_name [CONTAINER] [BASH-ARG...]
+
+_USAGE_
+    return 1
   }
   docker exec -it $_container /bin/bash $@
   return $?

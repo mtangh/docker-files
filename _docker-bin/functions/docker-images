@@ -1,0 +1,59 @@
+# docker-images
+
+# docker images
+docker-images() {
+  local _func_name="${FUNCNAME}"
+  local _dimageopt=""
+  local _header_id=$(printf "%-8s" ID)
+  local _headerstr=$(printf "\t%-36s\t%-30s\t%s" REPOSITORY:TAG CREATED SIZE)
+  local _formatopt="--format='"'{{ .ID }}\t{{ .Tag |printf "%s:%s" .Repository |printf "%-36s" }}\t{{ .CreatedAt }}\t{{ .Size }}'"'"
+  while [ $# -gt 0 ]
+  do
+    case "$1" in
+    --default)
+      _header_id=""
+      _headerstr=""
+      _formatopt=""
+      ;;
+    --id)
+      _header_id=$(printf "%-70s" ID)
+      _headerstr=""
+      _formatopt="--format='"'{{ .ID }}'"'"
+      ;;
+    --tag*)
+      _header_id=""
+      _headerstr=$(printf "%s" REPOSITORY:TAG)
+      _formatopt="--format='"'{{ .Tag |printf "%s:%s" .Repository |printf "%-36s" }}'"'"
+      ;;
+    --no-header)
+      _header_id=""
+      _headerstr=""
+      ;;
+    --format*|--help)
+      _dimageopt=$(echo $_dimageopt "$1")
+      _header_id=""
+      _headerstr=""
+      _formatopt=""
+      ;;
+    --no-trunc)
+      _dimageopt=$(echo $_dimageopt "$1")
+      _header_id=$(printf "%-70s" ID)
+      ;;
+    --digests)
+      _dimageopt=$(echo $_dimageopt "$1")
+      _headerstr=$(printf "\t%-36s\t%-30s\t%-12s\t%s" REPOSITORY:TAG CREATED SIZE DIGEST)
+      _formatopt="--format='"'{{ .ID }}\t{{ .Tag |printf "%s:%s" .Repository |printf "%-36s" }}\t{{ .CreatedAt }}\t{{ .Size |printf "%-12s" }}\t{{ .Digest }}'"'"
+      ;;
+    *)
+      _dimageopt=$(echo $_dimageopt "$1")
+      ;;
+    esac
+    shift
+  done
+  [ -n "$_header_id$_headerstr" ] && {
+    echo "$_header_id$_headerstr"
+  }
+  eval $(echo docker images $_formatopt $_dimageopt)
+  return $?
+}
+

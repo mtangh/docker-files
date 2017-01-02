@@ -1,0 +1,69 @@
+# docker-run
+
+# docker run
+docker-run() {
+  local _cimagetag=""
+  local _buildpath=""
+  local _drun_opts=""
+  local _cmnd_opts=""
+  local _endofopts=0
+  local _getoptarg=""
+  local _getoptcnt=0
+  local _getopt_ARGV=""
+  local _getopt_ARGC=0
+  [[ "$1" =~ ^- ]] || {
+    _cimagetag=$(get-image-tag "$1") && shift
+  }
+  eval $(_getopt "|image:=_cimagetag f|file:=_buildpath" "$@")
+  for _getoptarg in $_getopt_ARGV
+  do
+    case "$_getoptarg" in
+    --)
+      if [ $_endofopts -ne 0 ]
+      then _endofopts=0
+      else _endofopts=1
+      fi
+      ;;
+    -*)
+      [ $_endofopts -eq 0 ] &&
+      _drun_opts=$(echo $_drun_opts "$_getoptarg")
+      [ $_endofopts -eq 0 ] ||
+      _cmnd_opts=$(echo $_cmnd_opts "$_getoptarg")
+      ;;
+    *)
+      [ $_endofopts -eq 0 ] &&
+      _drun_opts=$(echo $_drun_opts "$_getoptarg")
+      [ $_endofopts -eq 0 ] ||
+      _cmnd_opts=$(echo $_cmnd_opts "$_getoptarg")
+      ;;
+    esac
+  done
+  [ -n "$_drun_opts" ] &&
+  [[ "$_drun_opts" =~ ^((..*)[\ ]|[ ]*)([^\ -][^\ ]*)$ ]] && {
+    _drun_opts="${BASH_REMATCH[2]}"
+    [ -n "${BASH_REMATCH[3]}" ] && {
+      _cimaagetag=$(get-image-tag "${BASH_REMATCH[2]}")
+    }
+  }
+  [ -z "$_buildpath" ] &&
+  _buildpath="$(pwd)/Dockerfile"
+  [ "$_buildpath" = "${_buildpath##*/}" ] &&
+  _buildpath="$(pwd)/$_buildpath"
+  [ -r "$_buildpath" -a -z "$_cimagetag" ] &&
+  _cimagetag=$(docker-container-env DOCKER_IMAGE_TAG "$_buildpath")
+  [ -r "$_buildpath" -a -z "$_drun_opts" ] &&
+  _drun_opts=$(docker-container-env DOCKER_BOOT_OPTS "$_buildpath")
+  [ -n "$_cimagetag" -a -z "$_drun_opts" ] &&
+  _drun_opts=$(get-image-property "docker.run.options" "$_cimagetag")
+  if [ -n "${_cimagetag}" ]
+  then
+    echo docker run $_drun_opts $_cimagetag $_cmnd_opts &&
+    eval $(echo \
+      docker run $_drun_opts $_cimagetag $_cmnd_opts)
+    _dockerret=$?
+  else
+    docker run --help; echo; _dockerret=1
+  fi
+  return $_dockerret
+}
+

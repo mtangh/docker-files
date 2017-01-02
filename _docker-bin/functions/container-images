@@ -2,28 +2,73 @@
 
 # container image id
 get-image-id() {
-  local _docker_image_tag=""
-  local _docker_image_cnt=0
+  _get-image id "$@"
+  return $?
+}
+
+# container image tag
+get-image-tag() {
+  _get-image tag "$@"
+  return $?
+}
+
+# get container image id or tag
+_get-image() {
+  local _images_out_type="$1"; shift
+  local _images_find_cnt=0
+  local _images_find_key=""
+  local _images_keyfound=""
+  local _images_fmt_spec=""
   local DOCKER_CONTAINER=""
   local DOCKER_IMAGE_TAG=""
-  eval $(docker-container-env)
-  [ -n "$DOCKER_IMAGE_TAG" ] && {
-    docker images --format '{{ .ID }}' "${DOCKER_IMAGE_TAG}" 2>/dev/null &&
-    return $?
-  }
-  for _docker_image_tag in $@
-  do
-    [ -n "$_docker_image_tag" ] &&
-    case "$_docker_image_tag" in
-    -*)
-      ;;
-    *)
-      docker images --format '{{ .ID }}' "$_docker_image_tag" 2>/dev/null &&
-      _docker_image_cnt=$(( $_docker_image_cnt + 1 ))
-      ;;
+  local DOCKER_BUILDOPTS=""
+  if [ $# -le 0 ]
+  then
+    eval $(docker-container-env)
+    [ -n "$DOCKER_IMAGE_TAG" ] && {
+      case "$_images_out_type" in
+      id)  _images_fmt_spec="{{ .ID }}" ;;
+      tag) _images_fmt_spec="{{ .Repository }}:{{ .Tag }}" ;;
+      esac
+      docker images --format="$_images_fmt_spec" "${DOCKER_IMAGE_TAG}" &&
+      _images_find_cnt=$(( $_images_find_cnt + 1 ))
+    }
+  else
+    case "$_images_out_type" in
+    id)  _images_fmt_spec='{print($1);}' ;;
+    tag) _images_fmt_spec='{print($2);}' ;;
     esac
-  done
-  [ $_docker_image_cnt -ge 0 ]
+    for _images_find_key in $@
+    do
+      [ -n "$_images_find_key" ] &&
+      case "$_images_find_key" in
+      -*)
+        ;;
+      *)
+        _images_keyfound=$(
+          docker images --format='{{ .ID}} {{ .Repository }}:{{ .Tag }}' |
+          grep -E '(^'"$_images_find_key"'[ ]|[ ]'"$_images_find_key"'$)' |
+          awk $_images_fmt_spec )
+        [ -n "$_images_keyfound" ] && {
+          echo $_images_keyfound
+          _images_find_cnt=$(( $_images_find_cnt + 1 ))
+        }
+        ;;
+      esac
+    done
+  fi 2>/dev/null
+  [ $_images_find_cnt -gt 0 ]
+  return $?
+}
+
+get-image-property() {
+  local _func_name="${FUNCNAME}"
+  local _prop_name="$1"; shift
+  local _dimagetag=$(get-image-tag "$1"); shift
+  [ -n "$_prop_name" ] &&
+  [ -n "$_dimagetag" ] && {
+    docker inspect --type image --format='{{ index .Config.Labels "'"$_prop_name"'" }}' "$_dimagetag"
+  }
   return $?
 }
 

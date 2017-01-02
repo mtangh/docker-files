@@ -1,19 +1,19 @@
 #
-# centos7-systemd:nodejs
+# centos6-upstart:nodejs
 #
 #@  DOCKER_CONTAINER=""
-#@  DOCKER_IMAGE_TAG="centos7-systemd:nodejs"
+#@  DOCKER_IMAGE_TAG="centos6-upstart:nodejs"
 #@  DOCKER_BUILDOPTS=""
 #@  DOCKER_BOOT_OPTS=""
 #
-FROM centos:centos7-systemd
+FROM centos:centos6-upstart
 
 # Maintainer
 MAINTAINER MT
 
 # Labels
 LABEL \
- name="Node.js on CentOS7 with Systemd"
+ name="Node.js on CentOS6 with Upstart"
 
 # Node packages
 ONBUILD \
@@ -34,6 +34,13 @@ ARG \
  WORKDIR=/tmp/workdir
 WORKDIR \
  ${WORKDIR}
+
+# Install packages
+RUN \
+ set -x; \
+ yum -y update && \
+ yum -y install which && \
+ yum -y clean all
 
 # Install packages
 ARG \
@@ -85,6 +92,6 @@ RUN \
 
 # Labels for run
 LABEL \
- docker.run.options="-d -P -h nodejs-server --privileged" \
+ docker.run.options="-d -P -h nodejs-server" \
  docker.run.confirm-startup=""
 

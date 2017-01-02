@@ -1,0 +1,88 @@
+# docker-controls
+
+# docker control
+__docker-control-command() {
+  local _container=""
+  local _crrl_argv=""
+  local _ctrl_cmnd="$1"; shift
+  local _ctrl_opts=""
+  local _toggleflg=0
+  local _dockerret=0
+  [ $# -le 0 ] && {
+    _container=$(get-container-id-last)
+  }
+  while [ $# -gt 0 ]
+  do
+    case "$1" in
+    --)
+      if [ $_toggleflg -ne 0 ]
+      then _toggleflg=0
+      else _toggleflg=1
+      fi
+      ;;
+    -*)
+      _ctrl_opts=$(echo $_ctrl_opts "$1")
+      ;;
+    *)
+      if [ $_toggleflg -eq 0 ]
+      then
+        _ctrl_argv=$(get-container-id-all "$1")
+        if [ -n "$_ctrl_argv" ]
+        then _container=$(echo $_container "$_ctrl_argv")
+        else _ctrl_opts=$(echo $_ctrl_opts "$1")
+        fi
+      else
+        _ctrl_opts=$(echo $_ctrl_opts "$1")
+      fi
+      ;;
+    esac
+    shift
+  done 2>/dev/null
+  if [ -n "$_ctrl_cmnd" -a -n "$_container" ]
+  then
+    #echo docker $_ctrl_cmnd $_ctrl_opts $_container &&
+    docker $_ctrl_cmnd $_ctrl_opts $_container 2>/dev/null
+    _dockerret=$?
+  else
+    _dockerret=1
+  fi
+  return $_dockerret
+}
+
+# docker start
+docker-start() {
+  __docker-control-command start $@
+  return $?
+}
+
+# docker stop
+docker-stop() {
+  __docker-control-command stop $@
+  return $?
+}
+
+# docker restart
+docker-restart() {
+  echo "docker-stop: $(docker-stop $@ 2>/dev/null || echo NG.)"
+  echo "docker-start: $(docker-start $@ 2>/dev/null || echo NG.)"
+  return $?
+}
+
+# docker attach
+docker-kill() {
+  __docker-control-command attach $@
+  return $?
+}
+
+# docker kill
+docker-kill() {
+  __docker-control-command kill $@
+  return $?
+}
+
+# docker rm
+docker-rm() {
+  __docker-control-command rm $@
+  return $?
+}
+
