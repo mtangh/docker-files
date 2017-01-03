@@ -7,17 +7,14 @@ docker-run() {
   local _drun_opts=""
   local _cmnd_opts=""
   local _endofopts=0
-  local _getoptarg=""
-  local _getoptcnt=0
-  local _getopt_ARGV=""
-  local _getopt_ARGC=0
   [[ "$1" =~ ^- ]] || {
     _cimagetag=$(get-image-tag "$1") && shift
   }
-  eval $(_getopt "|image:=_cimagetag f|file:=_buildpath" "$@")
-  for _getoptarg in $_getopt_ARGV
+  eval $(getoptions "|image:=_cimagetag f|file:=_buildpath" "$@")
+  while getoptions_has_next
   do
-    case "$_getoptarg" in
+    eval $(getoptions_shift)
+    case "$_getopt_V" in
     --)
       if [ $_endofopts -ne 0 ]
       then _endofopts=0
@@ -26,15 +23,15 @@ docker-run() {
       ;;
     -*)
       [ $_endofopts -eq 0 ] &&
-      _drun_opts=$(echo $_drun_opts "$_getoptarg")
+      _drun_opts=$(echo $_drun_opts "$_getopt_V")
       [ $_endofopts -eq 0 ] ||
-      _cmnd_opts=$(echo $_cmnd_opts "$_getoptarg")
+      _cmnd_opts=$(echo $_cmnd_opts "$_getopt_V")
       ;;
     *)
       [ $_endofopts -eq 0 ] &&
-      _drun_opts=$(echo $_drun_opts "$_getoptarg")
+      _drun_opts=$(echo $_drun_opts "$_getopt_V")
       [ $_endofopts -eq 0 ] ||
-      _cmnd_opts=$(echo $_cmnd_opts "$_getoptarg")
+      _cmnd_opts=$(echo $_cmnd_opts "$_getopt_V")
       ;;
     esac
   done

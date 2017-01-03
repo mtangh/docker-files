@@ -40,7 +40,6 @@ __docker-control-command() {
   done 2>/dev/null
   if [ -n "$_ctrl_cmnd" -a -n "$_container" ]
   then
-    #echo docker $_ctrl_cmnd $_ctrl_opts $_container &&
     docker $_ctrl_cmnd $_ctrl_opts $_container 2>/dev/null
     _dockerret=$?
   else

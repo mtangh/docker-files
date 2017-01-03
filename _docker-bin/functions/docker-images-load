@@ -1,0 +1,33 @@
+# docker image loader
+docker-images-load() {
+  local _load_file="$1"; shift
+  local _cimage_id=""
+  local _cimagetag=""
+  local _gunzipcmd=""
+  [ -r "$_load_file" ] && {
+    _cimagetag="${_load_file##*/}"
+    case "$_cimagetag" in
+    *.tar.gz)
+      _cimagetag="${_cimagetag%.tar.gz*}"
+      _gunzipcmd="gunzip -c"
+      ;;
+    *.tgz)
+      _cimagetag="${_cimagetag%.tgz*}"
+      _gunzipcmd="gunzip -c"
+      ;;
+    *.*)
+      _cimagetag="${_cimagetag%.*}"
+      _gunzipcmd="cat"
+      ;;
+    esac
+    _cimage_id=$(
+      $_gunzipcmd "$_load_file" |
+      docker load -q |
+      sed -e 's/^Loaded image ID: //g') &&
+    echo "$FUNCNAME: Loaded image ID: $_cimage_id." &&
+    docker tag "$_cimage_id" "$_cimagetag" &&
+    echo "$FUNCNAME: Tagged '$_cimagetag' to '$_cimage_id'."
+  }
+  return $?
+}
+

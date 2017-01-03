@@ -62,7 +62,6 @@ _get-image() {
 }
 
 get-image-property() {
-  local _func_name="${FUNCNAME}"
   local _prop_name="$1"; shift
   local _dimagetag=$(get-image-tag "$1"); shift
   [ -n "$_prop_name" ] &&

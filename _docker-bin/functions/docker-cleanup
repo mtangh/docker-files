@@ -5,7 +5,6 @@ docker-cleanup() {
   local _rmcids=$(
     docker ps -a --format="{{ .ID }}" \
       --filter="status=created" \
-      --filter="status=exited" \
       --filter="status=dead" \
       2>/dev/null)
   local _rmiids=$(

@@ -2,7 +2,6 @@
 
 # docker bash
 docker-bash() {
-  local _func_name="${FUNCNAME}"
   local _container="$(get-container-id)"
   [ -n "$_container" ] || {
     _container="$(get-container-id $1)" &&

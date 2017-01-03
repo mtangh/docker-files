@@ -11,21 +11,20 @@ get-container-id() {
   local _find_keys=""
   local _found_cnt=0
   local _searchval=""
-  local _getoptarg=""
-  local _getoptcnt=0
-  local _getopt_ARGV=""
-  local _getopt_ARGC=0
-  eval $(_getopt "f|file:=_buildpath a|all=_ps_allids l|latest=_ps_latest n|last:=_ps_last_n" "$@")
-  for _getoptarg in $_getopt_ARGV
+  eval $(getoptions \
+    "f|file:=_buildpath a|all=_ps_allids l|latest=_ps_latest n|last:=_ps_last_n" "$@")
+  while getoptions_has_next
   do
-    case "$_getoptarg" in
+    eval $(getoptions_shift)
+    case "$_getopt_V" in
     -*)
       ;;
     *)
-      _find_keys=$(echo $_find_keys "$_getoptarg")
+      _find_keys=$(echo $_find_keys "$_getopt_V")
       ;;
     esac
   done
+  eval $(getoptions_end)
   [ -z "$_buildpath" ] && {
     _buildpath="$(pwd)/Dockerfile"
   }
@@ -96,23 +95,25 @@ get-container-port() {
   local _cont_opts=""
   local _find_port=""
   local _portmapln=""
-  while [ $# -gt 0 ]
+  eval $(getoptions "" "$@")
+  while getoptions_has_next
   do
-    case "$1" in
+    eval $(getoptions_shift)
+    case "$_getopt_V" in
     -*)
-      _cont_opts=$(echo $_cont_opts "$1") 
+      _cont_opts=$(echo $_cont_opts "$_getopt_V") 
       ;;
     *)
-      echo "$1" |
+      echo "$_getopt_V" |
       grep -E '^[1-9][0-9]*$' 1>/dev/null 2>&1
       if [ $? -eq 0 ]
-      then _find_port=$(echo $_find_port "$1")
-      else _cont_opts=$(echo $_cont_opts "$1") 
+      then _find_port=$(echo $_find_port "$_getopt_V")
+      else _cont_opts=$(echo $_cont_opts "$_getopt_V") 
       fi
       ;;
     esac
-    shift
   done
+  eval $(getoptions_end)
   _container=$(get-container-id $_cont_opts)
   [ -n "${_container}" ] && {
     docker port "${_container}" $_find_port 2>/dev/null |

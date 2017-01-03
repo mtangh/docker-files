@@ -12,24 +12,16 @@ docker-ssh() {
   local c_ssh_opts="-oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no"
   local c_cmndopts=""
   local _endofopts=0
-  local _getoptopt=""
-  local _getoptarg=""
-  local _getoptcnt=0
-  local _getopt_ARGV=""
-  local _getopt_ARGC=0
-  _getoptopt=$(echo $_getoptopt "|file:=_buildpath")
-  _getoptopt=$(echo $_getoptopt "|name:=_cinstance")
-  _getoptopt=$(echo $_getoptopt "|tag:=_cimagetag")
-  _getoptopt=$(echo $_getoptopt "l|:=c_ssh_user")
-  _getoptopt=$(echo $_getoptopt "p|:=c_ssh_port")
-  eval $(_getopt "$_getoptopt" "$@")
   [ -z "$c_ssh_host" ] &&
   [ -n "$(type -P docker-machine)" ] && {
     c_ssh_host="$(docker-machine ip)"
   }
-  for _getoptarg in $_getopt_ARGV
+  eval $(getoptions \
+    "|file:=_buildpath |name:=_cinstance |tag:=_cimagetag l|:=c_ssh_user p|:=c_ssh_port" "$@")
+  while getoptions_has_next
   do
-    case "$_getoptarg" in
+    eval $(getoptions_shift)
+    case "$_getopt_V" in
     --)
       if [ $_endofopts -ne 0 ]
       then _endofopts=0
@@ -37,16 +29,16 @@ docker-ssh() {
       fi
       ;;
     -*)
-      c_ssh_opts=$(echo $c_ssh_opts "$_getoptarg")
+      c_ssh_opts=$(echo $c_ssh_opts "$_getopt_V")
       ;;
     [A-Za-z]*@[0-9A-Za-z]*)
-      c_ssh_user="${_getoptarg%%@*}"
-      c_ssh_host="${_getoptarg#*@}"
+      c_ssh_user="${_getopt_V%%@*}"
+      c_ssh_host="${_getopt_V#*@}"
       ;;
     *)
       if [ $_endofopts -eq 0 ]
-      then c_ssh_opts=$(echo $c_ssh_opts "$_getoptarg")
-      else c_cmndopts=$(echo $c_cmndopts "$_getoptarg")
+      then c_ssh_opts=$(echo $c_ssh_opts "$_getopt_V")
+      else c_cmndopts=$(echo $c_cmndopts "$_getopt_V")
       fi
       ;;
     esac

@@ -51,7 +51,7 @@ RUN \
  o_cookie="oraclelicense=accept-securebackup-cookie" && \
  yum -v -y update && \
  curl ${curlopts} -b "${o_cookie}" "${url_base}${jdk_path}" && \
- case "${jdk_file_name}" in \
+ case "${jdk_path}" in \
  *.bin) sh *.bin ;; \
  *.rpm) rpm -Uvh jdk*.rpm ;; \
  *) ;; \

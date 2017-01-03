@@ -2,7 +2,6 @@
 
 # docker images
 docker-images() {
-  local _func_name="${FUNCNAME}"
   local _dimageopt=""
   local _header_id=$(printf "%-8s" ID)
   local _headerstr=$(printf "\t%-36s\t%-30s\t%s" REPOSITORY:TAG CREATED SIZE)

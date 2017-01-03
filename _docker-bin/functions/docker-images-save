@@ -1,0 +1,32 @@
+# docker image saver
+docker-images-save() {
+  local _cimage_id=""
+  local _cimagetag=""
+  local _store_dir=""
+  eval $(getoptions "d|:=_store_dir" "$@")
+  while getoptions_has_next
+  do
+    eval $(getoptions_shift)
+    case "$_getopt_V" in
+    -*)
+      ;;
+    *)
+      _cimage_id=$(get-image-id "$_getopt_V") &&
+      _cimagetag=$(get-image-tag "$_cimage_id") &&
+      break
+      ;;
+    esac
+  done
+  [ -r "$(pwd)/Dockerfile" -a -z "${_cimage_id}" ] && {
+    _cimage_id=$(get-image-id)
+    _cimagetag=$(get-image-tag)
+  }
+  [ -z "$_cimage_id" ] &&
+  [ -n "$_cimagetag" ] && {
+    docker save "$_cimage_id" |
+    gzip -c 1>"${_store_dir:-.}/${_cimagetag}".tar.gz 2>/dev/null &&
+    echo "$FUNCNAME: Saved image: $_cimagetag($_cimageid)."
+  }
+  return $?
+}
+

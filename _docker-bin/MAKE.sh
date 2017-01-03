@@ -41,7 +41,8 @@ _docker_c_buildopts=""
 _docker_c_boot_opts=""
 
 # Build and run parameters
-_docker_stop_and_rm=0
+_docker_rebuild_obj=0
+_docker_cleanuponly=0
 _docker_not_running=0
 _confirm_start_cmnd=""
 
@@ -49,50 +50,22 @@ _confirm_start_cmnd=""
 _in_docker_ext_opts=0
 
 # Parsing an options
-while [ $# -gt 0 ]
+_get_options_params="
+f|file:=__docker_build_path
+|tag:=_docker_c_image_tag
+|name:=_docker_object_name
+b|build-only=_docker_not_running
+|rebuild=_docker_rebuild_obj
+|clean=_docker_cleanuponly
+c|command:=_confirm_start_cmnd
+p|proc:=_confirm_start_cmnd
+"
+eval $(getoptions "$_get_options_params" $@)
+while getoptions_has_next
 do
+  eval $(getoptions_shift)
   [ $_in_docker_ext_opts -eq 0 ] &&
-  case "$1" in
-  -f*)
-    if [ -n "${1##*-f}" ]
-    then __docker_build_path="${1##*-f}"
-    elif [ -n "$2" ]
-    then __docker_build_path="$2"; shift
-    fi
-    ;;
-  --tag*)
-    if [ -n "${1##*--tag=}" ]
-    then _docker_c_image_tag="${1##*--tag=}"
-    elif [ -n "$2" ]
-    then _docker_c_image_tag="$2"; shift
-    fi
-    ;;
-  --name*)
-    if [ -n "${1##*--name=}" ]
-    then _docker_object_name="${1##*--name=}"
-    elif [ -n "$2" ]
-    then _docker_object_name="$2"; shift
-    fi
-    ;;
-  --rebuild)
-    [ $_docker_stop_and_rm -eq 0 ] &&
-    _docker_stop_and_rm=1
-    ;;
-  --clean)
-    [ $_docker_stop_and_rm -eq 0 ] &&
-    _docker_stop_and_rm=2
-    ;;
-  -b|-build*|--build*)
-    _docker_not_running=1
-    ;;
-  -c|-command*|--command*)
-    _confirm_start_cmnd="$2"
-    shift
-    ;;
-  -p|-proc*|--proc*)
-    _confirm_start_cmnd="ps -ef|grep '$2'"
-    shift
-    ;;
+  case "$_getopt_V" in
   -X[Bb])
     _in_docker_ext_opts=1
     ;;
@@ -104,26 +77,25 @@ do
   *)
     if [ -z "$_docker_img_tagname" ]
     then
-      _docker_img_tagname="$1"
+      _docker_img_tagname="$_getopt_V"
     elif [ -z "$_docker_img_cntname" ]
     then
-      _docker_img_cntname="$1"
+      _docker_img_cntname="$_getopt_V"
     fi
     ;;
   esac
   [ $_in_docker_ext_opts -eq 0 ] ||
-  case "$1" in
+  case "$_getopt_V" in
   -X[Ee])
     _in_docker_ext_opts=0
     ;;
   *)
     [ $_in_docker_ext_opts -eq 1 ] &&
-    _docker_c_buildopts=$(echo ${_docker_c_buildopts} $1)
+    _docker_c_buildopts=$(echo ${_docker_c_buildopts} $_getopt_V)
     [ $_in_docker_ext_opts -eq 2 ] &&
-    _docker_c_boot_opts=$(echo ${_docker_c_boot_opts} $1)
+    _docker_c_boot_opts=$(echo ${_docker_c_boot_opts} $_getopt_V)
     ;;
   esac
-  shift
 done
 
 # Dockerfile
@@ -181,7 +153,7 @@ EXIT_STATE=0
 
 # Cleanup ?
 if [ -n "$_docker_containerid" ] &&
-   [ $_docker_stop_and_rm -ne 0 ]
+   [ $_docker_rebuild_obj -ne 0 -o $_docker_cleanuponly -ne 0 ]
 then
 
   __section
@@ -204,7 +176,7 @@ then
   # reset
   _docker_containerid=""
 
-  if [ $_docker_stop_and_rm -ge 2 ]
+  if [ $_docker_cleanuponly -ne 0 ]
   then
     exit $EXIT_STATE
   else
@@ -217,49 +189,59 @@ fi
 if [ -z "$_docker_containerid" ]
 then
 
+  pushd "$__docker_build_wdir" 1>/dev/null 2>&1 || :
+
   # Build
   __section
 
-  ( cd "$__docker_build_wdir" && {
+  : && {
     __echo_start \
     docker-build -f "$__docker_build_file" ${_docker_c_buildopts} .
     docker-build -f "$__docker_build_file" ${_docker_c_buildopts} .
     __echo_end $?
+    
   } 2>&1 |
   while read stdoutln
   do
     echo "$THIS: BUILD: "$(echo "$stdoutln"|col -bx)
-  done; )
+  done
 
   EXIT_STATE=${PIPESTATUS[0]}
   [ $EXIT_STATE -eq 0 ] || {
     exit $EXIT_STATE
   }
 
+  popd 1>/dev/null 2>&1 || :
+
   # Run
   [ $_docker_not_running -ne 0 ] || {
       
+    pushd "$__docker_build_wdir" 1>/dev/null 2>&1 || :
+
     __section
 
-    ( cd "$__docker_build_wdir" && {
+    : && {
       __echo_start \
-      docker-run -f "$__docker_build_path" -P -d ${_docker_c_boot_opts}
-      docker-run -f "$__docker_build_path" -P -d ${_docker_c_boot_opts}
+      docker-run -f "$__docker_build_path" ${_docker_c_boot_opts}
+      docker-run -f "$__docker_build_path" ${_docker_c_boot_opts}
       __echo_end $?
     } 2>&1 |
     while read stdoutln
     do
       echo "$THIS: RUN: $stdoutln"
-    done; )
+    done
 
     EXIT_STATE=${PIPESTATUS[0]}
     [ $EXIT_STATE -eq 0 ] || {
       exit $EXIT_STATE
     }
 
+    popd 1>/dev/null 2>&1 || :
+
   } # [ $_docker_not_running -ne 0 ] || {
 
   EXIT_STATUS=0
+
 
 fi # if [ -z "$_docker_containerid" ]
 

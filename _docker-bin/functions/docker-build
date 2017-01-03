@@ -9,44 +9,39 @@ docker-build() {
   local _buildopts=""
   local _labelopts=""
   local _dockerret=0
-  local _getoptarg=""
-  local _getoptcnt=0
-  local _getopt_ARGV=""
-  local _getopt_ARGC=0
-  eval $(_getopt "f|file:=_buildpath t|tag:=_cimagetag" "$@")
+  eval $(getoptions "f|file:=_buildpath t|tag:=_cimagetag" "$@")
   if [ -n "$_buildpath" ] &&
      [ "$_buildpath" != "${_buildpath##*/}" ]
   then
     _buildfile="${_buildpath##*/}"
     _build_dir="${_buildpath%/*}"
   fi
-  for _getoptarg in $_getopt_ARGV
+  while getoptions_has_next
   do
-    _getoptcnt=$(( $_getoptcnt + 1 ))
-    case "$_getoptarg" in
+    eval $(getoptions_shift)
+    case "$_getopt_V" in
     -*)
-      _buildopts=$(echo $_buildopts "$_getoptarg")
+      _buildopts=$(echo $_buildopts "$_getopt_V")
       ;;
     *)
-      if [ $_getoptcnt -ge $_getopt_ARGC ]
+      if getoptions_has_next
       then
-        if [ -d "$_getoptarg" ]
+        _buildopts=$(echo $_buildopts "$_getopt_V")
+      else
+        if [ -d "$_getopt_V" ]
         then
-          _build_dir="$_getoptarg"
+          _build_dir="$_getopt_V"
           _buildfile="${_buildfile:-Dockerfile}"
-        elif [ -f "$_getoptarg" ] &&
-             [ "$_getoptarg" != "${_getoptarg%/*}" ]
+        elif [ -f "$_getopt_V" ] &&
+             [ "$_getopt_V" != "${_getopt_V%/*}" ]
         then
           [ -z "$_buildfile" ] &&
-          _buildfile="${_getoptarg##*/}"
-          _build_dir="${_getoptarg%/*}"
+          _buildfile="${_getopt_V##*/}"
+          _build_dir="${_getopt_V%/*}"
         fi 1>/dev/null 2>&1 
-      else
-        _buildopts=$(echo $_buildopts "$_getoptarg")
       fi
       ;;
     esac
-    shift
   done
   [ -z "$_build_dir" ] &&
   _build_dir="$(pwd)"
