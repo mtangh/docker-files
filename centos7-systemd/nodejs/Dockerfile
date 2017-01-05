@@ -39,37 +39,38 @@ WORKDIR \
 RUN \
  set -x; \
  yum -v -y update && \
- yum -v -y install perl && \
+ yum -v -y install gcc-c++ perl && \
  yum -v -y clean all
 
 # Install nodebrew, and node
 ARG \
- NODE_ROOT=/opt/node
-ARG \
- NODE_VERSION=stable
+ NODEBREW_URL=http://git.io/nodebrew
 ARG \
  NODEBREW_ROOT=/opt/nodebrew
 ARG \
- NODEBREW_URL=http://git.io/nodebrew
+ NODE_VERSION=stable
 RUN \
  set -x; \
- NODE_ROOT="${NODE_ROOT:-/opt/node}"; \
- NODEBREW_ROOT="${NODEBREW_ROOT:-/opt/nodebrew}"; \
- export NODEBREW_ROOT; \
+ export NODEBREW_ROOT="${NODEBREW_ROOT:-/opt/nodebrew}"; \
  export PATH="$PATH:$NODEBREW_ROOT/current/bin"; \
  curl -L "$NODEBREW_URL" |perl - setup && \
  nodebrew install-binary stable && \
  nodebrew use stable && { \
-  ln -sf "$NODEBREW_ROOT/current" "$NODE_ROOT" && \
-  for item in $NODE_ROOT/{bin,lib}/*; \
+  for item in "${NODEBREW_ROOT}/current/"{bin,lib}/*; \
   do \
-   dest="${item##*$NODE_ROOT/}"; \
+   dest="${item##*$NODEBREW_ROOT/current/}"; \
    [ -x "$item" ] || continue; \
+   [ -n "${dest%/*}" -a ! -d "/usr/local/${dest%/*}" ] && { \
+    mkdir -p "/usr/local/${dest%/*}"; \
+   }; \
    [ -n "$dest" -a -d "/usr/local/$dest" ] && { \
     rm -rf "/usr/local/$dest"; \
    }; \
    ln -sf "$item" "/usr/local/$dest"; \
   done; \
+  [ ! -d "${NODEBREW_ROOT}/" ] || { \
+   chown -R "root:root" "${NODEBREW_ROOT}/" || :; \
+  }; \
   [ ! -x "/usr/local/bin/npm" ] || { \
    ln -sf /usr/local/bin/{npm,npm-g} || :; \
   }; \

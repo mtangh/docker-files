@@ -9,7 +9,7 @@ __docker-control-command() {
   local _toggleflg=0
   local _dockerret=0
   [ $# -le 0 ] && {
-    _container=$(get-container-id-last)
+    _container=$(get-container-id-all |head -n1)
   }
   while [ $# -gt 0 ]
   do

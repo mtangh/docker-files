@@ -1,12 +1,12 @@
 #
-# centos6-upstart:httpd-onbuild
+# centos7-systemd:httpd-onbuild
 #
 #@  DOCKER_CONTAINER=""
-#@  DOCKER_IMAGE_TAG="centos6-upstart:httpd-onbuild"
+#@  DOCKER_IMAGE_TAG="centos7-systemd:httpd-onbuild"
 #@  DOCKER_BUILDOPTS=""
 #@  DOCKER_BOOT_OPTS=""
 #
-FROM centos6-upstart:httpd
+FROM centos7-systemd:httpd
 
 # Maintainer
 MAINTAINER MT
@@ -14,7 +14,7 @@ MAINTAINER MT
 # Work dir
 ONBUILD \
 ARG \
- WORKDIR="/var/www"
+ WORKDIR="/tmp/workdir"
 ONBUILD \
 WORKDIR \
  ${WORKDIR}
@@ -22,7 +22,7 @@ WORKDIR \
 # Copy contents
 ONBUILD \
 COPY \
- www/ ${WORKDIR}/
+ www/* ${WORKDIR}/
 
 # Init
 ONBUILD \
@@ -30,21 +30,23 @@ RUN \
  set -x; \
  for item in etc/{,sysconfig/}httpd etc/php.{ini,d}; \
  do \
-  [ -e "./${item}" ] || { \
-    continue; \
-  }; \
-  if [ -f "./${item}" ]; \
-  then cp -f "./${item}" "/${item}"; \
-  elif [ -d "./${item}" ]; \
-  then cp -rf "./${item}/"* "/${item}/"; \
-  else :; \
+  [ -n "${item%/*}" ] && \
+  [ ! -e "/${item%/*}" ] && \
+  mkdir -p "/${item%/*}"; \
+  cp -rf "./${item}" "/${item}"; \
+ done; \
+ for item in $(ls -1 2>/dev/null); \
+ do \
+  [ "$item" != "etc" ] && \
+  if [ -d "/var/www/${item}" ]; \
+  then cp -rf "./${item}"/* "/var/www/${item}/"; \
+  else cp -rf "./${item}" "/var/www/"; \
   fi; \
  done; \
  [ ! -e "./setup.sh" ] || { \
-  bash ./setup.sh && rm -f ./setup.sh; \ 
+  bash ./setup.sh && rm -f ./setup.sh; \
  } && \
- /usr/sbin/httpd -t && \
- [ ! -d "./etc/" ] || { rm -rf "./etc" || :; }
+ /usr/sbin/httpd -t;
 
 # Reset Work dir
 ONBUILD \

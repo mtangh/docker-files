@@ -30,3 +30,15 @@ docker-host-port() {
   return $?;
 }
 
+docker-host-is-active() {
+  local _dhost_cnt=0
+  if [ -z "$(type -P docker-machine)" ]
+  then
+    _dhost_cnt=$(ping -c1 -t3 "${DOCKER_HOSR}" && echo "1")
+  else
+    _dhost_cnt=$(docker-machine ls -q -t 3 --filter 'state=running'| wc -l)
+  fi 1>/dev/null 2>&1
+  [ $_dhost_cnt -gt 0 ]
+  return;
+}
+

@@ -47,9 +47,9 @@ get-container-id() {
     _container=""
     [ -n "$_searchval" ] && {
       _container=$(
-        docker ps $_cmnd_opts --format='{{.ID}} {{.Image}} {{.Names}}' |
-        grep -E '(^|[ ])'"${_searchval}"'([ ].*|$)' |
-        awk '{print($1)}')
+        docker ps $_cmnd_opts --format='{{ .CreatedAt }};{{.ID}};{{.Image}};{{.Names}}' |
+        grep -E '(^|[;])'"${_searchval}"'([;].*|$)' |
+        sort -r |awk -F ';' '{print($2)}')
     }
     [ -n "$_container" ] && {
       echo "$_container"
