@@ -35,36 +35,57 @@ ARG \
 WORKDIR \
  ${WORKDIR}
 
-# Install packages
-ARG \
- NODE_VERSION=v6.9.2
-ARG \
- NODE_PACKAGE_NAME=node-${NODE_VERSION}-linux-x64
-ARG \
- NODE_URL=https://nodejs.org/dist/${NODE_VERSION}/${NODE_PACKAGE_NAME}.tar.xz
-ARG \
- NODE_INSTALL_DIR=/usr/local
-COPY \
- * ${WORKDIR}/
+# Install packages for nodejs
 RUN \
  set -x; \
- [ -e "./${NODE_PACKAGE_NAME}.tar.xz" ] || { \
-  curl -sL -o "./${NODE_PACKAGE_NAME}.tar.xz" "${NODE_URL}"; \
- } && \
- xz -cdv "./${NODE_PACKAGE_NAME}.tar.xz" |tar -xvf - && \
- ( cd "./${NODE_PACKAGE_NAME}/" && \
-   for dir in $(ls -1 2>/dev/null); \
-   do \
-    [ -d "./${dir}" ] && \
-    cp -rf "./${dir}/"* "${NODE_INSTALL_DIR}/${dir}/"; \
-   done; \
-   export N_PREFIX="${NODE_INSTALL_DIR}" && \
-   export PATH="${NODE_INSTALL_DIR}/bin:${PATH}" && \
-   npm -g install n; npm -g cache clean)
+ yum -v -y update && \
+ yum -v -y install perl && \
+ yum -v -y clean all
 
-# Install packages
+# Install nodebrew, and node
 ARG \
- NODE_MODULES="gulp nodemon eslint"
+ NODE_ROOT=/opt/node
+ARG \
+ NODE_VERSION=stable
+ARG \
+ NODEBREW_ROOT=/opt/nodebrew
+ARG \
+ NODEBREW_URL=http://git.io/nodebrew
+RUN \
+ set -x; \
+ NODE_ROOT="${NODE_ROOT:-/opt/node}"; \
+ NODEBREW_ROOT="${NODEBREW_ROOT:-/opt/nodebrew}"; \
+ export NODEBREW_ROOT; \
+ export PATH="$PATH:$NODEBREW_ROOT/current/bin"; \
+ curl -L "$NODEBREW_URL" |perl - setup && \
+ nodebrew install-binary stable && \
+ nodebrew use stable && { \
+  ln -sf "$NODEBREW_ROOT/current" "$NODE_ROOT" && \
+  for item in $NODE_ROOT/{bin,lib}/*; \
+  do \
+   dest="${item##*$NODE_ROOT/}"; \
+   [ -x "$item" ] || continue; \
+   [ -n "$dest" -a -d "/usr/local/$dest" ] && { \
+    rm -rf "/usr/local/$dest"; \
+   }; \
+   ln -sf "$item" "/usr/local/$dest"; \
+  done; \
+  [ ! -x "/usr/local/bin/npm" ] || { \
+   ln -sf /usr/local/bin/{npm,npm-g} || :; \
+  }; \
+ } && { \
+  echo "# nodebrew.sh" && \
+  echo "export NODEBREW_ROOT=$NODEBREW_ROOT" && \
+  echo 'export PATH="$PATH:$NODEBREW_ROOT/current/bin"' && \
+  echo ""; \
+ } 1>/etc/profile.d/nodebrew.sh && \
+ chown root:root /etc/profile.d/nodebrew.sh && \
+ chmod 0755 /etc/profile.d/nodebrew.sh && \
+ node -v && npm -v
+
+# Install node packages
+ARG \
+ NODE_MODULES="bower grunt-cli gulp"
 RUN \
  set -x; \
  [ -z "${NODE_MODULES}" ] || { \

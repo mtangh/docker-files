@@ -151,8 +151,11 @@
 *.yaml        text
 *.md          text
 
+## Vagrantfile
+Vagrantfile   diff=ruby eol=lf
+
 ## Dockerfile
-Dockerfile    text eol=crlf
+Dockerfile    text eol=lf
 
 ## For Visual Studio
 *.sln         text eol=crlf
