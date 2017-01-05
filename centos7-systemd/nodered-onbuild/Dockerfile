@@ -38,8 +38,8 @@ RUN \
     :; \
   fi; \
  done && \
- [ ! -s "$NODERED_HOME/project.js" ] || { \
-  su - "$NODERED_USER" -c 'npm '; \
+ [ ! -s "$NODERED_HOME/package.json" ] || { \
+  su - "$NODERED_USER" -c "cd $NODERED_HOME && npm install'; \
  } && \
  [ ! -e "./setup.sh" ] || { \
   bash ./setup.sh && rm -f ./setup.sh; \ 
