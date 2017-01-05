@@ -12,24 +12,20 @@ then
   }
 fi 1>/dev/null 2>&1
 
-# DOCKER Host
-[ -z "${DOCKER_HOST}" ] &&
-[ -w "/var/run/docker.sock" ] &&
-DOCKER_HOST="unix:///var/run/docker.sock"
-[ -z "${DOCKER_HOST}" ] &&
-[ -x "$(type -P docker-machine)" ] &&
-eval $(docker-machine env) 1>/dev/null 2>&1
-[ -z "${DOCKER_HOST}" ] &&
-DOCKER_HOST="${DOCKER_HOST:-tcp://127.0.0.1:4243}"
-[ -n "${DOCKER_HOST}" ] &&
-export DOCKER_HOST
-
 # Functions
 for func in "${DOCKER_BIN_DIR}"/functions/*
 do
   . "${func}"
 done 1>/dev/null 2>&1
 unset func
+
+# DOCKER Host
+[ -z "${DOCKER_HOST}" ] &&
+DOCKER_HOST=$(docker-host)
+[ -n "${DOCKER_HOST}" ] &&
+export DOCKER_HOST
+[ -n "${DOCKER_HOST}" ] ||
+echo "DOCKER_HOST is not set." 1>&2
 
 # Aliases
 alias docker-rc-reload=". ${DOCKERFILESDIR}/${DOCKER_RC_FILE} && echo OK"
@@ -42,4 +38,5 @@ alias docker-make-clean="MAKE.sh --clean"
 alias docker-clean=docker-cleanup
 
 # end
-return 0
+[ -n "${DOCKER_HOST}" ]
+return $?
