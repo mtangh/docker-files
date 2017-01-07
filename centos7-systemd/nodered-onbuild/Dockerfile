@@ -6,7 +6,7 @@
 #@  DOCKER_BUILDOPTS=""
 #@  DOCKER_BOOT_OPTS=""
 #
-FROM centos7-systemd:nodered-onbuild
+FROM centos7-systemd:nodered
 
 # Maintainer
 MAINTAINER MT
@@ -28,21 +28,14 @@ COPY \
 ONBUILD \
 RUN \
  set -x; . /etc/sysconfig/node-red; \
- for item in $(ls -1 2>/dev/null); \
- do \
-  if [ -e "./${item}" ]; \
-  then \
-    cp -rf "./${item}" "${NODERED_HOME}/" && \
-    chown -R "${NODERED_USER}:${NODERED_GROUP} "${NODERED_HOME}/${item}"; \
-  else \
-    :; \
-  fi; \
- done && \
- [ ! -s "$NODERED_HOME/package.json" ] || { \
-  su - "$NODERED_USER" -c "cd $NODERED_HOME && npm install'; \
- } && \
- [ ! -e "./setup.sh" ] || { \
-  bash ./setup.sh && rm -f ./setup.sh; \ 
+ tar --exclude "*.*.sam" -cv . |tar -C "${NODERED_HOME}/" -xf - && \
+ cd "$NODERED_HOME" && { \
+  [ ! -s "./package.json" ] || { \
+   su - "$NODERED_USER" -c "npm install'; \
+  } && \
+  [ ! -e "./setup.sh" ] || { \
+   bash ./setup.sh && rm -f ./setup.sh; \
+  }; \
  };
 
 # Reset Work dir

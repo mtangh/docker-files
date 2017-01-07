@@ -22,7 +22,7 @@ docker-cleanup() {
     [ -n "$_cinst_ids" ] ||
     _removecnt=0
     printf "$FUNCNAME: container ... %3d deleted.\n" "$_removecnt"
-  } #2>/dev/null
+  } 2>/dev/null
   : && {
     _cimageids=$(docker images -a --format="{{ .ID }}" --filter="dangling=true")
     [ -n "$_cimageids" ] &&
@@ -30,7 +30,7 @@ docker-cleanup() {
     [ -n "$_cimageids" ] ||
     _removecnt=0
     printf "$FUNCNAME: image     ... %3d deleted.\n" "$_removecnt"
-  } #2>/dev/null
+  } 2>/dev/null
   return 0
 }
 

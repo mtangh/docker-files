@@ -22,27 +22,18 @@ WORKDIR \
 # Copy contents
 ONBUILD \
 COPY \
- www/* ${WORKDIR}/
+ httpd/* ${WORKDIR}/
 
 # Init
 ONBUILD \
 RUN \
  set -x; \
- for item in etc/{,sysconfig/}httpd etc/php.{ini,d}; \
- do \
-  [ -n "${item%/*}" ] && \
-  [ ! -e "/${item%/*}" ] && \
-  mkdir -p "/${item%/*}"; \
-  cp -rf "./${item}" "/${item}"; \
- done; \
- for item in $(ls -1 2>/dev/null); \
- do \
-  [ "$item" != "etc" ] && \
-  if [ -d "/var/www/${item}" ]; \
-  then cp -rf "./${item}"/* "/var/www/${item}/"; \
-  else cp -rf "./${item}" "/var/www/"; \
-  fi; \
- done; \
+ [ ! -d "./etc" ] || { \
+  (cd "./etc" && tar -cv . |tar -C /etc -xf -); \
+ } && \
+ [ ! -d "./www" ] || { \
+  (cd "./www/" && tar -cv . |tar -C /var/www -xf -); \
+ } && \
  [ ! -e "./setup.sh" ] || { \
   bash ./setup.sh && rm -f ./setup.sh; \
  } && \
