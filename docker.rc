@@ -20,6 +20,8 @@ done 1>/dev/null 2>&1
 unset func
 
 # DOCKER Host
+[ -r "${DOCKERFILESDIR}/dockerhost" ] &&
+DOCKER_HOST=$(cat ${DOCKERFILESDIR}/dockerhost 2>/dev/null)
 [ -z "${DOCKER_HOST}" ] &&
 DOCKER_HOST=$(docker-host)
 [ -n "${DOCKER_HOST}" ] &&
