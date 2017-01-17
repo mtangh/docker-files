@@ -168,3 +168,4 @@ Dockerfile    text eol=lf
 *.props       text eol=crlf
 *.filters     text eol=crlf
 
+# vim: set ff=unix ts=2 sw=2 sts=2 et : This line is VIM modeline

@@ -1,5 +1,4 @@
 # .gitignore
-#
 
 # Compiled object files
 *.o
@@ -216,3 +215,4 @@ nb-configuration.xml
 ## intellij idea ##
 .idea/
 
+# vim: set ff=unix ts=2 sw=2 sts=2 et : This line is VIM modeline
