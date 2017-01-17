@@ -1,5 +1,4 @@
 # getoptions
-
 getoptions() {
   local template="$(echo $1)"; shift
   local _opt_end=0
@@ -139,3 +138,4 @@ __parse_opt_template() {
 }
 
 return 0
+# vim: set ff=unix ts=2 sw=2 sts=2 et : This line is VIM modeline

@@ -13,15 +13,24 @@ then
 fi 1>/dev/null 2>&1
 
 # Functions
-for func in "${DOCKER_BIN_DIR}"/functions/*
+for function in "${DOCKER_BIN_DIR}"/functions/*
 do
-  . "${func}"
+  . "${function}"
 done 1>/dev/null 2>&1
-unset func
+unset function
 
 # DOCKER Host
-[ -r "${DOCKERFILESDIR}/dockerhost" ] &&
-DOCKER_HOST=$(cat ${DOCKERFILESDIR}/dockerhost 2>/dev/null)
+for dockerhostfile in \
+  ./{.,}dockerhost \
+  ${HOME}/.dockerhost \
+  ${DOCKERFILESDIR}/{.,}dockerhost
+do
+  [ -r "$dockerhostfile" ] && {
+    DOCKER_HOST=$(cat $dockerhostfile 2>/dev/null)
+    break
+  }
+done
+unset dockerhostfile
 [ -z "${DOCKER_HOST}" ] &&
 DOCKER_HOST=$(docker-host)
 [ -n "${DOCKER_HOST}" ] &&
@@ -42,3 +51,4 @@ alias docker-clean=docker-cleanup
 # end
 [ -n "${DOCKER_HOST}" ]
 return $?
+# vim: set ff=unix ts=2 sw=2 sts=2 et : This line is VIM modeline
