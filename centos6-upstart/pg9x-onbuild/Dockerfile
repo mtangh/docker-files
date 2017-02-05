@@ -90,10 +90,16 @@ WORKDIR /
 # Cleanup
 RUN \
  set -x; \
- for log in /var/log/*; do cat /dev/null >"$log"; done; \
- for log in {,/root,/tmp}/*.log; do rm -f "$log"; done; \
- [ -n "${WORKDIR}" -a -d "${WORKDIR}" ] && rm -rf "${WORKDIR}" || :
+ for log in $(find /var/log -type f 2>/dev/null); \
+ do [ -f "$log" ] && cat /dev/null 1>"$log"; done 2>/dev/null || :; \
+ for log in {,/root,/tmp,/var/tmp}/*.log; \
+ do rm -f "$log"; done 2>/dev/null || :; \
+ [ -n "${WORKDIR}" -a -d "${WORKDIR}" ] && { \
+ rm -rf "${WORKDIR}"; } || :
 
+#-
+#- Begin ONBUILDs
+#-
 
 # Work dir
 ONBUILD \
@@ -266,10 +272,16 @@ WORKDIR /
 ONBUILD \
 RUN \
  set -x; \
- for log in /var/log/*; do cat /dev/null >"$log"; done; \
- for log in {,/root,/tmp}/*.log; do rm -f "$log"; done; \
- [ -n "${WORKDIR}" -a -d "${WORKDIR}" ] && rm -rf "${WORKDIR}" || :
+ for log in $(find /var/log -type f 2>/dev/null); \
+ do [ -f "$log" ] && cat /dev/null 1>"$log"; done 2>/dev/null || :; \
+ for log in {,/root,/tmp,/var/tmp}/*.log; \
+ do rm -f "$log"; done 2>/dev/null || :; \
+ [ -n "${WORKDIR}" -a -d "${WORKDIR}" ] && { \
+ rm -rf "${WORKDIR}"; } || :
 
+#-
+#- End of ONBUILDs
+#-
 
 # Labels for run
 LABEL \

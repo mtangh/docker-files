@@ -1,0 +1,51 @@
+#
+# $reponame:$tag_name
+#
+#@  DOCKER_CONTAINER=""
+#@  DOCKER_IMAGE_TAG="$reponame:$tag_name"
+#@  DOCKER_BUILDOPTS=""
+#@  DOCKER_BOOT_OPTS=""
+#
+FROM $base_img
+
+# Maintainer
+MAINTAINER $maintainer
+
+# Labels
+LABEL \
+ name="$image_name"
+
+# Work dir
+ARG \
+ WORKDIR=/tmp/workdir
+WORKDIR \
+ ${WORKDIR}
+
+# Run
+RUN \
+ set -x;
+
+# Reset Work dir
+WORKDIR /
+
+# Cleanup
+RUN \
+ set -x; \
+ for log in $(find /var/log -type f 2>/dev/null); \
+ do [ -f "$log" ] && cat /dev/null 1>"$log"; done 2>/dev/null || :; \
+ for log in {,/root,/tmp,/var/tmp}/*.log; \
+ do rm -f "$log"; done 2>/dev/null || :; \
+ [ -n "${WORKDIR}" -a -d "${WORKDIR}" ] && { \
+ rm -rf "${WORKDIR}"; } || :
+
+# Labels for run
+LABEL \
+ docker.run.options="-d -P -h $hostname" \
+ docker.run.confirm-startup=""
+
+## Publish a container's port(s) to the host
+#EXPOSE
+
+## Start command
+#CMD
+

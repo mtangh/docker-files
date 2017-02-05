@@ -28,14 +28,25 @@ COPY \
 ONBUILD \
 RUN \
  set -x; . /etc/sysconfig/node-red; \
- tar --exclude "*.*.sam" -cv . |tar -C "${NODERED_HOME}/" -xf - && \
- cd "$NODERED_HOME" && { \
+ _user="${NODERED_USER:-node-red}"; \
+ _group="${NODERED_GROUP:-$_user}"; \
+ _homedir="${NODERED_HOME:-/home/$_user}"; \
+ tar --exclude "*.*.sam" -cv . |tar -C "${_homedir}/" -xf - && \
+ [ -d "${_homedir}" ] && \
+ (cd "${_homedir}" && { \
+   chown -R "${_user}:${_group}" "." && \
+   chmod 0775 "." && \
+   [ -d "./node_modules" ] || { \
+    mkdir -p "./node_modules"; } && \
+   [ -d "./node_modules" ] && { \
+    chown -R "${_user}:${_group}" "./node_modules" && \
+    chmod 2775 "./node_modules"; }; \
+ }) && \
+ cd "${_homedir}" && { \
   [ ! -s "./package.json" ] || { \
-   su - "$NODERED_USER" -c "npm install'; \
-  } && \
+   su - "${_user}" -c 'npm install'; } && \
   [ ! -e "./setup.sh" ] || { \
-   bash ./setup.sh && rm -f ./setup.sh; \
-  }; \
+   bash ./setup.sh && rm -f ./setup.sh; }; \
  };
 
 # Reset Work dir
@@ -46,9 +57,12 @@ WORKDIR /
 ONBUILD \
 RUN \
  set -x; \
- for log in /var/log/*; do cat /dev/null >"$log"; done; \
- for log in {,/root,/tmp}/*.log; do rm -f "$log"; done; \
- [ -n "${WORKDIR}" -a -d "${WORKDIR}" ] && rm -rf "${WORKDIR}" || :
+ for log in $(find /var/log -type f 2>/dev/null); \
+ do [ -f "$log" ] && cat /dev/null 1>"$log"; done 2>/dev/null || :; \
+ for log in {,/root,/tmp,/var/tmp}/*.log; \
+ do rm -f "$log"; done 2>/dev/null || :; \
+ [ -n "${WORKDIR}" -a -d "${WORKDIR}" ] && { \
+ rm -rf "${WORKDIR}"; } || :
 
 # Labels for run
 LABEL \
