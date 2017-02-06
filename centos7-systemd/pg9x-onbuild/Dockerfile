@@ -13,7 +13,7 @@ MAINTAINER MT
 
 # Labels
 LABEL \
- name="PostgreSQL Server on CentOS7 with Systemd"
+ name="Template of PostgreSQL9x Server on CentOS7 with Systemd"
 
 # Work dir
 ARG \

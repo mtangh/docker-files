@@ -38,14 +38,15 @@ ARG \
 ONBUILD \
 RUN \
  set -x; \
- [ -z "$jdk_version" ] && { \
-  echo "No build args: 'jdk_version'."; \
- } 1>&2; \
+ [ -n "$jdk_version" ] || { \
+  echo "No build args: 'jdk_version'." 1>&2 && exit 1; \
+ }; \
  url_base="http://download.oracle.com/otn-pub/java/jdk" && \
  jdk_path="/${jdk_version}/jdk-${jdk_version%-*}-linux-${jdk_arch:-x64}" && \
  case "$jdk_file_type" in \
  bin) jdk_path="${jdk_path}-rpm.bin" ;; \
- *) jdk_path="${jdk_path}.${jdk_file_type}" ;; \
+ rpm) jdk_path="${jdk_path}.${jdk_file_type}" ;; \
+ *) echo "Illegal file type: '$jdk_file_type'." 1>&2 && exit 2 ;; \
  esac && \
  curlopts="-s -LO" && \
  o_cookie="oraclelicense=accept-securebackup-cookie" && \
