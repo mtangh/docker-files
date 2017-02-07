@@ -1,29 +1,14 @@
 # Service-specific configuration file for tomcat. 
-#
 
-# Where your java installation lives
-JAVA_HOME=/usr/java/default
-
-# Home directory
-TOMCAT_HOME=/opt/apache-tomcat
-
-# Where your tomcat installation lives
-CATALINA_BASE=/opt/tomcat
-CATALINA_HOME=/opt/apache-tomcat/default
-JASPER_HOME=/opt/apache-tomcat/default
+# Tomcat Home directory
+TOMCAT_HOME=/opt/tomcat
 
 # What user should run tomcat
 TOMCAT_USER=tomcat
 
-# Run tomcat under the Java Security Manager
-SECURITY_MANAGER=false
+# Where your java installation lives
+JAVA_HOME=/usr/java/default
 
-# Time to wait in seconds, before killing process
-SHUTDOWN_WAIT=30
-
-# Whether to annoy the user with "attempting to shut down" messages or not
-SHUTDOWN_VERBOSE=false
-
-# Connector port is 8080 for this tomcat instance
-CONNECTOR_PORT=8080
-
+# Where your tomcat installation lives
+CATALINA_HOME=/opt/tomcat/default
+CATALINA_BASE=/opt/tomcat/instances/tomcat

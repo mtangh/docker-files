@@ -1,14 +1,13 @@
 # setenv.sh
 
-# service name
-SERVICENAME="tomcat"
+# Instance name
+INSTANCENAME="${INSTANCENAME:-tomcat}"
 
 # sysconfig 
 [ -r "/etc/sysconfig/tomcat" ] &&
 . "/etc/sysconfig/tomcat"
-[ "$SERVICENAME" != "tomcat" ] &&
-[ -r "/etc/sysconfig/$SERVICENAME" ] &&
-. "/etc/sysconfig/$SERVICENAME"
+[ -r "/etc/sysconfig/tomcat@${INSTANCENAME}" ] &&
+. "/etc/sysconfig/tomcat@${INSTANCENAME}"
 
 # Catalina base
 [ -z "$CATALINA_BASE" ] &&
@@ -25,7 +24,7 @@ CATALINA_TMPDIR="${CATALINA_TMPDIR:-$CATALINA_BASE/temp}"
 
 # Path of the file which should contains the pid of catalina startup
 # java process, when start (fork) is used
-CATALINA_PID="${CATALINA_PID:-$CATALINA_RUNDIR/$SERVICENAME.pid}"
+CATALINA_PID="${CATALINA_PID:-$CATALINA_RUNDIR/$INSTANCENAME.pid}"
 
 # Full path to a file where stdout and stderr will be redirected.
 CATALINA_OUT="${CATALINA_OUT:-$CATALINA_LOG_DIR/catalina.out}"
@@ -38,7 +37,7 @@ CATALINA_PORT_HTTPS="${CATALINA_PORT_HTTP:-8443}"
 
 # Catalina options
 CATALINA_OPTS="${CATALINA_OPTS:-}"
-CATALINA_OPTS="${CATALINA_OPTS} -Dtomcat.service.name=${SERVICENAME}"
+CATALINA_OPTS="${CATALINA_OPTS} -Dtomcat.instance.name=${INSTANCENAME}"
 CATALINA_OPTS="${CATALINA_OPTS} -Dtomcat.conf.dir=${CATALINA_CNFDIR}"
 CATALINA_OPTS="${CATALINA_OPTS} -Dtomcat.apps.dir=${CATALINA_APPDIR}"
 CATALINA_OPTS="${CATALINA_OPTS} -Dtomcat.logs.dir=${CATALINA_LOGDIR}"
@@ -48,9 +47,6 @@ CATALINA_OPTS="${CATALINA_OPTS} -Dtomcat.port.https=${CATALINA_PORT_HTTPS}"
 CATALINA_OPTS="${CATALINA_OPTS} -Dtomcat.port.ajp=${CATALINA_PORT_AJP}"
 # For JDK7
 CATALINA_OPTS="${CATALINA_OPTS} -Dhttps.protocols=TLSv1.2"
-
-# Tomcat's logging config file
-LOGGING_CONFIG="-Djava.util.logging.config.file=${CATALINA_BASE}/conf/logging.properties"
 
 # Java Options
 JAVA_OPTS="-server"
@@ -101,5 +97,8 @@ JAVA_OPTS="${JAVA_OPTS} -Djava.awt.headless=true"
 
 # Complete (unsafe) will be allowed re-negotiation of the legacy is.
 JAVA_OPTS="${JAVA_OPTS} -Dsun.security.ssl.allowUnsafeRenegotiation=true" 
+
+# Tomcat's logging config file
+LOGGING_CONFIG="${LOGGING_CONFIG:--Djava.util.logging.config.file=$CATALINA_BASE/conf/logging.properties}"
 
 #*eof*

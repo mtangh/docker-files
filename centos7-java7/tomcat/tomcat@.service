@@ -3,7 +3,7 @@
 # To create clones of this service:
 # 0. systemctl enable tomcat@name.service
 # 1. create catalina.base directory structure in
-#    /var/lib/tomcats/name
+#    $TOMCAT_HOME/instances
 # 2. profit.
 
 [Unit]
@@ -11,21 +11,18 @@ Description=Apache Tomcat Web Application Container
 After=syslog.target network.target
 
 [Service]
-Type=fork
+Type=simple
 
-# Name
-Environment="NAME=%I"
+# Inctance name
+Environment="INSTANCENAME=%I"
 
 # Exec Start,Stop,etc...
-ExecStart=/bin/su -m ${TOMCAT_USER} -c "/opt/apache-tomcat/bin/startup.sh %I"
-ExecStop=/bin/su -m ${TOMCAT_USER} -c "/opt/apache-tomcat/bin/shutdown.sh %I"
+ExecStart=/bin/su -m ${TOMCAT_USER} -c "/opt/tomcat/instances/%I/bin/catalina.sh run"
+ExecStop=/bin/su -m ${TOMCAT_USER} -c "/opt/tomcat/instances/%I/bin/catalina.sh stop"
 
 # Environment File
 EnvironmentFile=/etc/sysconfig/tomcat
 EnvironmentFile=-/etc/sysconfig/tomcat@%I
-
-# PID file
-PIDFile=/opt/apache-tomcat/var/run/%I.pid
 
 # Kill mode
 KillMode=process

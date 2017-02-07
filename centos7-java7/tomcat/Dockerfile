@@ -39,15 +39,12 @@ RUN \
 # COPY sysconfig file to /etc/sysconfig
 COPY \
  tomcat.sysconfig /etc/sysconfig/tomcat
+COPY \
+ tomcat@.sysconfig /etc/sysconfig/tomcat@
 RUN \
  set -x; \
- chown root:root /etc/sysconfig/tomcat && \
- chmod 0644 /etc/sysconfig/tomcat && \
- [ "${TC_SERVICENAME}" = "tomcat" ] || { \
-  cp -pf /etc/sysconfig/{tomcat,$TC_SERVICENAME} && \
-  chown root:root /etc/sysconfig/${TC_SERVICENAME} && \
-  chmod 0644 /etc/sysconfig/${TC_SERVICENAME}; \
- }
+ chown root:root /etc/sysconfig/tomcat* && \
+ chmod 0644 /etc/sysconfig/tomcat*
 
 # Create 'tomcat' user and group
 ARG \
@@ -118,7 +115,7 @@ RUN \
   [ -e "${CATALINA_HOME}" ]; \
  }
 
-# Setup tomcat service
+# Setup default tomcat instance
 COPY \
  tomcat/ ${WORKDIR}/tomcat/
 RUN \
@@ -176,14 +173,15 @@ RUN \
 # Register systemd
 COPY \
  tomcat.service ${WORKDIR}/${TC_SERVICENAME}.service
+COPY \
+ tomcat.service ${WORKDIR}/${TC_SERVICENAME}.service
 RUN \
  set -x; . /etc/sysconfig/{tomcat,$TC_SERVICENAME} && \
  _servicefrom="${WORKDIR}/${TC_SERVICENAME}.service"; \
  _servicefile="/etc/systemd/system/${TC_SERVICENAME}.service"; \
  mv -f "${_servicefrom}" "${_servicefile}" && \
  chown root:root "$_servicefile" && \
- chmod 0644 "$_servicefile" && \
- systemctl enable "${TC_SERVICENAME}.service";
+ chmod 0644 "$_servicefile"
 
 # Reset Work dir
 WORKDIR /
