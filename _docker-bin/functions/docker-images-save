@@ -24,7 +24,7 @@ docker-images-save() {
   [ -n "$_cimage_id" ] &&
   [ -n "$_cimagetag" ] && {
     docker save "$_cimage_id" |
-    gzip -c 1>"${_store_dir:-.}/${_cimagetag}".tar.gz 2>/dev/null &&
+    gzip -c 1>"${_store_dir:-.}/${_cimagetag/\//_}".tar.gz 2>/dev/null &&
     echo "$FUNCNAME: Saved image: $_cimagetag($_cimage_id)."
   }
   return $?

@@ -1,8 +1,0 @@
-# Service-specific configuration file for tomcat instance.
-
-# Where your java installation lives
-JAVA_HOME=/usr/java/default
-
-# Where your tomcat installation lives
-CATALINA_BASE=/opt/tomcat/instances/tomcat
-
