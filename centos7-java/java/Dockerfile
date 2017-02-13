@@ -37,7 +37,7 @@ ARG \
 # Copy contents
 ONBUILD \
 COPY \
- * "${WORKDIR}"
+ * "${WORKDIR}/"
 
 # Install JDK
 ONBUILD \
