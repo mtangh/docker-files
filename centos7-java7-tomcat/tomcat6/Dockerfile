@@ -20,3 +20,6 @@ LABEL \
  docker.run.options="-d -P -h tomcat6 --privileged" \
  docker.run.confirm-startup=""
 
+# Publish a container's port(s) to the host
+EXPOSE 8080 8443
+

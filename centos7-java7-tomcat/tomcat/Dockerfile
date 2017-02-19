@@ -25,7 +25,7 @@ WORKDIR \
 RUN \
  set -x; \
  yum -v -y update && \
- yum -v -y install which tar unzip patch && \
+ yum -v -y install which tar unzip patch logrotate && \
  yum -v -y clean all
 
 # COPY sysconfig file to /etc/sysconfig
@@ -72,29 +72,40 @@ RUN \
  cd "${_tc_homedir}/" && { \
   chown "${_tc_user}:${_tc_group}" . && \
   chmod 0775 . && \
-  for dir in bin instances; \
+  for dir in bin instances var; \
   do \
    [ -d "./${dir}" ] || { \
     mkdir -p "./${dir}"; } && \
-   chown "${_tc_user}:${_tc_group}" "./${dir}" && \
-   chmod 0775 "./${dir}"; \
+   chown "root:${_tc_group}" "./${dir}" && \
+   chmod 0755 "./${dir}"; \
   done; \
   for dir in var/lib var/log var/run; \
   do \
    [ -d "./${dir}" ] || { \
     mkdir -p "./${dir}"; } && \
    chown "${_tc_user}:${_tc_group}" "./${dir}" && \
-   chmod 2775 "./${dir}"; \
+   chmod 2755 "./${dir}"; \
   done; \
  } 2>/dev/null;
 
 # Install systemd service files
 COPY \
  tomcat*.service /etc/systemd/system/
+COPY \
+ tomcat*.timer /etc/systemd/system/
+COPY \
+ logrotate.* /etc/systemd/system/
 RUN \
  set -x; . /etc/sysconfig/tomcat && \
  chown root:root /etc/systemd/system/tomcat*.service && \
- chmod 0644 /etc/systemd/system/tomcat*.service;
+ chmod 0644 /etc/systemd/system/tomcat*.service && \
+ chown root:root /etc/systemd/system/tomcat*.timer && \
+ chmod 0644 /etc/systemd/system/tomcat*.timer && \
+ chown root:root /etc/systemd/system/logrotate.* && \
+ chmod 0644 /etc/systemd/system/logrotate.* && \
+ systemctl enable tomcat-cleanup-logs.timer; \
+ systemctl enable logrotate.timer; \
+ echo
 
 # Install instance templates
 COPY \
@@ -106,24 +117,24 @@ RUN \
  _tc_homedir="${TOMCAT_HOME:-/opt/$_tc_user}" && \
  cd "${_tc_homedir}/instances" && { \
   mv -f "${WORKDIR}/tomcat@" "./tomcat@" && \
-  chown "${_tc_user}:${_tc_group}" "./tomcat@" && \
-  find "./tomcat@" -type d -exec chmod 0775 {} \; && \
-  find "./tomcat@" -type f -exec chmod 0664 {} \; && \
-  find "./tomcat@" -type f -a ! -name "*.sh" -exec chmod 0664 {} \; ; \
+  chown -R "root:${_tc_group}" "./tomcat@" && \
+  find "./tomcat@" -type d -exec chmod 0755 {} \; && \
+  find "./tomcat@" -type f -exec chmod 0644 {} \; && \
+  find "./tomcat@" -type f -a -name "*.sh" -exec chmod 0755 {} \; ; \
  } 2>/dev/null;
 
 # Install tomcat tools
 COPY \
- tomcat.mkinstance.sh ${WORKDIR}/
+ tomcat.bin "${WORKDIR}/tomcat.bin/"
 RUN \
  set -x; . /etc/sysconfig/tomcat && \
  _tc_user="${TOMCAT_USER:-tomcat}" && \
  _tc_group="${TOMCAT_GROUP:-$_tc_user}" && \
  _tc_homedir="${TOMCAT_HOME:-/opt/$_tc_user}" && \
  cd "${_tc_homedir}/bin" && { \
-  mv -f ${WORKDIR}/tomcat.mkinstance.sh ./mkinstance.sh && \
-  chown "${_tc_user}:${_tc_group}" ./mkinstance.sh && \
-  chmod 0775 ./mkinstance.sh; \
+  mv -f ${WORKDIR}/tomcat.bin/* ./ && \
+  chown "root:${_tc_group}" ./* && \
+  chmod 0755 ./*; \
  } 2>/dev/null;
 
 # Reset Work dir
@@ -226,16 +237,16 @@ RUN \
  set -x; . /etc/sysconfig/tomcat; \
  for instancename in ${TC_INSTANCES}; \
  do \
-  [ -r "./${instaancename}.sysconfig" ] && \
-  mv -f "./${instaancename}.sysconfig" "/etc/sysconfig/tomcat@${instancename}"; \
+  [ -r "${WORKDIR}/${instancename}.sysconfig" ] && \
+  mv -f "${WORKDIR}/${instancename}.sysconfig" "/etc/sysconfig/tomcat@${instancename}"; \
  done 2>/dev/null; \
  cd "${TOMCAT_HOME}" && { \
   for instancename in ${TC_INSTANCES}; \
   do \
-   [ ! -d "${WORKDIR}/${instaancename}" ] || ( \
-    cd "${WORKDIR}/${instaancename}" && \
-    mkdir -p "${TOMCAT_HOME}/instances/${instaancename}" && \
-    tar -cv . |tar -C "${TOMCAT_HOME}/instances/${instaancename}" -xf -; \
+   [ ! -d "${WORKDIR}/${instancename}" ] || ( \
+    cd "${WORKDIR}/${instancename}" && \
+    mkdir -p "${TOMCAT_HOME}/instances/${instancename}" && \
+    tar -cv . |tar -C "${TOMCAT_HOME}/instances/${instancename}" -xf -; \
    ); \
    ./bin/mkinstance.sh "${instancename}" && { \
     servicename=""; \

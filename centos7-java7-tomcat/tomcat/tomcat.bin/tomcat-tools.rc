@@ -1,0 +1,104 @@
+# tomcat-tools-common.sh
+[ -n "${BASH_SOURCE}" ] && {
+  TCTOOLS_CONFIG="${BASH_SOURCE##*/}"
+  TCTOOLSBASEDIR=$([ -n "${TCTOOLS_CONFIG%/*}" ] && cd "${TCTOOLS_CONFIG%/*}" 2>/dev/null; pwd)
+}
+[ -n "${BASH_SOURCE}" ] || {
+  exit 125
+}
+
+# Tomcat version
+TOMCAT_VERSION="${TOMCAT_VERSION:-}"
+
+# Tomcat manager URL
+TOMCAT_MAN_URL="${TOMCAT_MAN_URL:-}"
+
+# Get 'setenv.sh'
+for rc in \
+  ${CDIR}/{,bin/}setenv.sh \
+  ${TCTOOLSBASEDIR}/{,bin/}setenv.sh
+do
+  [ -e "$rc" ] && {
+    . "$rc" && break
+  }
+done
+unset rc
+
+# Checking CATALINA_HOME
+[ -n "${CATALINA_HOME}" ] || {
+  echo "$TCTOOLS_CONFIG: 'CATALINA_HOME' not set." 1>&2
+  exit 126
+}
+# Checking CATALINA_BASE
+[ -n "${CATALINA_BASE}" ] || {
+  echo "$TCTOOLS_CONFIG: 'CATALINA_BASE' not set." 1>&2
+  exit 127
+}
+
+# Catalina dirs
+CATALINA_CNFDIR="${CATALINA_CNFDIR:-$CATALINA_BASE/conf}"
+CATALINA_APPDIR="${CATALINA_APPDIR:-$CATALINA_BASE/webapps/deploy}"
+CATALINA_LOGDIR="${CATALINA_LOGDIR:-$CATALINA_BASE/logs}"
+CATALINA_RUNDIR="${CATALINA_RUNDIR:-$CATALINA_BASE/run}"
+CATALINA_TMPDIR="${CATALINA_TMPDIR:-$CATALINA_BASE/temp}"
+# PID file
+CATALINA_PID="${CATALINA_PID:-$CATALINA_RUNDIR/$INSTANCENAME.pid}"
+# Catalina out
+CATALINA_OUT="${CATALINA_OUT:-$CATALINA_LOG_DIR/catalina.out}"
+# Catalina port(s)
+CATALINA_PORT_SHUTDOWN="${CATALINA_PORT_SHUTDOWN:-8005}"
+CATALINA_PORT_AJP="${CATALINA_PORT_AJP:-8009}"
+CATALINA_PORT_HTTP="${CATALINA_PORT_HTTP:-8080}"
+CATALINA_PORT_HTTPS="${CATALINA_PORT_HTTP:-8443}"
+
+# Tomcat manager uer
+TC_MANAGE_USER="${TC_MANAGE_USER:-manager}"
+TC_MANAGE_PASS="${TC_MANAGE_PASS:-}"
+
+# Tomcat manager password
+[ -n "$TC_MANAGE_PASS" ] || {
+  for user_xml in \
+  "${CATALINA_BASE}/conf/tomcat-users.xml" \
+  "${CATALINA_HOME}/conf/tomcat-users.xml"
+  do
+    TC_MANAGE_PASS=$(
+      echo 'cat /tomcat-users/user[@username="'${TC_MANAGE_USER}'"]/@password' |
+      xmllint --shell "${user_xml}" |
+      sed -ne 's/^[ ]*password="\([^"][^"]*\)"/\1/gp' )
+    [ -n "$TC_MANAGE_PASS" ] &&
+    break
+  done
+  unset user_xml
+}
+
+# Get Versions
+TOMCAT_VERSION=$(
+  for vers_bin in \
+  "${CATALINA_BASE}/bin/version.sh" \
+  "${CATALINA_HOME}/bin/version.sh"
+  do
+    [ -x "$vers_bin" ] || {
+      continue
+    }
+    $vers_bin |
+    sed -rne 's#^Server[ ]+version[ ]*:[ ]+([^ ].+[^ ])[ ]*$#\1#gp' |
+    sed -rne 's#^.*[^ ]+[ ]*/[ ]*(|[1-9][0-9]*)[^0-9]*.*$#\1#gp' |
+    cat
+    break
+  done 2>/dev/null )
+
+# Tomcat manager url
+TOMCAT_MAN_URL=$(
+  case "$TOMCAT_VERSION" in
+  [0-6])
+    echo "http://localhost:${CATALINA_PORT_HTTP:-8080}/manager"
+    ;;
+  *)
+    echo "http://localhost:${CATALINA_PORT_HTTP:-8080}/manager/text"
+    ;;
+  esac )
+
+# Exports
+export TOMCAT_VERSION TOMCAT_MAN_URL
+
+# *eof*

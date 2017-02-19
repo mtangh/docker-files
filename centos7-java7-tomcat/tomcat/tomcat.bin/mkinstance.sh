@@ -121,18 +121,28 @@ _EOF_
     }
   done
 
-  chown -R "${TOMCAT_USER}:${TOMCAT_USER}" . &&
-  find . -type d -exec chmod 0755 {} \; &&
+  chown -R "root:${TOMCAT_USER}" . &&
+  find . -type d -exec chmod 2755 {} \; &&
   find . -type f -exec chmod 0644 {} \; &&
   find . -type f -a -name "*.sh" -exec chmod 0755 {} \;
 
   for dir in conf/Catalina{,/localhost} webapps/{deploy,versions}
   do
-    chown -R "${TOMCAT_USER}:${TOMCAT_USER}" "./$dir" &&
-    chmod -R 2775 "./$dir"
+    chown "${TOMCAT_USER}:${TOMCAT_USER}" "./$dir" &&
+    chmod 2755 "./$dir"
   done
 
-  for file in "${CATALINA_HOME}"/bin/*.*
+  for file in "${TOMCAT_HOME}"/bin/tc-* "${TOMCAT_HOME}"/bin/tomcat*.rc
+  do
+    filepath="${file%/*}"
+    filename="${file##*/}"
+    [ -d "${file}" ] && continue
+    [ -e "./${filepath##*/}/${filename}" ] && continue
+    echo "Symlinked '${file}' to '${filepath##*/}/${filename}'."
+    ln -sf "${file}" "./${filepath##*/}/${filename}"
+  done
+
+  for file in "${CATALINA_HOME}"/bin/*.sh
   do
     filepath="${file%/*}"
     filename="${file##*/}"
@@ -152,8 +162,8 @@ _EOF_
     echo "$file" |grep -E '.*\.bat$' 1>&2 && continue
     echo "Copy '${file}' to '${filepath##*/}/${filename}'."
     cp -f "${file}" "./${filepath##*/}/${filename}" &&
-    chown "${TOMCAT_USER}:${TOMCAT_USER}" "./${filepath##*/}/${filename}" &&
-    chmod 0664 "./${filepath##*/}/${filename}"
+    chown "root:${TOMCAT_USER}" "./${filepath##*/}/${filename}" &&
+    chmod 0644 "./${filepath##*/}/${filename}"
   done
 
   for symlnk in \
@@ -166,11 +176,46 @@ _EOF_
     symlnksrc="${TOMCAT_HOME}/var/${symlnk##*:}"
     [ -e "./${symlnk_to}" ] && continue
     [ -d "${symlnksrc}" ] || mkdir -p "${symlnksrc}"
-    chown -R "${TOMCAT_USER}:${TOMCAT_USER}" "${symlnksrc}" &&
-    chmod -R 2775 "${symlnksrc}"
+    chown "${TOMCAT_USER}:${TOMCAT_USER}" "${symlnksrc}" &&
+    chmod 2755 "${symlnksrc}"
     echo "Symlinked '${symlnksrc}' to '${symlnk_to}'."
     ln -sf "${symlnksrc}" "./${symlnk_to}"
   done
+
+  logrotate_file="/etc/logrotate.d/tomcat"
+
+  [ $def_instance -eq 0 ] && { 
+    logrotate_file="${logrotate_file}@${instancename}"
+  }
+
+  [ -d "/etc/logrotate.d" ] && {
+
+    cat <<_EOF_
+$CATALINA_OUT {
+ daily
+ rotate 30
+ missingok
+ copytruncate
+ create 0644 $TOMCAT_USER $TOMCAT_USER
+}
+_EOF_
+
+  } >"${logrotate_file}"
+
+  [ $def_instance -eq 0 ] && [ -r "./bin/setenv.sh" ] && {
+
+    diff "${template_dir}/bin/setenv.sh" ./bin/setenv.sh 1>/dev/null && {
+
+      tmp_setenv_sh="./bin/.setenv.$$"
+
+      cat "./bin/setenv.sh" |
+      sed -e 's/^\(#* *| *\)\(INSTANCENAME\)=[^=].*$/\2='"$instancename"'/g' \
+          1>"${tmp_setenv_sh}" 2>/dev/null &&
+      mv -f "${tmp_setenv_sh}" "./bin/setenv.sh"
+
+    }
+
+  } # [ $def_instance -eq 0 ] && [ -r "./bin/setenv.sh" ]
 
   [ -r "./conf/server.xml" ] && {
 

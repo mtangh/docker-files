@@ -1,0 +1,67 @@
+#!/bin/bash
+THIS="${0##*/}"
+BASE="${THIS%.*}"
+CDIR=$([ -n "${0%/*}" ] && cd "${0%/*}" 2>/dev/null; pwd)
+
+# Load the tomcat-tools.rc
+if [ -x "$CDIR/tomcat-tools.rc" ]
+then
+  . "$CDIR/tomcat-tools.rc" $@
+else
+  echo "$THIS: ABORTED: 'tomcat-tools.rc' not found" 1>&2
+  exit 1
+fi
+
+# pid
+jvm_pid=$(cat $CATALINA_PID 2>/dev/null)
+
+# output mode
+is_logging=0
+
+# jstack
+jstack="$JAVA_HOME/bin/jstack"
+
+# jstack options
+jsopts=""
+
+# options
+while [ $# -gt 0 ] ; do
+  case "$1" in
+  --log)
+    is_logging=1
+    ;;
+  -l)
+    jsopts="-l"
+    ;;
+  *)
+    ;;
+  esac
+  shift
+done
+
+# find 'jstack'
+if [ ! -x "$jstack" ]
+then
+  is_logging=1
+fi
+
+# Thread dump
+if [ -n "$jvm_pid" ]
+then
+  if [ $is_logging -eq 1 ]
+  then
+    kill -3 $jvm_pid
+    if [ $? -eq 0 ]
+    then
+      echo "$THIS: Java VM (pid=$jvm_pid) Full Thread dumped to '${CATALINA_OUT}'."
+    fi
+  else
+    $jstack -F $jsopts $jvm_pid
+  fi
+else
+  echo "$THIS: ERROR: Not found Java VM process."
+  exit 1
+fi
+
+# end of script
+exit 0

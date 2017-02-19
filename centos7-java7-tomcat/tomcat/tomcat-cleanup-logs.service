@@ -1,0 +1,14 @@
+# Systemd unit file for logrotate.service
+
+[Unit]
+Description=Tomcat Cleanup logs
+
+[Service]
+Type=simple
+
+# Exec Start,Stop,etc...
+ExecStart=/bin/bash ${TOMCAT_HOME}/bin/tomcat-cleanup-logs.sh 3 7
+
+# Environment File
+EnvironmentFile=/etc/sysconfig/tomcat
+

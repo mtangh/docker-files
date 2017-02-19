@@ -5,17 +5,20 @@ Description=Apache Tomcat Web Application Container
 After=syslog.target network.target
 
 [Service]
-Type=simple
+Type=forking
 
 # Inctance name
 Environment="INSTANCENAME=tomcat"
 
 # Exec Start,Stop,etc...
-ExecStart=/bin/su -m ${TOMCAT_USER} -c "cd ${CATALINA_BASE} ./bin/catalina.sh run"
-ExecStop=/bin/su -m ${TOMCAT_USER} -c "cd ${CATALINA_BASE} ./bin/catalina.sh stop"
+ExecStart=/bin/su -m ${TOMCAT_USER} -c "cd ${CATALINA_BASE} && ./bin/catalina.sh start"
+ExecStop=/bin/su -m ${TOMCAT_USER} -c "cd ${CATALINA_BASE} && ./bin/catalina.sh stop"
 
 # Environment File
 EnvironmentFile=/etc/sysconfig/tomcat
+
+# PID
+PIDFile=/opt/tomcat/var/run/tomcat/tomcat.pid
 
 # Kill mode
 KillMode=process
