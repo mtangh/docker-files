@@ -11,9 +11,13 @@ FROM centos7-pg9:pg9
 # Maintainer
 MAINTAINER MT
 
+# Labels
+LABEL \
+ name="PostgreSQL95 Server on CentOS7 with Systemd"
+
 # Labels for run
 LABEL \
- docker.run.options="-d -P -h postgresql96 --privileged" \
+ docker.run.options="-d -P -h postgresql95 --privileged" \
  docker.run.confirm-startup="su - postgres -c 'psql -l'"
 
 # PGPORT
