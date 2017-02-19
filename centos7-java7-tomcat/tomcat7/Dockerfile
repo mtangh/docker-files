@@ -1,5 +1,5 @@
 #
-# centos7-java7^tomcat:tomcat7
+# centos7-java7-tomcat:tomcat7
 #
 #@  DOCKER_CONTAINER=""
 #@  DOCKER_IMAGE_TAG="centos7-java7-tomcat:tomcat7"
