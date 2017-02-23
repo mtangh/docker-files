@@ -117,15 +117,20 @@ _pgctl_wrapper() {
     esac
     if [ -n "$_command" ]
     then
+      pgctlret=999
       if [ -n "$(type -P systemctl 2>/dev/null)" ]
       then
-        systemctl "$_command" postgresql
-        pgctlret=$?
+        echo "$THIS: PGCTL: command 'systemctl' found."
+        systemctl "$_command" postgresql; pgctlret=$?
+        echo "$THIS: PGTCL: systrmctl $_command postgresql; ret=$pgctlret."
       elif [ -n "$(type -P service 2>/dev/null)" ]
       then
-        service postgresql "$_command"
-        pgctlret=$?
-      else
+        echo "$THIS: PGCTL: command 'service' found."
+        service postgresql "$_command"; pgctlret=$?
+        echo "$THIS: PGTCL: service postgresql $_command; ret=$pgctlret."
+      fi
+      if [ -z "$pgctlret" ] ||[ $pgctlret -eq 0 ]
+      then
         pgctlopt="-D ${PGDATA} -s -t 300"
         [ "$_command" != "stop" ] &&
         pgctlopt=$(echo $pgctlopt "-o '-p ${PGPORT}' -w")
@@ -133,7 +138,8 @@ _pgctl_wrapper() {
         pgctlopt=$(echo $pgctlopt "-m fast")
         /bin/su - ${PGUSER} -c "${PGCTL} $_command $pgctlopt"
         pgctlret=$?
-      fi 1>/dev/null 2>&1
+        echo "$THIS: PGCTL: ${PGCTL} $_command $pgctlopt - ret=$pgctlret."
+      fi
       [ $pgctlret -eq 0 ] &&
       [ $_waitfor -ne 0 ] &&
       _waitforstartup
@@ -302,7 +308,10 @@ do
     then
       if [ -e "${data_dir}.tgz" ]
       then
-        ( cd "${data_dir%/*}/" && tar -zxvf "${data_dir}.tgz" )
+        echo "$THIS: $PGDATABASE: '${data_dir}.tgz' found."
+        ( cd "${data_dir%/*}/" &&
+          tar -zxvf "${data_dir}.tgz" )
+        echo "$THIS: $PGDATABASE: decompressed: '${data_dir}.tgz'."       
       fi
     fi
 
