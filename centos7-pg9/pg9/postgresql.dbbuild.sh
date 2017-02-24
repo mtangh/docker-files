@@ -129,7 +129,7 @@ _pgctl_wrapper() {
         service postgresql "$_command"; pgctlret=$?
         echo "$THIS: PGTCL: service postgresql $_command; ret=$pgctlret."
       fi
-      if [ -z "$pgctlret" ] ||[ $pgctlret -eq 0 ]
+      if [ -z "$pgctlret" ] || [ $pgctlret -ne 0 ]
       then
         pgctlopt="-D ${PGDATA} -s -t 300"
         [ "$_command" != "stop" ] &&
