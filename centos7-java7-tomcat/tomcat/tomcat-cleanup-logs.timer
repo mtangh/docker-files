@@ -1,4 +1,4 @@
-# Systemd unit file for logrotate.timer
+# Systemd unit file for tomcat-clenup-logs.timer
 
 [Unit]
 Description=Daily Log Rotation

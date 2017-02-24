@@ -38,33 +38,12 @@ do
   shift
 done
 
-[ -n "${instancename}" ] || {
-  echo "$THIS: ERROR: Need instance name." 1>&2
-  exit 90
+[ -r "${CDIR}/catalina.rc" ] || {
+  echo "$THIS: ERROR: 'catalina.rc' is not set." 1>&2
+  exit 127
 }
-[ "${instancename}" = "tomcat" ] && {
-  def_instance=1
-}
-
-. "/etc/sysconfig/tomcat" 2>/dev/null || {
-  echo "$THIS: ERROR: '/etc/sysconfig/tomcat' not found." 1>&2
-  exit 91
-}
-
-[ $def_instance -eq 0 ] &&
-. "/etc/sysconfig/tomcat@${instancename}" 2>/dev/null || :
-
-[ -n "$TOMCAT_USER" -a -n "$TOMCAT_HOME" -a -n "$CATALINA_HOME" ] || {
-  echo "$THIS: ERROR: 'One or more variables have not been set yet; TOMCAT_USER/TOMCAT_HOME/CATALINA_HOME." 1>&2
-  exit 92
-}
-[ -d "$TOMCAT_HOME" ] || {
-  echo "$THIS: ERROR: TOMCAT_HOME=$TOMCAT_HOME is not a directory." 1>&2
-  exit 93
-}
-[ -d "$CATALINA_HOME" ] || {
-  echo "$THIS: ERROR: CATALINA_HOME=$CATALINA_HOME is not a directory." 1>&2
-  exit 94
+. "${CDIR}/catalina.rc" 2>/dev/null || {
+  exit $?
 }
 
 [ -r "/etc/sysconfig/tomcat@${instancename}" ] || {
@@ -121,17 +100,6 @@ _EOF_
     }
   done
 
-  chown -R "root:${TOMCAT_USER}" . &&
-  find . -type d -exec chmod 2755 {} \; &&
-  find . -type f -exec chmod 0644 {} \; &&
-  find . -type f -a -name "*.sh" -exec chmod 0755 {} \;
-
-  for dir in conf/Catalina{,/localhost} webapps/{deploy,versions}
-  do
-    chown "${TOMCAT_USER}:${TOMCAT_USER}" "./$dir" &&
-    chmod 2755 "./$dir"
-  done
-
   for file in "${TOMCAT_HOME}"/bin/tc-* "${TOMCAT_HOME}"/bin/tomcat*.rc
   do
     filepath="${file%/*}"
@@ -161,9 +129,7 @@ _EOF_
     [ -e "./${filepath##*/}/${filename}" ] && continue
     echo "$file" |grep -E '.*\.bat$' 1>&2 && continue
     echo "Copy '${file}' to '${filepath##*/}/${filename}'."
-    cp -f "${file}" "./${filepath##*/}/${filename}" &&
-    chown "root:${TOMCAT_USER}" "./${filepath##*/}/${filename}" &&
-    chmod 0644 "./${filepath##*/}/${filename}"
+    cp -f "${file}" "./${filepath##*/}/${filename}"
   done
 
   for symlnk in \
@@ -176,31 +142,9 @@ _EOF_
     symlnksrc="${TOMCAT_HOME}/var/${symlnk##*:}"
     [ -e "./${symlnk_to}" ] && continue
     [ -d "${symlnksrc}" ] || mkdir -p "${symlnksrc}"
-    chown "${TOMCAT_USER}:${TOMCAT_USER}" "${symlnksrc}" &&
-    chmod 2755 "${symlnksrc}"
     echo "Symlinked '${symlnksrc}' to '${symlnk_to}'."
     ln -sf "${symlnksrc}" "./${symlnk_to}"
   done
-
-  logrotate_file="/etc/logrotate.d/tomcat"
-
-  [ $def_instance -eq 0 ] && { 
-    logrotate_file="${logrotate_file}@${instancename}"
-  }
-
-  [ -d "/etc/logrotate.d" ] && {
-
-    cat <<_EOF_
-$CATALINA_OUT {
- daily
- rotate 30
- missingok
- copytruncate
- create 0644 $TOMCAT_USER $TOMCAT_USER
-}
-_EOF_
-
-  } >"${logrotate_file}"
 
   [ $def_instance -eq 0 ] && [ -r "./bin/setenv.sh" ] && {
 
@@ -234,6 +178,11 @@ _EOF_
     }
 
   } # [ -r "./conf/server.xml" ]
+
+  [ -e "${CDIR}/catalina-init-instance.sh" ] && {
+    ${CDIR}/catalina-init-instance.sh "${instancename}" ||
+    exit $?
+  }
 
 } 2>/dev/null |
 while read stdoutln

@@ -248,7 +248,7 @@ RUN \
     mkdir -p "${TOMCAT_HOME}/instances/${instancename}" && \
     tar -cv . |tar -C "${TOMCAT_HOME}/instances/${instancename}" -xf -; \
    ); \
-   ./bin/mkinstance.sh "${instancename}" && { \
+   ./bin/catalina-mkinstance.sh "${instancename}" && { \
     servicename=""; \
     [ "${instancename}" = "tomcat" ] && \
     servicename="${instancename}.service"; \

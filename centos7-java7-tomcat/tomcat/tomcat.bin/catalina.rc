@@ -1,0 +1,55 @@
+# catalina.rc
+
+def_instance=0
+sysconf_load=0
+
+[ -n "${instancename}" ] || {
+  echo "$THIS: ERROR: Need instance name." 1>&2
+  return 90
+}
+
+case "${instancename}" in
+tomcat|default)
+  def_instance=1
+  ;;
+*)
+esac
+
+for instance_cfg in /etc/sysconfig/tomcat{,@$instancename}
+do
+  [ ! -r "$instance_cfg" ] || {
+    . ${instance_cfg} && sysconf_load=1
+  }
+done 1>/dev/null 2>&1
+
+[ $sysconf_load -ne 0 ] || {
+  echo "$THIS: ERROR: '/etc/sysconfig/tomcat*' not found." 1>&2
+  return 91
+}
+
+[ -n "$TOMCAT_USER" ] || {
+  echo "$THIS: ERROR: 'TOMCAT_USER' is not set." 1>&2
+  return 92
+}
+[ -n "$TOMCAT_HOME" -a -d "${TOMCAT_HOME}" ] || {
+  echo "$THIS: ERROR: TOMCAT_HOMEE=$TOMCAT_HOME is not a directory." 1>&2
+  return 93
+}
+[ -n "$CATALINA_HOME" -a -d "$CATALINA_HOME" ] || {
+  echo "$THIS: ERROR: CATALINA_HOME=$CATALINA_HOME is not a directory." 1>&2
+  return 94
+}
+[ -n "$CATALINA_BASE" -a -d "$CATALINA_BASE" ] || {
+  echo "$THIS: ERROR: CATALINA_BASE=$CATALINA_BASE is not a directory." 1>&2
+  return 95
+}
+
+[ -n "${TOMCAT_GROUP}" ] || {
+  TOMCAT_GROUP="${TOMCAT_USER:-tomcat}"
+}
+
+[ ! -e "${CATALINA_BASE}/bin/setenv.sh" ] || {
+  . "${CATALINA_BASE}/bin/setenv.sh" 2>/dev/null || :
+}
+
+return 0
