@@ -246,12 +246,13 @@ RUN \
  cd "${_tc_homedir}" && { \
   for instancename in ${TC_INSTANCES}; \
   do \
-   echo "instancename=$instancename"; \
+   echo "Tomcat instance: $instancename"; \
    ./bin/catalina-mkinstance.sh "${instancename}" && { \
     echo "Enabling tomcat instance: $instancename"; \
     [ ! -d "${WORKDIR}/${instancename}" ] || ( \
+     echo "Installing '${WORKDIR}/${instancename}' to '${_tc_homedir}/instances/${instancename}'."; \
      cd "${WORKDIR}/${instancename}" && \
-     tar -cv . |tar -C "${_tc_homedir}/instances/${instancename}" -xf -; \
+     tar -c . |tar -C "${_tc_homedir}/instances/${instancename}" -xvf -; \
     ); \
     servicename=""; \
     [ "${instancename}" = "tomcat" ] && \
