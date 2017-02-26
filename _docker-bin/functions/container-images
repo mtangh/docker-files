@@ -47,7 +47,7 @@ _get-image() {
       *)
         _images_keyfound=$(
           docker images --format='{{ .ID}} {{ .Repository }}:{{ .Tag }}' |
-          grep -E '(^'"$_images_find_key"'[ ]|[ ]'"$_images_find_key"'$)' |
+          egrep '(^'"$_images_find_key"'[ ]|[ ]'"$_images_find_key"'$)' |
           awk $_images_fmt_spec )
         [ -n "$_images_keyfound" ] && {
           echo $_images_keyfound

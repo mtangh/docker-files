@@ -46,7 +46,7 @@ unset instance_cfg
   return 93
 }
 [ -z "$instancename" ] ||
-[ -n "$CATALINA_BASE" -a -d "$CATALINA_BASE" ] || {
+[ -n "$CATALINA_BASE" ] || {
   echo "$THIS: ERROR: CATALINA_BASE=$CATALINA_BASE is not a directory." 1>&2
   return 94
 }

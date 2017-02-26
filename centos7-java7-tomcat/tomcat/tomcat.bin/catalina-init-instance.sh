@@ -69,7 +69,7 @@ cd "${CATALINA_BASE}" && {
 $CATALINA_OUT {
   daily
   rotate 30
-  dateext yes
+  dateext
   missingok
   notifempty
   copytruncate

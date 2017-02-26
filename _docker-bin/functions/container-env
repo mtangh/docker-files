@@ -2,23 +2,25 @@
 
 # docker container env
 docker-container-env() {
+  local _cattr_data=""
   local _cattrvalue=""
   local _cattribute="$1"; shift
   local _dockerfile="$1"; shift
   [ -z "${_dockerfile}" ] &&
   _dockerfile="$(pwd)/Dockerfile"
-  [  -r "$_dockerfile" ] && {
+  [ -r "$_dockerfile" ] && {
     if [ -z "$_cattribute" ]
     then
       get-dockerfile-attributes "$_dockerfile"
     else
       _cattrvalue=$(eval $(
         get-dockerfile-attributes "$_dockerfile" |
-        grep -E '^'"$_cattribute"'=.*' && echo 'echo $'"$_cattribute") )
+        egrep '^'"$_cattribute"'=.*' 2>/dev/null &&
+        echo 'echo $'"$_cattribute") )
       [ -n "$_cattrvalue" ] && {
         echo "$_cattrvalue"
       }
-    fi 2>/dev/null
+    fi #2>/dev/null
   }
   return $?
 }
@@ -53,7 +55,7 @@ get-dockerfile-attributes() {
       [ -n "$_d_variable" ] &&
       echo $_exportvars"${_d_variable};"
     done
-  } 2>/dev/null
+  } #2>/dev/null
   return $?
 }
 

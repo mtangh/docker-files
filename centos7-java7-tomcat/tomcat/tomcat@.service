@@ -17,9 +17,9 @@ Type=forking
 Environment="INSTANCENAME=%I"
 
 # Exec Start,Stop,etc...
-ExecStartPre=/bin/sh "${TOMCAT_HOME}/bin/catalina-init-instance.sh" "${INSTANCE}"
-ExecStart=/bin/su -m ${TOMCAT_USER} -c "cd ${CATALINA_BASE} && ./bin/catalina.sh start"
-ExecStop=/bin/su -m ${TOMCAT_USER} -c "cd ${CATALINA_BASE} && ./bin/catalina.sh stop"
+ExecStartPre=/bin/sh "${TOMCAT_HOME}/bin/catalina-init-instance.sh" "${INSTANCENAME}"
+ExecStart=/bin/su -m ${TOMCAT_USER} -c "cd ${CATALINA_BASE} && ./bin/startup.sh"
+ExecStop=/bin/su -m ${TOMCAT_USER} -c "cd ${CATALINA_BASE} && ./bin/shutdown.sh"
 
 # Environment File
 EnvironmentFile=/etc/sysconfig/tomcat
@@ -29,7 +29,7 @@ EnvironmentFile=-/etc/sysconfig/tomcat@%I
 PIDFile=/opt/tomcat/var/run/%I/%I.pid
 
 # Kill mode
-KillMode=process
+KillMode=none
 
 # Give a reasonable amount of time for the server to start up/shut down
 TimeoutSec=90

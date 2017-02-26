@@ -110,7 +110,7 @@ delete_days="${delete_days:-7}"
         _verbose "[${tcinstid}] opened $(wc -1 ${proc_dir}/fd/) fds in ${proc_dir}."
       }
       ls -l "${proc_dir}/fd/" |
-      grep -E ' '"$log_file"'$' 1>/dev/null 2>&1 || {
+      egrep ' '"$log_file"'$' 1>/dev/null 2>&1 || {
         _verbose "[${tcinstid}] not found: file='$log_file'."
         continue
       }

@@ -38,7 +38,7 @@ JAVA_OPTS="${JAVA_OPTS} -Djava.awt.headless=true"
 # Verbose GC
 JAVA_OPTS="${JAVA_OPTS} -verbose:gc"
 # Verbose Class loading
-#JAVA_OPTS="${JAVA_OPTS} -verbose:class"
+JAVA_OPTS="${JAVA_OPTS} -verbose:class"
 # Print GC Options
 #JAVA_OPTS="${JAVA_OPTS} -XX:+PrintGCTimeStamps -XX:+PrintGCDetails"
 # Enable Class Histogram
@@ -52,7 +52,10 @@ JAVA_OPTS="${JAVA_OPTS} -verbose:gc"
 # Enabling the JMX Agent
 #JAVA_OPTS="${JAVA_OPTS} -Dcom.sun.management.jmxremote"
 
+# Problem that takes time due to seed generation in the SecureRandom class.
+JAVA_OPTS="${JAVA_OPTS} -Djava.security.egd=file:/dev/./urandom"
+
 # Complete (unsafe) will be allowed re-negotiation of the legacy is.
-#JAVA_OPTS="${JAVA_OPTS} -Dsun.security.ssl.allowUnsafeRenegotiation=true" 
+JAVA_OPTS="${JAVA_OPTS} -Dsun.security.ssl.allowUnsafeRenegotiation=true" 
 
 #*eof*

@@ -133,7 +133,7 @@ _EOF_
     filename="${file##*/}"
     [ -d "${file}" ] && continue
     [ -e "./${filepath##*/}/${filename}" ] && continue
-    echo "$file" |grep -E '.*\.bat$' 1>&2 && continue
+    echo "$file" |egrep '.*\.bat$' 1>&2 && continue
     echo "Symlinked '${file}' to '${filepath##*/}/${filename}'."
     ln -sf "${file}" "./${filepath##*/}/${filename}"
   done
@@ -145,17 +145,17 @@ _EOF_
     filename="${file##*/}"
     [ -d "${file}" ] && continue
     [ -e "./${filepath##*/}/${filename}" ] && continue
-    echo "$file" |grep -E '.*\.bat$' 1>&2 && continue
+    echo "$file" |egrep '.*\.bat$' 1>&2 && continue
     echo "Copy '${file}' to '${filepath##*/}/${filename}'."
     cp -f "${file}" "./${filepath##*/}/${filename}"
   done
 
   # Symlinking the work directory
   for symlnk in \
-    logs:log/${instancename:+tomcat} \
-    run:run/${instancename:+tomcat} \
-    work:lib/${instancename:+tomcat}/work \
-    temp:lib/${instancename:+tomcat}/temp
+    logs:log/${instancename:-tomcat} \
+    run:run/${instancename:-tomcat} \
+    work:lib/${instancename:-tomcat}/work \
+    temp:lib/${instancename:-tomcat}/temp
   do
     symlnk_to="${symlnk%:*}"
     symlnksrc="${TOMCAT_HOME}/var/${symlnk##*:}"
@@ -204,7 +204,7 @@ _EOF_
 
   # Executing the instance initializer
   [ -e "${CDIR}/catalina-init-instance.sh" ] && {
-    ${CDIR}/catalina-init-instance.sh "${instancename:+tomcat}" ||
+    ${CDIR}/catalina-init-instance.sh "${instancename:-tomcat}" ||
     exit $?
   } # [ -e "${CDIR}/catalina-init-instance.sh" ]
 

@@ -48,7 +48,7 @@ get-container-id() {
     [ -n "$_searchval" ] && {
       _container=$(
         docker ps $_cmnd_opts --format='{{ .CreatedAt }};{{.ID}};{{.Image}};{{.Names}}' |
-        grep -E '(^|[;])'"${_searchval}"'([;].*|$)' |
+        egrep '(^|[;])'"${_searchval}"'([;].*|$)' |
         sort -r |awk -F ';' '{print($2)}')
     }
     [ -n "$_container" ] && {
@@ -84,7 +84,7 @@ container-is-running() {
   local _container=$(get-container-id-last $@)
   [ -n "$_container" ] && {
     docker ps -a --format="{{ .ID }}" --filter "status=running" |
-    grep -E '^'"$_container"'$'
+    egrep '^'"$_container"'$'
   } 1>/dev/null 2>&1
   return $?
 }
@@ -105,7 +105,7 @@ get-container-port() {
       ;;
     *)
       echo "$_getopt_V" |
-      grep -E '^[1-9][0-9]*$' 1>/dev/null 2>&1
+      egrep '^[1-9][0-9]*$' 1>/dev/null 2>&1
       if [ $? -eq 0 ]
       then _find_port=$(echo $_find_port "$_getopt_V")
       else _cont_opts=$(echo $_cont_opts "$_getopt_V") 
