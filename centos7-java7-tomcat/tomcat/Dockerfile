@@ -235,18 +235,21 @@ ARG \
 ONBUILD \
 RUN \
  set -x; . /etc/sysconfig/tomcat; \
+ _tc_user="${TOMCAT_USER:-tomcat}" && \
+ _tc_group="${TOMCAT_GROUP:-$_tc_user}" && \
+ _tc_homedir="${TOMCAT_HOME:-/opt/$_tc_user}"; \
  for instancename in ${TC_INSTANCES}; \
  do \
   [ -r "${WORKDIR}/${instancename}.sysconfig" ] && \
   mv -f "${WORKDIR}/${instancename}.sysconfig" "/etc/sysconfig/tomcat@${instancename}"; \
  done 2>/dev/null; \
- cd "${TOMCAT_HOME}" && { \
+ cd "${_tc_homedir}" && { \
   for instancename in ${TC_INSTANCES}; \
   do \
    [ ! -d "${WORKDIR}/${instancename}" ] || ( \
     cd "${WORKDIR}/${instancename}" && \
-    mkdir -p "${TOMCAT_HOME}/instances/${instancename}" && \
-    tar -cv . |tar -C "${TOMCAT_HOME}/instances/${instancename}" -xf -; \
+    mkdir -p "${_tc_homedir}/instances/${instancename}" && \
+    tar -cv . |tar -C "${_tc_homedir}/instances/${instancename}" -xf -; \
    ); \
    ./bin/catalina-mkinstance.sh "${instancename}" && { \
     servicename=""; \
@@ -259,7 +262,9 @@ RUN \
   done && \
   [ ! -r "${WORKDIR}/setup.sh" ] || { \
    mv -f "${WORKDIR}/setup.sh" ./bin/ && \
-   bash ./bin/setup.sh; \ 
+   chown "${_tc_user}:${_tc_group}" ./bin/setup.sh && \
+   chmod 0755 ./bin/setup.sh && \
+   ./bin/setup.sh; \ 
   }; \
  } 2>/dev/null;
 

@@ -2,7 +2,7 @@
 THIS="${0##*/}"
 CDIR=$([ -n "${0%/*}" ] && cd "${0%/*}" 2>/dev/null; pwd)
 
-instancename="${TC_INSTANCE:-}"
+INSTANCENAME="${TC_INSTANCE:-}"
 
 # Parsing options
 while [ $# -gt 0 ]
@@ -11,8 +11,8 @@ do
   -*)
     ;;
   *)
-    if [ -z "$instancename" ]
-    then instancename="$1"
+    if [ -z "$INSTANCENAME" ]
+    then INSTANCENAME="$1"
     fi
     ;;
   esac
@@ -24,9 +24,19 @@ done
   echo "$THIS: ERROR: 'catalina.rc' is not set." 1>&2
   exit 127
 }
-. "${CDIR}/catalina.rc" 2>/dev/null || {
+. "${CDIR}/catalina.rc" 1>/dev/null || {
   exit $?
 }
+
+# Load the setenv.sh
+for setenvsh_dir in "${CATALINA_BASE}" "${CATALINA_HOME}" "${TOMCAT_HOME}"
+do
+  [ ! -e "${setenvsh_dir}/bin/setenv.sh" ] || {
+    . "${setenvsh_dir}/bin/setenv.sh" &&
+    break
+  }
+done
+unset setenvsh_dir
 
 # Set the shell flags
 set -u
@@ -60,7 +70,7 @@ cd "${CATALINA_BASE}" && {
   [ -n "${CATALINA_OUT}" -a -d "${CATALINA_OUT%/*}" ] && {
 
     # loglotate config
-    logrotate_f="/etc/logrotate.d/tomcat${instancename:+@}${instancename}"
+    logrotate_f="/etc/logrotate.d/tomcat${INSTANCENAME:+@}${INSTANCENAME}"
 
     # Checking the logrotate conf
     [ -d "${logrotate_f%/*}" -a ! -e "${logrotate_f}" ] && {

@@ -36,8 +36,12 @@ done
   echo "$THIS: ERROR: 'catalina.rc' is not set." 1>&2
   exit 127
 }
-. "${CDIR}/catalina.rc" 2>/dev/null || {
+. "${CDIR}/catalina.rc" 1>/dev/null || {
   exit $?
+}
+[ -d "${TOMCAT_HOME}/var/log" ] || {
+  echo "$THIS: ERROR: '${TOMCAT_HOME}/var/log' is not a directory." 1>&2
+  exit 97
 }
 
 # Usage
@@ -78,7 +82,7 @@ delete_days="${delete_days:-7}"
 [ $delete_days -ge 7 ] || _usage
 
 # main
-: && {
+cd "${TOMCAT_HOME}/var/log" && {
 
   log_file=""
   tcinstid=""
@@ -88,6 +92,7 @@ delete_days="${delete_days:-7}"
   archivecount=0
   delete_count=0
 
+  echo "Logs dir: $(pwd)"
   echo "Tomcat instance PIDs: $tcinstances."
   echo "Compressed / deleted: after $archivedays / $delete_days days."
 

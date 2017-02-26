@@ -1,15 +1,15 @@
 # catalina.rc
 
-instancename="${instancename:-$TC_INSTANCE}"
-instancesdir="${instancesdir:-$TC_INSTANCES_DIR}"
-template_dir="${template_dir:-$TC_INSTANCE_TEMPLATE}"
+INSTANCENAME="${INSTANCENAME:-$TC_INSTANCE}"
+INSTANCESDIR="${INSTANCESDIR:-$TC_INSTANCES_DIR}"
+TEMPLATE_DIR="${TEMPLATE_DIR:-$TC_INSTANCE_TEMPLATE}"
 sysconf_load=0
 
 # instance name
-[ -n "${instancename}" ] && {
-  case "${instancename}" in
+[ -n "${INSTANCENAME}" ] && {
+  case "${INSTANCENAME}" in
   tomcat|default)
-    instancename=""
+    INSTANCENAME=""
     ;;
   *)
   esac
@@ -17,37 +17,38 @@ sysconf_load=0
 
 # Load the sysconfig files
 for instance_cfg in \
-  /etc/sysconfig/tomcat{,@$instancename} \
-  ${instancename:+/etc/sysconfig/tomcat@$instancename}
+/etc/sysconfig/tomcat \
+"${INSTANCENAME:+/etc/sysconfig/tomcat@$INSTANCENAME}"
 do
-  [ ! -r "$instance_cfg" ] || {
-    . ${instance_cfg} && sysconf_load=1
+  [ ! -r "${instance_cfg}" ] || {
+    echo "SYSCONFIG: ${instance_cfg}" 
+    . "${instance_cfg}" && sysconf_load=1
   }
-done 1>/dev/null 2>&1
+done
 unset instance_cfg
 
 # sysconfig loaded ?
 [ $sysconf_load -ne 0 ] || {
-  echo "$THIS: ERROR: '/etc/sysconfig/tomcat*' not found." 1>&2
+  echo "ERROR: '/etc/sysconfig/tomcat*' not found." 1>&2
   return 124
 }
 
 # Checking required variables
 [ -n "$TOMCAT_USER" ] || {
-  echo "$THIS: ERROR: 'TOMCAT_USER' is not set." 1>&2
+  echo "ERROR: 'TOMCAT_USER' is not set." 1>&2
   return 91
 }
 [ -n "$TOMCAT_HOME" -a -d "${TOMCAT_HOME}" ] || {
-  echo "$THIS: ERROR: TOMCAT_HOMEE=$TOMCAT_HOME is not a directory." 1>&2
+  echo "ERROR: TOMCAT_HOMEE=$TOMCAT_HOME is not a directory." 1>&2
   return 92
 }
 [ -n "$CATALINA_HOME" -a -d "$CATALINA_HOME" ] || {
-  echo "$THIS: ERROR: CATALINA_HOME=$CATALINA_HOME is not a directory." 1>&2
+  echo "ERROR: CATALINA_HOME=$CATALINA_HOME is not a directory." 1>&2
   return 93
 }
-[ -z "$instancename" ] ||
+[ -z "$INSTANCENAME" ] ||
 [ -n "$CATALINA_BASE" ] || {
-  echo "$THIS: ERROR: CATALINA_BASE=$CATALINA_BASE is not a directory." 1>&2
+  echo "ERROR: CATALINA_BASE=$CATALINA_BASE is not a directory." 1>&2
   return 94
 }
 
@@ -55,16 +56,6 @@ unset instance_cfg
 [ -n "${TOMCAT_GROUP}" ] || {
   TOMCAT_GROUP="${TOMCAT_USER:-tomcat}"
 }
-
-# Load the setenv.sh
-for setenvsh_dir in "${CATALINA_BASE}" "${CATALINA_HOME}" "${TOMCAT_HOME}"
-do
-  [ ! -e "${setenvsh_dir}/bin/setenv.sh" ] || {
-    . "${setenvsh_dir}/bin/setenv.sh" 2>/dev/null &&
-    break
-  }
-done
-unset setenvsh_dir
 
 # end
 return 0
