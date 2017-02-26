@@ -2,48 +2,12 @@
 THIS="${0##*/}"
 CDIR=$([ -n "${0%/*}" ] && cd "${0%/*}" 2>/dev/null; pwd)
 
-# Load the syaconfig
-. /etc/sysconfig/tomcat 2>/dev/null || {
-  echo "$THIS: no such file: '/etc/sysconfig/tomcat'." 1>&2
-  exit 127
-}
-[ -n "${TOMCAT_HOME}" ] || {
-  echo "$THIS: 'TOMCAT_HOME' is not set." 1>&2
-  exit 121
-}
-cd "${TOMCAT_HOME}/var/log" 2>/dev/null || {
-  echo "$THIS: no such directory: '${TOMCAT_HOME}/var/log'." 1>&2
-  exit 122
-}
-
-# days
 tcinstances=""
 archivedays=""
 delete_days=""
 verboseflag=0
 
-# Usage
-_usage() {
-  cat <<__EOF__
-Usage: $THIS arch_days delete_days
-        arch_days >= 3
-        delete_days >= 7
-__EOF__
-  exit 1
-}
-
-# Verbose
-_verbose() {
-  if [ -n "$@" ]
-  then
-    [ $verboseflag -gt 0 ] && echo "DEBUG: $@"; :
-  else
-    [ $verboseflag -gt 0 ]
-  fi
-  return $?
-}
-
-# Options
+# Parsing options
 while [ $# -gt 0 ]
 do
   case "$1" in
@@ -66,7 +30,38 @@ do
   esac
   shift
 done
-# shell flags
+
+# Load the catalina.rc
+[ -r "${CDIR}/catalina.rc" ] || {
+  echo "$THIS: ERROR: 'catalina.rc' is not set." 1>&2
+  exit 127
+}
+. "${CDIR}/catalina.rc" 2>/dev/null || {
+  exit $?
+}
+
+# Usage
+_usage() {
+  cat <<__EOF__
+Usage: $THIS arch_days delete_days
+        arch_days >= 3
+        delete_days >= 7
+__EOF__
+  exit 1
+}
+
+# Verbose
+_verbose() {
+  if [ -n "$@" ]
+  then
+    [ $verboseflag -gt 0 ] && echo "DEBUG: $@"; :
+  else
+    [ $verboseflag -gt 0 ]
+  fi
+  return $?
+}
+
+# Set the shell flags
 set -u
 
 # Tomcat instance pids
@@ -92,7 +87,7 @@ delete_days="${delete_days:-7}"
 
   archivecount=0
   delete_count=0
-  
+
   echo "Tomcat instance PIDs: $tcinstances."
   echo "Compressed / deleted: after $archivedays / $delete_days days."
 

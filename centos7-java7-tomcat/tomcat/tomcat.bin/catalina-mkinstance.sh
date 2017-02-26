@@ -6,8 +6,7 @@ instancename="${TC_INSTANCE:-}"
 instancesdir="${TC_INSTANCES_DIR:-}"
 template_dir="${TC_INSTANCE_TEMPLATE:-}"
 
-def_instance=0
-
+# Parsing options
 while [ $# -gt 0 ]
 do
   case "$1" in
@@ -38,6 +37,7 @@ do
   shift
 done
 
+# Load the catalina.rc
 [ -r "${CDIR}/catalina.rc" ] || {
   echo "$THIS: ERROR: 'catalina.rc' is not set." 1>&2
   exit 127
@@ -46,34 +46,47 @@ done
   exit $?
 }
 
-[ -r "/etc/sysconfig/tomcat@${instancename}" ] || {
-  CATALINA_BASE="${TOMCAT_HOME}/instances/${instancename}"
-}
+# Set the default
+[ -n "${instancesdir}" ] ||
+instancesdir="${TOMCAT_HOME}/instances"
+[ -n "${template_dir}" ] ||
+template_dir="${instancesdir}/tomcat@"
 
-[ -n "${instancesdir}" ] || {
-  instancesdir="${TOMCAT_HOME}/instances"
-}
-[ -n "${template_dir}" ] || {
-  template_dir="${instancesdir}/tomcat@"
-}
+# Mkdirs
+[ -d "${instancesdir}" ] ||
+mkdir -p "${instancesdir}" 2>/dev/null
+[ -d "${template_dir}" ] ||
+mkdir -p "${template_dir}" 2>/dev/null
 
-[ -d "${instancesdir}" ] || {
-  mkdir -p "${instancesdir}"
-}
+# Instance base directory
+if [ -n "${instancename}" ] &&
+   [ ! -r "/etc/sysconfig/tomcat@${instancename}" ]
+then
+  # CATALINA_BASE
+  CATALINA_BASE="${instanesdir}/${instancename}"
+  # Create a sysconfig of instance
+  if [ -r "/etc/sysconfig/tomcat@" ]
+  then
+    cat "/etc/sysconfig/tomcat@" |
+    sed -e 's%^\(CATALINA_BASE\)=[^ ].*$%\1='"${CATALINA_BASE}"'%g' \
+        1>"/etc/sysconfig/tomcat@${instancename}" 2>/dev/null &&
+    # Load the sysconfig of instance
+    . "/etc/sysconfig/tomcat@${instancename}" || {
+      echo "$THIS: ERROR: '/etc/sysconfig/tomcat@$instancename' not loaded." 1>&2
+      exit 126
+    }
+  fi
+fi
 
-[ $def_instance -eq 0 ] &&
-[ -r "/etc/sysconfig/tomcat@" ] &&
-[ ! -r "/etc/sysconfig/tomcat@${instancename}" ] && {
-  cat "/etc/sysconfig/tomcat@" |
-  sed -e 's%^\(CATALINA_BASE\)=[^ ].*$%\1='"${CATALINA_BASE}"'%g' \
-    1>"/etc/sysconfig/tomcat@${instancename}" 2>/dev/null
-}
-
+# Set the shell flags
 set -u
 
-[ -d "${CATALINA_BASE}" ] ||
-mkdir -p "${CATALINA_BASE}" 1>/dev/null 2>&1
+# Mkdir CATALINA_BASE if not exists
+[ -d "${CATALINA_BASE}" ] || {
+  mkdir -p "${CATALINA_BASE}" 1>/dev/null 2>&1
+}
 
+# main
 cd "${CATALINA_BASE}" && {
 
   cat <<_EOF_
@@ -86,12 +99,14 @@ CATALINA_BASE=$CATALINA_BASE
 
 _EOF_
 
+  # Cloaning templates to CATALIBA_BASE
   [ -d "${template_dir}" ] && {
     echo "Expand the template '${template_dir}'."
     ( cd "${template_dir}" &&
       tar -pc . |tar -C "${CATALINA_BASE}" -xvf - )
   }
 
+  # Mkdirs
   for dir in bin conf{,/Catalina/localhost} lib webapps/{deploy,versions}
   do
     [ -d "./${dir}" ] || {
@@ -100,6 +115,7 @@ _EOF_
     }
   done
 
+  # Symlinking the tc-* commands
   for file in "${TOMCAT_HOME}"/bin/tc-* "${TOMCAT_HOME}"/bin/tomcat*.rc
   do
     filepath="${file%/*}"
@@ -110,6 +126,7 @@ _EOF_
     ln -sf "${file}" "./${filepath##*/}/${filename}"
   done
 
+  # Symlinking the CATALINA_HOME/bin commands
   for file in "${CATALINA_HOME}"/bin/*.sh
   do
     filepath="${file%/*}"
@@ -121,6 +138,7 @@ _EOF_
     ln -sf "${file}" "./${filepath##*/}/${filename}"
   done
 
+  # Coping the CATALINA_HOME/conf files
   for file in "${CATALINA_HOME}"/conf/*.*
   do
     filepath="${file%/*}"
@@ -132,11 +150,12 @@ _EOF_
     cp -f "${file}" "./${filepath##*/}/${filename}"
   done
 
+  # Symlinking the work directory
   for symlnk in \
-    logs:log/${instancename} \
-    run:run/${instancename} \
-    work:lib/${instancename}/work \
-    temp:lib/${instancename}/temp
+    logs:log/${instancename:+tomcat} \
+    run:run/${instancename:+tomcat} \
+    work:lib/${instancename:+tomcat}/work \
+    temp:lib/${instancename:+tomcat}/temp
   do
     symlnk_to="${symlnk%:*}"
     symlnksrc="${TOMCAT_HOME}/var/${symlnk##*:}"
@@ -146,7 +165,8 @@ _EOF_
     ln -sf "${symlnksrc}" "./${symlnk_to}"
   done
 
-  [ $def_instance -eq 0 ] && [ -r "./bin/setenv.sh" ] && {
+  # Setenv.sh
+  [ -n "${instancename}" -a -r "./bin/setenv.sh" ] && {
 
     diff "${template_dir}/bin/setenv.sh" ./bin/setenv.sh 1>/dev/null && {
 
@@ -159,12 +179,14 @@ _EOF_
 
     }
 
-  } # [ $def_instance -eq 0 ] && [ -r "./bin/setenv.sh" ]
+  } # [ -n "${instancename} -a -r "./bin/setenv.sh" ] &&
 
+  # Server.xml
   [ -r "./conf/server.xml" ] && {
 
-    [ -e "./conf/server.xml.ORIG" ] ||
-    cp -pf ./conf/server.xml{,.ORIG}
+    [ -e "./conf/server.xml.ORIG" ] || {
+      cp -pf ./conf/server.xml{,.ORIG}
+    }
 
     cat ./conf/server.xml.ORIG |
     sed -e 's%="8005"%="${catalina.port.shutdown}"%g'  \
@@ -172,17 +194,19 @@ _EOF_
         -e 's%="8080"%="${catalina.port.http}"%g'  \
         -e 's%="8443"%="${catalina.port.https}"%g' \
         -e 's%\(appBase\)="webapps"%\1="${catalina.webapps.dir}"%g' \
-        1>./conf/server.xml && {
+        1>./conf/server.xml
+    [ $? -eq 0 ] && {
       echo "Fixed 'server.xml'."
       diff -u ./conf/server.xml{.ORIG,}
     }
 
-  } # [ -r "./conf/server.xml" ]
+  } # [ -r "./conf/server.xml" ] &&
 
+  # Executing the instance initializer
   [ -e "${CDIR}/catalina-init-instance.sh" ] && {
-    ${CDIR}/catalina-init-instance.sh "${instancename}" ||
+    ${CDIR}/catalina-init-instance.sh "${instancename:+tomcat}" ||
     exit $?
-  }
+  } # [ -e "${CDIR}/catalina-init-instance.sh" ]
 
 } 2>/dev/null |
 while read stdoutln
@@ -190,4 +214,5 @@ do
   echo "$THIS: $stdoutln"
 done
 
+# end of script
 exit 0
