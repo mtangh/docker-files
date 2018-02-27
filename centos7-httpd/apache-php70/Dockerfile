@@ -80,15 +80,11 @@ COPY \
 ONBUILD \
 RUN \
  set -x; \
- [ ! -d "./etc" ] || { \
-  (cd "./etc" && tar -cv . |tar -C /etc -xf -); \
- } && \
- [ ! -d "./www" ] || { \
-  (cd "./www/" && tar -cv . |tar -C /var/www -xf -); \
- } && \
- [ ! -e "./setup.sh" ] || { \
-  bash ./setup.sh && rm -f ./setup.sh; \
- } && \
+ { [ ! -e "./etc.tgz" ] || tar -zxvf "./etc.tgz"; } && \
+ { [ ! -d "./etc" ] || (cd "./etc/" && tar -cv . |tar -C /etc -xf - ); } && \
+ { [ ! -e "./www.tgz" ] || tar -zxvf "./www.tgz"; } && \
+ { [ ! -d "./www" ] || (cd "./www/" && tar -cv . |tar -C /var/www -xf - ); } && \
+ { [ ! -e "./setup.sh" ] || /bin/bash ./setup.sh; } && \
  /usr/sbin/httpd -t;
 
 # Reset Work dir
