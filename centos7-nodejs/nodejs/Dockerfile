@@ -53,7 +53,7 @@ RUN \
  set -x; \
  export NODEBREW_ROOT="${NODEBREW_ROOT:-/opt/nodebrew}"; \
  export PATH="$PATH:$NODEBREW_ROOT/current/bin"; \
- curl -L "$NODEBREW_URL" |perl - setup && \
+ curl -sL "$NODEBREW_URL" |perl - setup && \
  nodebrew install-binary stable && \
  nodebrew use stable && { \
   for item in "${NODEBREW_ROOT}/current/"{bin,lib}/*; \

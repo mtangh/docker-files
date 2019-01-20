@@ -1,0 +1,11 @@
+# Service-specific configuration file for tomcat instance.
+
+# Where your tomcat installation lives
+CATALINA_BASE=/opt/tomcat/instances/tomcat
+
+# Connector ports
+#CATALINA_PORT_SHUTDOWN=8005
+#CATALINA_PORT_AJP=8009
+#CATALINA_PORT_HTTP=8080
+#CATALINA_PORT_HTTPS=8443
+

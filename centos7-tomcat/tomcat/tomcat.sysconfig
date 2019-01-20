@@ -1,0 +1,15 @@
+# Service-specific configuration file for tomcat. 
+
+# Where your java installation lives
+JAVA_HOME=/usr/java/default
+
+# Tomcat Home directory
+TOMCAT_HOME=/opt/tomcat
+
+# What user should run tomcat
+TOMCAT_USER=tomcat
+
+# Where your tomcat installation lives
+CATALINA_HOME=/opt/tomcat/default
+CATALINA_BASE=/opt/tomcat/instances/tomcat
+

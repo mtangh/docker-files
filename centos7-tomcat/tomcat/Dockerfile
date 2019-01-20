@@ -1,19 +1,19 @@
 #
-# centos7-java7-tomcat:tomcat
+# centos7-tomcat:tomcat
 #
 #@  DOCKER_CONTAINER=""
-#@  DOCKER_IMAGE_TAG="centos7-java7-tomcat:tomcat"
+#@  DOCKER_IMAGE_TAG="centos7-tomcat:tomcat"
 #@  DOCKER_BUILDOPTS=""
 #@  DOCKER_BOOT_OPTS=""
 #
-FROM centos7-java:java7
+FROM centos7-java:java-onbuild
 
 # Maintainer
 MAINTAINER MT
 
 # Labels
 LABEL \
- name="Template of Tomcat Server on CentOS7 with Java7"
+ name="Template of Tomcat Server on CentOS7 with Systemd"
 
 # Work dir
 ARG \
@@ -190,7 +190,7 @@ RUN \
  else \
   [ -n "$TC_URL" ] || { \
    [ -n "${TC_URL_BASE}" ] && \
-   TC_URL_BASE=$(echo "$TC_URL_BASE" |sed -e 's#/$##g'); \ 
+   TC_URL_BASE=$(echo "$TC_URL_BASE" |sed -e 's#/$##g'); \
    [ -n "${TC_URL_PATH}" ] && \
    TC_URL_PATH=$(echo "$TC_URL_PATH" |sed -e 's#^/##g'); \
    [ -n "${TC_URL_BASE}" ] && \
@@ -266,7 +266,7 @@ RUN \
    mv -f "${WORKDIR}/setup.sh" ./bin/ && \
    chown "${_tc_user}:${_tc_group}" ./bin/setup.sh && \
    chmod 0755 ./bin/setup.sh && \
-   ./bin/setup.sh; \ 
+   ./bin/setup.sh; \
   }; \
  } 2>/dev/null;
 
