@@ -3,7 +3,7 @@ THIS="${0##*/}"
 CDIR=$([ -n "${0%/*}" ] && cd "${0%/*}" 2>/dev/null; pwd)
 
 # PG sysconfig
-PGSCFG=/etc/sysconfig/postgresql
+PGSCFG="/etc/sysconfig/postgresql"
 
 # Source dir.
 SRCDIR=
@@ -23,31 +23,26 @@ export LANG=C
   exit 127
 }
 
+# Parameters
 P_PGDATA=""
 P_PGPORT=""
 
-# parameters
+# Parse options
 while [ $# -gt 0 ]
 do
   case "$1" in
   -D*)
     if [ -n "${1##*-D}" ]
-    then
-      P_PGDATA="${1##*-D}"
+    then P_PGDATA="${1##*-D}"
     elif [ -n "$2" ]
-    then
-      P_PGDATA="$2"
-      shift
+    then P_PGDATA="$2"; shift
     fi
     ;;
   -p*)
     if [ -n "${1##*-p}" ]
-    then
-      P_PGPORT="${1##*-p}"
+    then P_PGPORT="${1##*-p}"
     elif [ -n "$2" ]
-    then
-      P_PGPORT="$2"
-      shift
+    then P_PGPORT="$2"; shift
     fi
     ;;
   -*)
@@ -56,9 +51,8 @@ Usage: $THIS [-D data-dir] [-p port] install-source-dir
 _USAGE_
     ;;
   *)
-    if [ -z "${SRCDIR}" ] && [ -d "$1" ]
-    then
-      SRCDIR="$1"
+    if [ -z "${SRCDIR}" -a -d "$1" ]
+    then SRCDIR="$1"
     fi
     ;;
   esac
@@ -188,21 +182,83 @@ PGSTAT=$(_pgctl_wrapper status)
 
 # PostgreSQL is running ?
 if [ -n "$PGSTAT" ]
-then
-  echo "$THIS: PostgreSQL server is running."
-else
-  echo "$THIS: PostgreSQL server is not running."
+then echo "$THIS: PostgreSQL server is running."
+else echo "$THIS: PostgreSQL server is not running."
 fi
+
+# Stopping postgresql server, if started.
+[ -n "$PGSTAT" ] && {
+  _pgctl_wrapper stop  #1>/dev/null 2>&1
+} || :
+
+# UPDATE *.service
+for service in $(cd "${SRCDIR}/" && ls -1 *.service 2>/dev/null)
+do
+  [ -s "${SRCDIR}/${service}" ] || {
+    continue
+  }
+  # System service file
+  sys_service="/etc/systemd/system/${service}"
+  # Print
+  echo "$THIS: UPDATE '$service' to '$sys_service'."
+  # Check difference
+  if [ -r "${sys_service}" ]
+  then
+    diff "${SRCDIR}/${service}" "${sys_service}" 1>/dev/null 2>&1 && {
+      continue
+    }
+    [ -r "${sys_service}.ORIG" ] || {
+      cp -pf "${sys_service}"{,.ORIG}
+    }
+  fi
+  # Update service
+  mv -f "${SRCDIR}/${service}" "${sys_service}" &&
+  chown root:root "${sys_service}" &&
+  chmod 0644 "${sys_service}" || {
+    echo "$THIS: Failed to update file '${config}'." 1>&2
+  }
+done
+
+# UPDATE *.sysconfig
+for sysconfig in $(cd "${SRCDIR}/" && ls -1 *.sysconfig 2>/dev/null)
+do
+  [ -s "${SRCDIR}/${sysconfig}" ] || {
+    continue
+  }
+  # Installed sysconfig
+  etc_sysconfig="/etc/sysconfig/${sysconfig%.sysconfig*}"
+  # Print
+  echo "$THIS: UPDATE '$sysconfig' to '$etc_sysconfig'."
+  # Check difference
+  if [ -r "${etc_sysconfig}" ]
+  then
+    diff "${etc_sysconfig}" "${SRCDIR}/${sysconfig}" 1>/dev/null 2>&1 && {
+      continue
+    }
+    [ -r "${etc_sysconfig}.ORIG" ] || {
+      cp -pf "${etc_sysconfig}"{,.ORIG}
+    }
+  fi
+  # Update sysconfig
+  mv -f "${SRCDIR}/${sysconfig}" "${etc_sysconfig}" &&
+  chown root:root "${etc_sysconfig}" &&
+  chmod 0644 "${etc_sysconfig}" || {
+    echo "$THIS: Failed to update file '${config}'." 1>&2
+  }
+done
 
 # Replacing PGDATA and PGPORT
 if [ -n "$P_PGDATA" -o -n "$P_PGPORT" ]
 then
-  cp "${PGSCFG}" "${PGSCFG}.tmp"
+  # Make temp
+  cp -pf "${PGSCFG}" "${PGSCFG}.tmp"
+  # Check PGDATA Param
   if [ -n "$P_PGDATA" ]
   then
     echo "$THIS: CHANGE PGDATA '${PGDATA}' TO '${P_PGDATA}'."
     sed -i 's!^[ ]*PGDATA=[^ ]*[ ]*$!PGDATA='${P_PGDATA}'!g' "${PGSCFG}.tmp"
   fi
+  # Check PGPORT Param
   if [ -n "$P_PGPORT" ]
   then
     echo "$THIS: CHANGE PGPORT '${PGPORT}' TO '${P_PGPORT}'."
@@ -213,15 +269,13 @@ fi 2>/dev/null
 # Replacing sysconfig
 if [ -s "${PGSCFG}.tmp" ]
 then
-  diff "${PGSCFG}" "${PGSCFG}.tmp"
-  if [ -$? -eq 0 ]
-  then
-    rm -f "${PGSCFG}.tmp"
-  else
-    [ -n "$PGSTAT" ] && { _pgctl_wrapper stop; }
-    mv -f "${PGSCFG}.tmp" "${PGSCFG}" && . "${PGSCFG}"
-    [ -n "$PGSTAT" ] && { _pgctl_wrapper start; }
-  fi 
+
+  # Difference
+  if diff "${PGSCFG}" "${PGSCFG}.tmp" 2>/dev/null
+  then rm -f "${PGSCFG}.tmp"
+  else mv -f "${PGSCFG}.tmp" "${PGSCFG}"
+  fi
+
   cat <<_EOF_
 $THIS: NEW PG* ENVIRONMENT VARIABLES ARE:
 $THIS: PGUSER=$PGUSER
@@ -229,7 +283,14 @@ $THIS: PGHOME=$PGHOME
 $THIS: PGDATA=$PGDATA
 $THIS: PGPORT=$PGPORT
 _EOF_
+
 fi 2>/dev/null
+
+# Reload sysconfig
+. "${PGSCFG}" || {
+  echo "$THIS: ERROR: Failed to load sysconfig '${PGSCFG}'." 1>&2
+  exit 100
+}
 
 # PSQL
 PSQL="${PSQL} -U ${PGUSER} -p ${PGPORT}"
@@ -237,104 +298,140 @@ PSQL="${PSQL} -U ${PGUSER} -p ${PGPORT}"
 # Replacing configs
 for config in $(cd "${SRCDIR}/" && ls -1 *.conf 2>/dev/null)
 do
-  echo "$THIS: REPLACE '$config'."
-  [ -r "${PGDATA}/${config}" ] &&
-  [ ! -r "${PGDATA}/${config}.ORIG" ] &&
-    cp -pf "${PGDATA}/${config}"{,.ORIG} 
-  [ -r "${SRCDIR}/${config}" ] && {
-    mv -f "${SRCDIR}/${config}" "${PGDATA}/${config}" &&
-    chown "${PGUSER}:${PGUSER}" "${PGDATA}/${config}" &&
-    chmod 0644 "${PGDATA}/${config}"
+  [ -s "${SRCDIR}/${config}" ] || {
+    continue
+  }
+  # Print
+  echo "$THIS: REPLACE '$config' to '${PGDATA}/${config}'."
+  # Check difference
+  if [ -r "${PGDATA}/${config}" ]
+  then
+    diff "${PGDATA}/${config}" "${SRCDIR}/${config}" 1>/dev/null 2>&1 && {
+      continue
+    }
+    [ -r "${PGDATA}/${config}.ORIG" ] || {
+      cp -pf "${PGDATA}/${config}"{,.ORIG}
+    }
+  fi
+  # Update conf file
+  mv -f "${SRCDIR}/${config}" "${PGDATA}/${config}" &&
+  chown "${PGUSER}:${PGUSER}" "${PGDATA}/${config}" &&
+  chmod 0644 "${PGDATA}/${config}" || {
+    echo "$THIS: Failed to update file '${config}'." 1>&2
   }
 done
 
 # Scaning source dir
 for srcdir in $(cd "${SRCDIR}" && ls -1 *.sql 2>/dev/null |sort)
 do
-  [ -n "$srcdir" ] ||
+  [ -n "$srcdir" ] || {
     continue
-  echo "${srcdir%.*}" |
-  grep -Ei '^(roles)' 1>/dev/null 2>&1 &&
+  }
+  # Ignore roles*
+  echo "${srcdir%.*}" |grep -Ei '^(roles)' 1>/dev/null 2>&1 && {
     continue
-  PGDATABASES=$(echo ${PGDATABASES} ${srcdir%.*})
+  }
+  # Update list
+  PGDATABASES="${PGDATABASES:+$PGDATABASES }${srcdir%.*}"
 done
 
 # PGDATABASES
 if [ -n "$PGDATABASES" ]
-then
-  echo "$THIS: DATABASE FOUND: $PGDATABASES"
-else
-  echo "$THIS: DATABASE NOT FOUND"
-  exit 0 
+then echo "$THIS: DATABASE FOUND: $PGDATABASES"
+else echo "$THIS: DATABASE NOT FOUND"; exit 0
 fi
 
 # Startup postgresql server
-[ -z "$PGSTAT" ] && {
-  _pgctl_wrapper start #1>/dev/null 2>&1
-}
+_pgctl_wrapper start #1>/dev/null 2>&1
 
 # Import roles
-[ ! -r "${SRCDIR}/roles.sql" ] || {
-  cat "${SRCDIR}/roles.sql" |${PSQL} || exit 101
-}
+if [ -s "${SRCDIR}/roles.sql" ]
+then
+  cat "${SRCDIR}/roles.sql" |${PSQL} || {
+    echo "$THIS: ERROR: SQL Execution failed. SQL='roles.sql'." 1>&2
+    exit 101
+  }
+fi || :
 
 # Import database schema
 for PGDATABASE in $PGDATABASES
 do
 
+  # Print
   echo "$THIS: PGDATABASE '$PGDATABASE'"
-  
+
+  # Make schema
   for sql in ${SRCDIR}/{$PGDATABASE,schema}.sql
   do
-    [ -r "$sql" ] || continue
-    echo "$THIS: $PGDATABASE: CREATEDB '$sql'"
-    cat "$sql" |${PSQL} ||
-      exit 101
-    [ -z "$PGTAP_VER" ] || {
-      echo 'CREATE EXTENSION pgtap;' |
-      ${PSQL} -d ${PGDATABASE} ||
-        exit 102
+    [ -s "$sql" ] || {
+      continue;
     }
+    # Print
+    echo "$THIS: $PGDATABASE: CREATEDB '$sql'"
+    # Create DB SQL
+    cat "$sql" |${PSQL} || {
+      echo "$THIS: ERROR: SQL Execution failed. SQL='${sql}'." 1>&2
+      exit 102
+    }
+    # pgTap
+    if [ -z "$PGTAP_VER" ]
+    then
+      echo 'CREATE EXTENSION pgtap;' |${PSQL} -d ${PGDATABASE} || {
+        echo "$THIS: ERROR: Failed to CREATE EXTENTION. ’pgtap''." 1>&2
+        exit 103
+      }
+    fi || :
+    # Break
     break
-  done
+  done  # for sql in ${SRCDIR}/{$PGDATABASE,schema}.sql
 
+  # Init-data
   for data_dir in ${SRCDIR}/{init-data,$PGDATABASE}
   do
-  
+
+    # Print
     echo "$THIS: $PGDATABASE: LOAD FROM ${data_dir}.d"
 
-    if [ ! -d "${data_dir}" ] &&
-       [ ! -d "${data_dir}.d" ]
+    # Lookup data dir
+    if [ ! -d "${data_dir}" -a ! -d "${data_dir}.d" ]
     then
       if [ -e "${data_dir}.tgz" ]
       then
+        # Found ${data_dir}.tgz
         echo "$THIS: $PGDATABASE: '${data_dir}.tgz' found."
-        ( cd "${data_dir%/*}/" &&
-          tar -zxvf "${data_dir}.tgz" )
-        echo "$THIS: $PGDATABASE: decompressed: '${data_dir}.tgz'."       
+        # Decompress
+        ( cd "${data_dir%/*}/" && tar -zxvf "${data_dir}.tgz" ) && {
+          echo "$THIS: ERROR: SQL Execution failed. SQL='${sql}'." 1>&2
+        }
       fi
     fi
-
     if [ -d "${data_dir}.d" ]
-    then
-      data_dir="${data_dir}.d"
-    elif [ ! -d "${data_dir}" ]
-    then
-      echo "$THIS: $PGDATABASE: Not found '${data_dir}.d'"
-      continue
+    then data_dir="${data_dir}.d"
     fi
 
+    # Found ?
+    [ -d "${data_dir}" ] || {
+      echo "$THIS: $PGDATABASE: Not found '${data_dir}.d'"
+      continue
+    }
+
+    # Import data
     for sql in ${data_dir}/*.sql;
     do
-      [ -r "$sql" ] || continue
+      [ -s "$sql" ] ||
+        continue
+      # Print
       echo "$THIS: $PGDATABASE: DATA=$sql"
-      cat $sql |${PSQL} -d ${PGDATABASE} ||
-        exit 103
-    done
+      # Execute SQL
+      cat "$sql" |${PSQL} -d ${PGDATABASE} || {
+        echo "$THIS: ERROR: SQL Execution failed. SQL='${sql}'." 1>&2
+        exit 104
+      }
+    done  # for sql in ${data_dir}/*.sql
 
-  done
+  done  # for data_dir in ${SRCDIR}/{init-data,$PGDATABASE}
 
-done
+done # for PGDATABASE in $PGDATABASES
 
 # end
-exit $?
+exit 0

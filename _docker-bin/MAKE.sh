@@ -2,14 +2,18 @@
 THIS="${0##*/}"
 CDIR=$([ -n "${0%/*}" ] && cd "${0%/*}" 2>/dev/null; pwd)
 
+# Name
+BASE="${THIS%.*}"
+
+# Docker HOST
 DOCKER_HOST="${DOCKER_HOST:-tcp://127.0.0.1:4243}"
 export DOCKER_HOST
 
 # docker-bin functions
-. $CDIR/_docker-functions.sh 1>/dev/null 2>&1 ||
+. ${CDIR}/_docker-functions.sh 1>/dev/null 2>&1 ||
   exit 127
 
-# docker container name 
+# docker container name
 DOCKER_CONTAINER=""
 # docker container image tag
 DOCKER_IMAGE_TAG=""
@@ -49,7 +53,7 @@ _confirm_start_cmnd=""
 # Flags
 _in_docker_ext_opts=0
 
-# Parsing an options
+# Options
 _get_options_params="
 f|file:=__docker_build_path
 |tag:=_docker_c_image_tag
@@ -60,7 +64,9 @@ b|build-only=_docker_not_running
 c|command:=_confirm_start_cmnd
 p|proc:=_confirm_start_cmnd
 "
+# Parsing an options
 eval $(getoptions "$_get_options_params" $@)
+# Get options
 while getoptions_has_next
 do
   eval $(getoptions_shift)
@@ -76,11 +82,9 @@ do
     ;;
   *)
     if [ -z "$_docker_img_tagname" ]
-    then
-      _docker_img_tagname="$_getopt_V"
+    then _docker_img_tagname="$_getopt_V"
     elif [ -z "$_docker_img_cntname" ]
-    then
-      _docker_img_cntname="$_getopt_V"
+    then _docker_img_cntname="$_getopt_V"
     fi
     ;;
   esac
@@ -91,9 +95,9 @@ do
     ;;
   *)
     [ $_in_docker_ext_opts -eq 1 ] &&
-    _docker_c_buildopts=$(echo ${_docker_c_buildopts} $_getopt_V)
+    _docker_c_buildopts="${_docker_c_buildopts:+_docker_c_buildopts }$_getopt_V"
     [ $_in_docker_ext_opts -eq 2 ] &&
-    _docker_c_boot_opts=$(echo ${_docker_c_boot_opts} $_getopt_V)
+    _docker_c_boot_opts="${_docker_c_boot_opts:+_docker_c_boot_opts }$_getopt_V"
     ;;
   esac
 done
@@ -135,18 +139,17 @@ _docker_containerid=$(get-container-id -f "$__docker_build_path")
 
 # Print build file
 : && {
-  echo "#* Dockerfile : ${__docker_build_path}."
-  echo "#* Context-Dir: ${__docker_build_wdir}."
-  echo "#* Build-File : ${__docker_build_file}."
+  cat <<_EOM_
+#* Dockerfile : ${__docker_build_path}.
+#* Context-Dir: ${__docker_build_wdir}.
+#* Build-File : ${__docker_build_file}.
+_EOM_
   if [ -n "$_docker_containerid" ]
   then echo "#* Container ... Found - ID='${_docker_containerid}'."
   else echo "#* Container ... Not found."
   fi
 } 2>&1 |
-while read stdoutln
-do
-  echo "$THIS: "$(echo "$stdoutln"|col -bx)
-done
+__stdout_with_ts ""
 
 # Exit status
 EXIT_STATE=0
@@ -156,6 +159,7 @@ if [ -n "$_docker_containerid" ] &&
    [ $_docker_rebuild_obj -ne 0 -o $_docker_cleanuponly -ne 0 ]
 then
 
+  # Separator
   __section
 
   # rebuild
@@ -166,122 +170,127 @@ then
     docker rm "${_docker_containerid}" 1>/dev/null 2>&1 &&
     echo "docker container ID='${_docker_containerid}' was removed."
   } 2>&1 |
-  while read stdoutln
-  do
-    echo "$THIS: CLEAN: "$(echo "$stdoutln"|col -bx)
-  done; )
+  __stdout_with_ts "CLEAN"; )
 
+  # Cleanup status
   EXIT_STATE=${PIPESTATUS[0]}
 
-  # reset
+  # Cleanup only ?
+  [ $_docker_cleanuponly -eq 0 ] || {
+    exit $EXIT_STATE
+  }
+
+  # Reset container ID
   _docker_containerid=""
 
-  if [ $_docker_cleanuponly -ne 0 ]
-  then
-    exit $EXIT_STATE
-  else
-    EXIT_STATE=0
-  fi
+  # Reset status
+  EXIT_STATE=0
 
-fi
+fi # if [ -n "$_docker_containerid" ] && ...
 
 # Build and run
 if [ -z "$_docker_containerid" ]
 then
 
+  # Push dir
   pushd "$__docker_build_wdir" 1>/dev/null 2>&1 || :
 
-  # Build
+  # Separator
   __section
 
+  # Build
   : && {
     __echo_start \
     docker-build -f "$__docker_build_file" ${_docker_c_buildopts} .
     docker-build -f "$__docker_build_file" ${_docker_c_buildopts} .
     __echo_end $?
-    
-  } 2>&1 |
-  while read stdoutln
-  do
-    echo "$THIS: BUILD: "$(echo "$stdoutln"|col -bx)
-  done
 
+  } 2>&1 |
+  __stdout_with_ts "BUILD"
+
+  # Build status
   EXIT_STATE=${PIPESTATUS[0]}
+
+  # Has error ?
   [ $EXIT_STATE -eq 0 ] || {
     exit $EXIT_STATE
   }
 
+  # Pop dir
   popd 1>/dev/null 2>&1 || :
 
   # Run
   [ $_docker_not_running -ne 0 ] || {
-      
+
+    # Push dir
     pushd "$__docker_build_wdir" 1>/dev/null 2>&1 || :
 
+    # Separator
     __section
 
+    # Run
     : && {
       __echo_start \
       docker-run -f "$__docker_build_path" ${_docker_c_boot_opts}
       docker-run -f "$__docker_build_path" ${_docker_c_boot_opts}
       __echo_end $?
     } 2>&1 |
-    while read stdoutln
-    do
-      echo "$THIS: RUN: $stdoutln"
-    done
+    __stdout_with_ts "RUN"
 
+    # Running status
     EXIT_STATE=${PIPESTATUS[0]}
+
+    # Has error ?
     [ $EXIT_STATE -eq 0 ] || {
       exit $EXIT_STATE
     }
 
+    # Pop dir
     popd 1>/dev/null 2>&1 || :
 
   } # [ $_docker_not_running -ne 0 ] || {
 
+  # Reset status
   EXIT_STATUS=0
-
 
 fi # if [ -z "$_docker_containerid" ]
 
 # Checking exit status
-[ $EXIT_STATE -eq 0 ] && {
+if [ $EXIT_STATE -eq 0 ]
+then
   [ -r "${__docker_build_path}" ] &&
   [ -z "${_docker_containerid}" ] &&
   _docker_containerid=$(get-container-id -f "$__docker_build_path")
-}
-[ $EXIT_STATE -eq 0 ] || {
+else
   _docker_containerid=""
-}
+fi
 
 # Checking build only mode
 [ $_docker_not_running -ne 0 ] && {
   _docker_containerid=""
 }
 
-# Print ports
+# Portmap
 [ -n "$_docker_containerid" ] && {
 
+  # Separator
   __section
 
+  # Print ports
   : && {
-
+    # Start
+    __echo_start
+    # Print
     echo "ID '$_docker_containerid' was started."
-  
-    docker port "$_docker_containerid" 2>&1 |
-    while read stdoutln
-    do
-      echo "portmap - $stdoutln"
-    done
-
+    # Print portmap
+    docker port "$_docker_containerid" |
+    awk '{printf("portmap - %s\n",$0);}'
+    # End
+    __echo_end $?
   } 2>&1 |
-  while read stdoutln
-  do
-    echo "$THIS: $_docker_containerid: $stdoutln"
-  done
+  __stdout_with_ts "${_docker_containerid}"
 
-}
+} # [ -n "$_docker_containerid" ]
 
 # Check running process
 [ -n "$_docker_containerid" ] &&
@@ -289,45 +298,51 @@ fi # if [ -z "$_docker_containerid" ]
 
   _retrymax=5
   _wait_for=3
-  
-  retry_cnt=0 
+
+  retry_cnt=0
   retryover=1
   dexec_ret=1
 
+  # Interval
   sleep 1s
 
+  # Separator
   __section
 
+  # Check the status of the command
   : && {
-  
+    # Start
+    __echo_start
+    # Print
     echo "Check the status of the command '$_confirm_start_cmnd'."
-
+    # Check
     while [ $retry_cnt -le $_retrymax ]
     do
       eval $(
       echo docker exec -it "$_docker_containerid" $_confirm_start_cmnd
       ) 1>/dev/null 2>&1
+      # Status of docker exec
       dexec_ret=$?
+      # Check the status of docker-exec
       [ $dexec_ret -eq 0 ] && {
         echo "SUCCESS; command=[$_confirm_start_cmnd]"
         retryover=0
         break
       }
+      # Decrement retry counter
       retry_cnt=$(expr $retry_cnt + 1 2>/dev/null)
+      # Print
       echo "FAILED($retry_cnt/$_retrymax); command=[$_confirm_start_cmnd], ret=[$dexec_ret]"
-      sleep $_wait_for
+      # Retry count over ?
+      if [ $retryover -ne 0 ]
+      then echo "GIVE-UP; command=[$_confirm_start_cmnd]"
+      else sleep $_wait_for
+      fi
     done
-
-    if [ $retryover -ne 0 ]
-    then
-      echo "GIVE-UP; command=[$_confirm_start_cmnd]"
-    fi
-  
+    # End
+    __echo_end 0
   } 2>&1 |
-  while read stdoutln
-  do
-    echo "$THIS: $_docker_containerid: $stdoutln"
-  done
+  __stdout_with_ts "${_docker_containerid}"
 
 } # [ -n "$_docker_containerid" ] && ...
 

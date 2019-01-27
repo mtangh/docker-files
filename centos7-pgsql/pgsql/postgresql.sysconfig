@@ -12,3 +12,12 @@ PGDATA=/opt/postgresql/data
 # Port
 PGPORT=5432
 
+# PG_CTL: Start Options
+PGCTL_START_OPTS="-s -w -t 300"
+
+# PG_CTL: Stop Options
+PGCTL_STOP_OPTS="-s -m fast"
+
+# PG_CTL: Start Options
+PGCTL_RELOAD_OPTS="-s"
+

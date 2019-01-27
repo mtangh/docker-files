@@ -7,7 +7,7 @@ if [ -n "${DOCKERFUNC_DIR}" -a -d "${DOCKERFUNC_DIR}/functions" ]
 then
   for func in "${DOCKERFUNC_DIR}"/functions/*
   do
-    . "${func}" 
+    . "${func}"
   done 2>/dev/null
 fi
 
@@ -34,8 +34,18 @@ __echo_end() {
 
 # Section
 __section() {
-  printf "$THIS: "
+  printf "${BASE:-MAKE}: "
   for i in {1..68};do printf '-';done;echo
+  return 0
+}
+
+# Stdout with TS
+__stdout_with_ts() {
+  _tag="${1}"
+  awk '{
+  printf("%s: %s: %s%s\n",
+  "'"${BASE:-MAKE}"'",strftime("%Y%m%dT%H%M%S",systime()),"'"${_tag:+$_tag: }"'",$0);
+  fflush();};' |col -bx
   return 0
 }
 

@@ -119,21 +119,41 @@ ONBUILD \
 ARG \
  PGTAPVER=""
 
+# PGUSER
+ONBUILD \
+ARG \
+ PGUSER=""
+
+# PGHOME
+ONBUILD \
+ARG \
+ PGHOME=""
+
 # PGDATA
 ONBUILD \
 ARG \
- PGPDATA=""
+ PGDATA=""
 
 # PGPORT
 ONBUILD \
 ARG \
- PGPORT="5432"
+ PGPORT=""
 
 # Update sysconfig
 ONBUILD \
 RUN \
  set -x; \
  pgsysconf="/etc/sysconfig/postgresql"; \
+ [ -n "$PGUSER" ] && { \
+  grep -E '^[ ]*PGUSER='${PGUSER}'[ ]*$' "$pgsysconf" 1>/dev/null 2>&1 || { \
+   echo "Update PGUSER = '$PGUSER'."; \
+   sed -i 's/^[ ]*PGUSER=[^ ]*[ ]*$/PGUSER='${PGUSER}'/g' "$pgsysconf"; \
+ }; }; \
+ [ -n "$PGHOME" ] && { \
+  grep -E '^[ ]*PGHOME='${PGHOME}'[ ]*$' "$pgsysconf" 1>/dev/null 2>&1 || { \
+   echo "Update PGHOME = '$PGHOME'."; \
+   sed -i 's/^[ ]*PGHOME=[^ ]*[ ]*$/PGHOME='${PGHOME}'/g' "$pgsysconf"; \
+ }; }; \
  [ -n "$PGDATA" ] && { \
   grep -E '^[ ]*PGDATA='${PGDATA}'[ ]*$' "$pgsysconf" 1>/dev/null 2>&1 || { \
    echo "Update PGDATA = '$PGDATA'."; \
@@ -230,7 +250,7 @@ RUN \
 ONBUILD \
 RUN \
  set -x; \
- systemctl enable postgresql.service
+ systemctl enable postgresql.service || :
 
 # Init database
 ONBUILD \
