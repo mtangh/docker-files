@@ -122,22 +122,22 @@ ARG \
 # PGUSER
 ONBUILD \
 ARG \
- PGUSER=""
+ PGUSER="postgres"
 
 # PGHOME
 ONBUILD \
 ARG \
- PGHOME=""
+ PGHOME="/opt/postgresql"
 
 # PGDATA
 ONBUILD \
 ARG \
- PGDATA=""
+ PGDATA="/opt/postgresql/data"
 
 # PGPORT
 ONBUILD \
 ARG \
- PGPORT=""
+ PGPORT="5432"
 
 # Update sysconfig
 ONBUILD \
