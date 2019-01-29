@@ -44,6 +44,6 @@ RUN \
 
 # Labels for run
 LABEL \
- docker.run.options="-d -P -h javavm --privileged" \
+ docker.run.options="-d -P -h javavm-openjdk6 --privileged" \
  docker.run.confirm-startup=""
 

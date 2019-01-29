@@ -45,6 +45,6 @@ RUN \
 
 # Labels for run
 LABEL \
- docker.run.options="-d -P -h openjdk8 --privileged" \
+ docker.run.options="-d -P -h javavm-openjdk8 --privileged" \
  docker.run.confirm-startup=""
 
