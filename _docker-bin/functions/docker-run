@@ -48,15 +48,16 @@ docker-run() {
   _buildpath="$(pwd)/$_buildpath"
   [ -r "$_buildpath" -a -z "$_cimagetag" ] &&
   _cimagetag=$(docker-container-env DOCKER_IMAGE_TAG "$_buildpath")
+  [ -z "$_drun_opts" ] &&
+  [ -s "$(pwd)/${DOCKER_RUN_OPTIONS:-Dockerfile.opts}" ] && {
+    _drun_opts=$(
+    cat "$(pwd)/${DOCKER_RUN_OPTIONS:-Dockerfile.opts}" |
+    awk '{printf(" %s",$0);}'; )
+  }
   [ -r "$_buildpath" -a -z "$_drun_opts" ] &&
   _drun_opts=$(docker-container-env DOCKER_BOOT_OPTS "$_buildpath")
   [ -n "$_cimagetag" -a -z "$_drun_opts" ] &&
   _drun_opts=$(get-image-property "docker.run.options" "$_cimagetag")
-  [ -s "$(pwd)/${DOCKER_RUN_OPTIONS:-Dockerfile.opts}" ] && {
-    _drun_opts="${_drun_opts:+$_drun_opts }"$(
-    cat "$(pwd)/${DOCKER_RUN_OPTIONS:-Dockerfile.opts}" |
-    awk '{printf(" %s",$0);}'; )
-  }
   if [ -n "${_cimagetag}" ]
   then
     echo docker run $_drun_opts $_cimagetag $_cmnd_opts &&
