@@ -8,40 +8,38 @@ docker-container-commit() {
   local _cmit_opts=""
   local _toggleflg=0
   local _dockerret=0
-  [ $# -le 0 ] && {
-    _container=$(get-container-id-all |head -n1)
-  }
   while [ $# -gt 0 ]
   do
-    case "$1" in
+    case "${1}" in
     -*)
-      _cmit_opts="${_cmit_opts:+$_cmit_opts }$1"
+      _cmit_opts="${_cmit_opts:+$_cmit_opts }${1}"
       _toggleflg=1
       ;;
     *)
       if [ $_toggleflg -eq 0 ]
       then
         if [ -z "$_container" ]
-        then _container=$(get-container-id-all "$1")
+        then _container="$(get-container-id-all ${1} |head -n 1)"
         elif [ -z "$_imagename" ]
-        then _imagename="$1"
+        then _imagename="${1}"
         fi
       else
-        _cmit_opts="${_cmit_opts:+$_cmit_opts }$1"
+        _cmit_opts="${_cmit_opts:+$_cmit_opts }\"${1}\""
         _toggleflg=0
       fi
       ;;
     esac
     shift
-  done 2>/dev/null
-  if [ -n "$_container" ]
-  then
-    docker commit $_cmit_opts $_container $_imagename 2>/dev/null
-    _dockerret=$?
-  else
-    _dockerret=1
-  fi
-  return $_dockerret
+  done
+  [ -n "${_container}" ] || {
+    _container=$(get-container-id-all |head -n1)
+  }
+  [ -n "${_container}" ] || {
+    docker commit --help
+    return 1
+  }
+  docker commit $_cmit_opts $_container $_imagename
+  return $?
 }
 
 # vim: set ff=unix ts=2 sw=2 sts=2 et : This line is VIM modeline

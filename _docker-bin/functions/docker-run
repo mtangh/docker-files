@@ -9,7 +9,7 @@ docker-run() {
   local _cmnd_opts=""
   local _endofopts=0
   [[ "$1" =~ ^- ]] || {
-    _cimagetag=$(get-image-tag "$1") && shift
+    _cimagetag=$(get-image-tag "${1}" 2>/dev/null) && shift
   }
   eval $(getoptions "|image:=_cimagetag f|file:=_buildpath" "$@")
   while getoptions_has_next

@@ -29,7 +29,7 @@ docker-ssh() {
       fi
       ;;
     -*)
-      c_ssh_opts=$(echo $c_ssh_opts "$_getopt_V")
+      c_ssh_opts="${c_ssh_opts:+$c_ssh_opts }$_getopt_V"
       ;;
     [A-Za-z]*@[0-9A-Za-z]*)
       c_ssh_user="${_getopt_V%%@*}"
@@ -37,8 +37,8 @@ docker-ssh() {
       ;;
     *)
       if [ $_endofopts -eq 0 ]
-      then c_ssh_opts=$(echo $c_ssh_opts "$_getopt_V")
-      else c_cmndopts=$(echo $c_cmndopts "$_getopt_V")
+      then c_ssh_opts="${c_ssh_opts:+$c_ssh_opts }$_getopt_V"
+      else c_cmndopts="${c_cmndopts:+$c_cmndopts }$_getopt_V"
       fi
       ;;
     esac

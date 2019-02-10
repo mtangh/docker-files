@@ -1,12 +1,26 @@
 # dot-dockerignore
+
 dot-dockerignore() {
   local dockerfile=""
+  local dign_extra=""
   for dockerfile in $(find . -type f -a -name "Dockerfile" 2>/dev/null)
   do
     docker_dir="${dockerfile%/*}"
-    echo "$FUNCNAME: $docker_dir"
-    /bin/cp -f "${DOCKER_BIN_DIR}/templates/dot.dockerignore" \
-          "${docker_dir}/.dockerignore"    
+    echo "$FUNCNAME: $docker_dir" && {
+
+      cat "${DOCKER_BIN_DIR}/templates/dot.dockerignore"
+
+      for dign_extra in "${docker_dir}"/.dockerignore.*
+      do
+        [ -s "$dign_extra" ] && {
+          echo
+          echo "# ${dign_extra##*/}"
+          cat "$dign_extra" 2>/dev/null
+          echo "# End of ${dign_extra##*/}"
+        } || :
+      done
+
+    } 1>"${docker_dir}/.dockerignore" 2>/dev/null || :
   done
   return 0
 }
