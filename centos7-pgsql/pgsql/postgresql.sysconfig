@@ -6,6 +6,9 @@ PGUSER=postgres
 # PostgreSQL Home directory
 PGHOME=/opt/postgresql
 
+# PostgreSQL Root directory
+PGROOT=/opt/postgresql
+
 # PostgreSQL DATA directory
 PGDATA=/opt/postgresql/data
 

@@ -11,11 +11,11 @@ Type=forking
 PIDFile=/var/run/postgresql.pid
 
 # Exec Start,Stop,etc...
-ExecStart=/bin/su - ${PGUSER} -c "${PGHOME}/bin/pg_ctl start -D ${PGDATA} -o \"-p ${PGPORT}\" ${PGCTL_START_OPTS}"
+ExecStart=/bin/su - ${PGUSER} -c "${PGROOT}/bin/pg_ctl start -D ${PGDATA} -o \"-p ${PGPORT}\" ${PGCTL_START_OPTS}"
 ExecStartPost=/bin/sh -c "head -n1 ${PGDATA}/postmaster.pid >/var/run/postgresql.pid"
-ExecStop=/bin/su - ${PGUSER} -c "${PGHOME}/bin/pg_ctl stop -D ${PGDATA} ${PGCTL_STOP_OPTS}"
+ExecStop=/bin/su - ${PGUSER} -c "${PGROOT}/bin/pg_ctl stop -D ${PGDATA} ${PGCTL_STOP_OPTS}"
 ExecStopPost=/bin/rm -f /var/run/postgresql.pid
-ExecReload=/bin/su - ${PGUSER} -c "${PGHOME}/bin/pg_ctl reload -D ${PGDATA} ${PGCTL_RELOAD_OPTS}"
+ExecReload=/bin/su - ${PGUSER} -c "${PGROOT}/bin/pg_ctl reload -D ${PGDATA} ${PGCTL_RELOAD_OPTS}"
 
 # Environment File
 EnvironmentFile=/etc/sysconfig/postgresql

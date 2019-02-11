@@ -11,6 +11,7 @@ SRCDIR=
 # PG* Envs
 PGUSER=
 PGHOME=
+PGROOT=
 PGDATA=
 PGPORT=
 
@@ -62,14 +63,15 @@ done
 # Check the PG* variables
 [ -n "$PGUSER" ] || exit 90
 [ -n "$PGHOME" ] || exit 91
-[ -n "$PGDATA" ] || exit 92
-[ -n "$PGPORT" ] || exit 93
+[ -n "$PGROOT" ] || exit 92
+[ -n "$PGDATA" ] || exit 93
+[ -n "$PGPORT" ] || exit 94
 
 # PGCTL
-PGCTL="${PGHOME}/bin/pg_ctl"
+PGCTL="${PGROOT}/bin/pg_ctl"
 
 # PSQL
-PSQL="${PGHOME}/bin/psql"
+PSQL="${PGROOT}/bin/psql"
 
 # Check the bin
 [ -x "${PGCTL}" ] || exit 95
@@ -173,6 +175,7 @@ cat <<_EOF_
 $THIS: DEFAULT PG* ENVIRONMENT VARIABLES ARE:
 $THIS: PGUSER=$PGUSER
 $THIS: PGHOME=$PGHOME
+$THIS: PGROOT=$PGROOT
 $THIS: PGDATA=$PGDATA
 $THIS: PGPORT=$PGPORT
 _EOF_
@@ -256,13 +259,13 @@ then
   if [ -n "$P_PGDATA" ]
   then
     echo "$THIS: CHANGE PGDATA '${PGDATA}' TO '${P_PGDATA}'."
-    sed -i 's!^[ ]*PGDATA=[^ ]*[ ]*$!PGDATA='${P_PGDATA}'!g' "${PGSCFG}.tmp"
+    sed -i 's!^[ ]*PGDATA=[^ ]+[ ]*$!PGDATA='${P_PGDATA}'!g' "${PGSCFG}.tmp"
   fi
   # Check PGPORT Param
   if [ -n "$P_PGPORT" ]
   then
     echo "$THIS: CHANGE PGPORT '${PGPORT}' TO '${P_PGPORT}'."
-    sed -i 's!^[ ]*PGPORT=[^ ]*[ ]*$!PGPORT='${P_PGPORT}'!g' "${PGSCFG}.tmp"
+    sed -i 's!^[ ]*PGPORT=[^ ]+[ ]*$!PGPORT='${P_PGPORT}'!g' "${PGSCFG}.tmp"
   fi
 fi 2>/dev/null
 
@@ -280,6 +283,7 @@ then
 $THIS: NEW PG* ENVIRONMENT VARIABLES ARE:
 $THIS: PGUSER=$PGUSER
 $THIS: PGHOME=$PGHOME
+$THIS: PGROOT=$PGROOT
 $THIS: PGDATA=$PGDATA
 $THIS: PGPORT=$PGPORT
 _EOF_

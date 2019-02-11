@@ -58,18 +58,19 @@ RUN \
   chmod 0755 "${PGHOME}"; \
  }; \
  : && { \
-  echo && \
+  echo '' && \
   echo '# For PostgreSQL' && \
   echo 'if [ -r "/etc/sysconfig/postgresql" ]' && \
   echo 'then' && \
   echo '  . /etc/sysconfig/postgresql' && \
-  echo '  export PGUSER PGHOME PGDATA PGPORT' && \
+  echo '  export PGUSER PGHOME PGROOT PGDATA PGPORT' && \
   echo 'fi' && \
-  echo '[ -n "${PGHOME}" ] &&' && \
-  echo '[ -d "${PGHOME}/bin" ] &&' && \
-  echo '[ -z "$(type -p psql)" ] &&' && \
-  echo 'export PATH="${PATH}:${PGHOME}/bin"' && \
-  echo; \
+  echo 'if [ -z "$(type -P psql)" -a -x "${PGROOT:-X}/bin/psql" ]' && \
+  echo 'then' && \
+  echo '  PATH="${PGROOT}/bin:${PATH}"' && \
+  echo '  export PATH' && \
+  echo 'fi' && \
+  echo ''; \
  } >>"${PGHOME}/.bashrc"
 
 # Install init and db build script
@@ -129,6 +130,11 @@ ONBUILD \
 ARG \
  PGHOME="/opt/postgresql"
 
+# PGROOT
+ONBUILD \
+ARG \
+ PGROOT="/opt/postgresql"
+
 # PGDATA
 ONBUILD \
 ARG \
@@ -146,24 +152,41 @@ RUN \
  pgsysconf="/etc/sysconfig/postgresql"; \
  [ -n "$PGUSER" ] && { \
   grep -E '^[ ]*PGUSER='${PGUSER}'[ ]*$' "$pgsysconf" 1>/dev/null 2>&1 || { \
+   PGUSER_OLD=$(sed -nre 's/^[ ]*PGUSER=([^ ]+)[ ]*$/\1/gp' "$pgsysconf"); \
    echo "Update PGUSER = '$PGUSER'."; \
-   sed -i 's/^[ ]*PGUSER=[^ ]*[ ]*$/PGUSER='${PGUSER}'/g' "$pgsysconf"; \
+   sed -i 's/^[ ]*PGUSER=[^ ]+[ ]*$/PGUSER='${PGUSER}'/g' "$pgsysconf"; \
+   [ -z "${PGUSER_OLD}" ] || { \
+    usermod -l "${PGUSER}" "${PGUSER_OLD}"; \
+    groupmod -n "${PGUSER}" "${PGUSER_OLD}"; \
+   }; \
  }; }; \
  [ -n "$PGHOME" ] && { \
   grep -E '^[ ]*PGHOME='${PGHOME}'[ ]*$' "$pgsysconf" 1>/dev/null 2>&1 || { \
    echo "Update PGHOME = '$PGHOME'."; \
-   sed -i 's/^[ ]*PGHOME=[^ ]*[ ]*$/PGHOME='${PGHOME}'/g' "$pgsysconf"; \
+   sed -i 's/^[ ]*PGHOME=[^ ]+[ ]*$/PGHOME='${PGHOME}'/g' "$pgsysconf"; \
+   usermod -d "${PGHOME}" -m "${PGUSER}"; \
+ }; }; \
+ [ -n "$PGROOT" ] && { \
+  grep -E '^[ ]*PGROOT='${PGROOT}'[ ]*$' "$pgsysconf" 1>/dev/null 2>&1 || { \
+   echo "Update PGROOT = '$PGROOT'."; \
+   sed -i 's/^[ ]*PGROOT=[^ ]+[ ]*$/PGROOT='${PGROOT}'/g' "$pgsysconf"; \
  }; }; \
  [ -n "$PGDATA" ] && { \
   grep -E '^[ ]*PGDATA='${PGDATA}'[ ]*$' "$pgsysconf" 1>/dev/null 2>&1 || { \
    echo "Update PGDATA = '$PGDATA'."; \
-   sed -i 's/^[ ]*PGDATA=[^ ]*[ ]*$/PGDATA='${PGDATA}'/g' "$pgsysconf"; \
+   sed -i 's/^[ ]*PGDATA=[^ ]+[ ]*$/PGDATA='${PGDATA}'/g' "$pgsysconf"; \
  }; }; \
  [ -n "$PGPORT" ] && { \
   grep -E '^[ ]*PGPORT='${PGPORT}'[ ]*$' "$pgsysconf" 1>/dev/null 2>&1 || { \
    echo "Update PGPORT = '$PGPORT'."; \
-   sed -i 's/^[ ]*PGPORT=[^ ]*[ ]*$/PGPORT='${PGPORT}'/g' "$pgsysconf"; \
+   sed -i 's/^[ ]*PGPORT=[^ ]+[ ]*$/PGPORT='${PGPORT}'/g' "$pgsysconf"; \
  }; }; \
+ case "${PGSQLVAR}" in \
+ 8.[0-2]*) \
+  sed -i 's/^[ ]*(PGCTL_START_OPTS)=[^ ].*[^ ]*[ ]*$/\1="-s -w"/g' "$pgsysconf" ;; \
+ *) \
+  sed -i 's/^[ ]*(PGCTL_START_OPTS)=[^ ].*[^ ]*[ ]*$/\1="-s -w -t 300"/g' "$pgsysconf" ;; \
+ esac; \
  echo "$pgsysconf" && \
  cat "$pgsysconf"
 
@@ -196,22 +219,25 @@ RUN \
     CC="${PG_GCC_CMD}"; export CC; \
    }; \
    cd "${pgname}" && \
-   ./configure --prefix="${PGHOME}-${pg_ver}" ${PG_CONFIGURE_OPTIONS} && \
+   ./configure --prefix="${PGROOT}-${pg_ver}" ${PG_CONFIGURE_OPTIONS} && \
    make && make install && \
    cd ./contrib && make && make install; ) && \
- ( cd "${PGHOME}" && { \
-    rm -rf "${PGHOME}-latest"; \
-    ln -sf "${PGHOME}-${pg_ver}" "${PGHOME}-latest"; \
+ ( [ -d "${PGROOT}" ] || { \
+    mkdir -p "${PGROOT}"; \
+   }; \
+   cd "${PGROOT}" && { \
+    rm -rf "${PGROOT}-latest"; \
+    ln -sf "${PGROOT}-${pg_ver}" "${PGROOT}-latest"; \
    } && \
-   for dir in "${PGHOME}/archivelogs" "${PGDATA}"; do \
-    [ -d "$dir" ] || mkdir -p "$dir"; \
-    chown "${PGUSER}:${PGUSER}" "$dir" && \
-    chmod 2750 "$dir"; \
-   done && \
    for dir in bin include lib share; do \
-    [ -e "$dir" ] && rm -rf "./$dir"; \
-    ln -sf "${PGHOME}-latest/$dir" .; \
-   done; )
+    [ -e "${dir}" ] && rm -rf "./${dir}"; \
+    ln -sf "${PGROOT}-latest/${dir}" .; \
+   done; ); \
+   for dir in "${PGHOME}/archivelogs" "${PGDATA}"; do \
+    [ -d "${dir}" ] || mkdir -p "${dir}"; \
+    chown "${PGUSER}:${PGUSER}" "${dir}" && \
+    chmod 2750 "${dir}"; \
+   done;
 
 # Install pgTAP
 ONBUILD \
@@ -223,7 +249,7 @@ RUN \
   pgtap_ver="${PGTAPVER}" && \
   pgtap_url="http://api.pgxn.org/dist/pgtap/${pgtap_ver}/${pgtapname}.zip" && \
   curl -sL -o "${pgtapname}.zip" "${pgtap_url}" && unzip "${pgtapname}.zip" && \
-  ( export PATH="$PATH:${PGHOME}/bin" && \
+  ( export PATH="$PATH:${PGROOT}/bin" && \
     cd "${pgtapname}" && \
     make && make install; ) && \
   rm -rf "./${pgtapname}"*; \
@@ -262,7 +288,7 @@ RUN \
  [ -d "${PGDATA}" ] || mkdir -p "${PGDATA}"; \
  chown "${PGUSER}:${PGUSER}" "${PGDATA}" && \
  chmod 2750 "${PGDATA}"; \
- su - "${PGUSER}" -c "LANG= ${PGHOME}/bin/initdb ${PG_INITDB_OPTIONS} ${PGDATA}"
+ su - "${PGUSER}" -c "LANG= ${PGROOT}/bin/initdb ${PG_INITDB_OPTIONS} ${PGDATA}"
 
 ONBUILD \
 WORKDIR \
@@ -325,5 +351,4 @@ HEALTHCHECK \
 --interval=30s --timeout=15s --retries=3 \
 CMD \
  . /etc/sysconfig/postgresql; \
- [ ! -x "${PGHOME}/bin/psql" ] || su - "${PGUSER}" -c 'psql -l';
-
+ [ ! -x "${PGROOT}/bin/psql" ] || su - "${PGUSER}" -c 'psql -l';
