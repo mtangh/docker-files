@@ -140,6 +140,11 @@ ONBUILD \
 ARG \
  PGDATA="/opt/postgresql/data"
 
+# PGALOG
+ONBUILD \
+ARG \
+ PGALOG="/opt/postgresql/archivelogs"
+
 # PGPORT
 ONBUILD \
 ARG \
@@ -230,14 +235,17 @@ RUN \
     ln -sf "${PGROOT}-${pg_ver}" "${PGROOT}-latest"; \
    } && \
    for dir in bin include lib share; do \
-    [ -e "${dir}" ] && rm -rf "./${dir}"; \
+    [ -e "${dir}" ] && rm -rf "${dir}"; \
     ln -sf "${PGROOT}-latest/${dir}" .; \
    done; ); \
-   for dir in "${PGHOME}/archivelogs" "${PGDATA}"; do \
-    [ -d "${dir}" ] || mkdir -p "${dir}"; \
-    chown "${PGUSER}:${PGUSER}" "${dir}" && \
-    chmod 2750 "${dir}"; \
-   done;
+ ( cd "${PGHOME}" && { \
+    PGALOG="${PGALOG:-archivelogs}"; \
+    for dir in "${PGDATA}" "${PGALOG}"; do \
+     [ -d "${dir}" ] || mkdir -p "${dir}"; \
+     chown "${PGUSER}:${PGUSER}" "${dir}" && \
+     chmod 2750 "${dir}"; \
+    done; \
+   }; );
 
 # Install pgTAP
 ONBUILD \
