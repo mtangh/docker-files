@@ -4,11 +4,12 @@
 docker-run() {
   local _cimagetag=""
   local _buildpath=""
+  local _opts_path=""
   local _drun_opts=""
   local _cmnd_opts=""
   local _endofopts=0
   [[ "$1" =~ ^- ]] || {
-    _cimagetag=$(get-image-tag "$1") && shift
+    _cimagetag=$(get-image-tag "${1}" 2>/dev/null) && shift
   }
   eval $(getoptions "|image:=_cimagetag f|file:=_buildpath" "$@")
   while getoptions_has_next
@@ -48,12 +49,12 @@ docker-run() {
   _buildpath="$(pwd)/$_buildpath"
   [ -r "$_buildpath" -a -z "$_cimagetag" ] &&
   _cimagetag=$(docker-container-env DOCKER_IMAGE_TAG "$_buildpath")
-  [ -z "$_drun_opts" ] &&
-  [ -s "$(pwd)/${DOCKER_RUN_OPTIONS:-Dockerfile.opts}" ] && {
-    _drun_opts=$(
-    cat "$(pwd)/${DOCKER_RUN_OPTIONS:-Dockerfile.opts}" |
-    awk '{printf(" %s",$0);}'; )
-  }
+  [ -z "$_drun_opts" -a -z "$_opts_path" ] &&
+  _opts_path="${DOCKERFILE_OPTS_RUN}"
+  [ -z "$_drun_opts" -a ! -r "$_opts_path" -a -r "$_buildpath" ] &&
+  _opts_path=$(docker-container-env DOCKERFILE_OPTS_RUN "$_buildpath")
+  [ -z "$_drun_opts" -a -s "${_opts_path}" ] &&
+  _drun_opts=$(cat "${_opts_path}" 2>/dev/null|awk '{printf(" %s",$0);}')
   [ -r "$_buildpath" -a -z "$_drun_opts" ] &&
   _drun_opts=$(docker-container-env DOCKER_BOOT_OPTS "$_buildpath")
   [ -n "$_cimagetag" -a -z "$_drun_opts" ] &&

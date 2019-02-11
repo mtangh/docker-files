@@ -2,36 +2,51 @@
 
 # docker exec
 docker-exec() {
-  local _container="$(get-container-id-all)"
+  local _container=""
   local _exec_opts=""
+  local _cmnd_args=""
   local _endofopts=0
-  [ -n "$_container" ] || {
-    _container="$(get-container-id-all $1)" &&
-    shift
-  }
-  [ -n "${_container}" ] || {
-    cat <<_USAGE_
-Usage: $_func_name [CONTAINER] [OPTIONS] -- COMMAND [ARG...]
-
-_USAGE_
-    return 1
-  }
-  while [ $# -gt 0 -a $_endofopts -eq 0 ]
+  while [ $# -gt 0 ]
   do
-    case "$1" in
+    case "${1}" in
     --)
-      if [ $_endofopts -ne 0 ]
-      then _endofopts=0
-      else _endofopts=1
+      if [ $_endofopts -eq 0 ]
+      then _endofopts=1
+      else _endofopts=0
+      fi
+      ;;
+    /*|\"/*|\'/*)
+      _cmnd_args="${_cmnd_args:+_cmnd_args }\"${1}\""
+      _endofopts=1
+      ;;
+    -*)
+      if [ $_endofopts -eq 0 ]
+      then _exec_opts="${_exec_opts:+$_exec_opts }${1}"
+      else _cmnd_args="${_cmnd_args:+$_cmnd_args }${1}"
       fi
       ;;
     *)
-      _exec_opts=$(echo $_exec_opts $1)
+      if [ $_endofopts -eq 0 ]
+      then
+        if [ -z "${_container}" ]
+        then _container="$(get-container-id-all ${1} 2>/dev/null)"
+        else _exec_opts="${_exec_opts:+$_exec_opts }\"${1}\""
+        fi
+      else
+        _cmnd_args="${_cmnd_args:+$_cmnd_args }\"${1}\""
+      fi
       ;;
     esac
     shift
   done
-  docker exec $_exec_opts $_container $@
+  [ -n "${_container}" ] || {
+    _container="$(get-container-id-all |head -n 1)"
+  }
+  [ -n "${_container}" -a -n "${_cmnd_args}" ] || {
+    docker exec --help
+    return 1
+  }
+  docker exec $_exec_opts $_container $_cmnd_args
   return $?
 }
 
