@@ -325,8 +325,8 @@ ONBUILD \
 RUN \
  set -x; \
  options=""; \
- options="$options "$([ -n "$PGDATA" ] && echo "-D $PGDATA"); \
- options="$options "$([ -n "$PGPORT" ] && echo "-p $PGPORT"); \
+ options="${options:+$options }${PHDATA:+-D $PGDATA}"; \
+ options="${options:+$options }${PGPORT:+-p $PGPORT}"; \
  . /etc/sysconfig/postgresql && \
  bash ${PGHOME}/dbbuild.sh $options "${WORKDIR}/data"
 
@@ -356,7 +356,7 @@ LABEL \
 
 # Health check
 HEALTHCHECK \
---interval=30s --timeout=15s --retries=3 \
+--interval=60s --timeout=15s --retries=3 \
 CMD \
  . /etc/sysconfig/postgresql; \
  [ ! -x "${PGROOT}/bin/psql" ] || su - "${PGUSER}" -c 'psql -l';
