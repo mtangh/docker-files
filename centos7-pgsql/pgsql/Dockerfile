@@ -325,7 +325,7 @@ ONBUILD \
 RUN \
  set -x; \
  options=""; \
- options="${options:+$options }${PHDATA:+-D $PGDATA}"; \
+ options="${options:+$options }${PGDATA:+-D $PGDATA}"; \
  options="${options:+$options }${PGPORT:+-p $PGPORT}"; \
  . /etc/sysconfig/postgresql && \
  bash ${PGHOME}/dbbuild.sh $options "${WORKDIR}/data"

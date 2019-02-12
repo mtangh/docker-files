@@ -256,13 +256,13 @@ then
   # Make temp
   cp -pf "${PGSCFG}" "${PGSCFG}.tmp"
   # Check PGDATA Param
-  if [ -n "$P_PGDATA" ]
+  if [ -n "$P_PGDATA" ] && [ "$P_PGDATA" != "$PGDATA" ]
   then
     echo "$THIS: CHANGE PGDATA '${PGDATA}' TO '${P_PGDATA}'."
     sed -i 's!^[ ]*PGDATA=[^ ]+[ ]*$!PGDATA='${P_PGDATA}'!g' "${PGSCFG}.tmp"
   fi
   # Check PGPORT Param
-  if [ -n "$P_PGPORT" ]
+  if [ -n "$P_PGPORT" ] && [ "$P_PGPORT" != "$PGPORT" ]
   then
     echo "$THIS: CHANGE PGPORT '${PGPORT}' TO '${P_PGPORT}'."
     sed -i 's!^[ ]*PGPORT=[^ ]+[ ]*$!PGPORT='${P_PGPORT}'!g' "${PGSCFG}.tmp"
