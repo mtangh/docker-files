@@ -2,6 +2,13 @@
 THIS="${0##*/}"
 CDIR=$([ -n "${0%/*}" ] && cd "${0%/*}" 2>/dev/null; pwd)
 
+# Name
+THIS="${THIS:-dbbuild.sh}"
+BASE="${THIS%.*}"
+
+# LANG
+export LANG=C
+
 # PG sysconfig
 PGSCFG="/etc/sysconfig/postgresql"
 
@@ -15,16 +22,10 @@ PGROOT=
 PGDATA=
 PGPORT=
 
-# LANG
-export LANG=C
-
-# Load the sysconfig/postgresql
-[ -r "$PGSCFG" ] && {
-  . "$PGSCFG" 1>/dev/null 2>&1 ||
-  exit 127
-}
-
 # Parameters
+P_PGUSER=""
+P_PGHOME=""
+P_PGROOT=""
 P_PGDATA=""
 P_PGPORT=""
 
@@ -32,33 +33,38 @@ P_PGPORT=""
 while [ $# -gt 0 ]
 do
   case "$1" in
-  -D*)
-    if [ -n "${1##*-D}" ]
-    then P_PGDATA="${1##*-D}"
-    elif [ -n "$2" ]
-    then P_PGDATA="$2"; shift
-    fi
+  PG*=*)
+    [ -n "${1%%=*}" -a -n "${1#*=}" ] && {
+      eval "P_${1}"; export "P_${1%%=*}"
+    }
     ;;
-  -p*)
-    if [ -n "${1##*-p}" ]
-    then P_PGPORT="${1##*-p}"
-    elif [ -n "$2" ]
-    then P_PGPORT="$2"; shift
+  -f*)
+    if [ -n "${1##*-f}" ]
+    then PGSCFG="${1##*-f}"
+    else shift; PGSCFG="${1}"
     fi
     ;;
   -*)
     cat <<_USAGE_
-Usage: $THIS [-D data-dir] [-p port] install-source-dir
+Usage: $THIS [-f /path/to/sysconfig] [PG*=VALUE ...] install-source-dir
+
 _USAGE_
+    exit 1
     ;;
   *)
-    if [ -z "${SRCDIR}" -a -d "$1" ]
-    then SRCDIR="$1"
+    if [ -z "${SRCDIR}" -a -d "${1}" ]
+    then SRCDIR="${1}"
     fi
     ;;
   esac
   shift
 done
+
+# Load the sysconfig/postgresql
+[ -r "$PGSCFG" ] && {
+  . "$PGSCFG" 1>/dev/null 2>&1 ||
+  exit 127
+}
 
 # Check the PG* variables
 [ -n "$PGUSER" ] || exit 90
@@ -149,7 +155,9 @@ _waitforstartup() {
   local retrycnt=0
   for retrycnt in 0 1 2 3 4 5 6 7 8 9
   do
-    sleep 2s; ${PSQL} -U ${PGUSER} -p ${PGPORT} -l && break
+    sleep 2s;
+    ${PSQL} -U ${PGUSER} -p ${PGPORT} -l &&
+    break
   done 1>/dev/null 2>&1
   [ -n "$retrycnt" ] && [ $retrycnt -ge 9 ] && {
     echo "$THIS: Could not connect to server." 1>&2
