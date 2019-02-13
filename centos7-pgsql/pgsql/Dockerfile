@@ -81,9 +81,12 @@ RUN \
  mv -f "${WORKDIR}/postgresql.service" "/etc/systemd/system/" && \
  chown root:root /etc/systemd/system/postgresql.service && \
  chmod 0644 /etc/systemd/system/postgresql.service && \
- mv -f "${WORKDIR}/postgresql.dbbuild.sh" "${PGHOME}/dbbuild.sh" && \
- chown "root:${PGUSER}" "${PGHOME}/dbbuild.sh" && \
- chmod 0775 "${PGHOME}/dbbuild.sh"
+ for pgshell in pginstall pgsysconfig dbbuild; \
+ do \
+  mv -f "${WORKDIR}/postgresql.${pgshell}.sh" "${PGHOME}/${pgshell}.sh" && \
+  chown "root:${PGUSER}" "${PGHOME}/${pgshell}.sh" && \
+  chmod 0775 "${PGHOME}/${pgshell}.sh"; \
+ done
 
 # Reset Work dir
 WORKDIR /
@@ -140,62 +143,30 @@ ONBUILD \
 ARG \
  PGDATA="/opt/postgresql/data"
 
-# PGALOG
-ONBUILD \
-ARG \
- PGALOG="/opt/postgresql/archivelogs"
-
 # PGPORT
 ONBUILD \
 ARG \
  PGPORT="5432"
 
+# PGALOG
+ONBUILD \
+ARG \
+ PGALOG="/opt/postgresql/archivelogs"
+
 # Update sysconfig
 ONBUILD \
 RUN \
- set -x; \
- pgsysconf="/etc/sysconfig/postgresql"; \
- [ -n "$PGUSER" ] && { \
-  grep -E '^[ ]*PGUSER='${PGUSER}'[ ]*$' "$pgsysconf" 1>/dev/null 2>&1 || { \
-   PGUSER_OLD=$(sed -nre 's/^[ ]*PGUSER=([^ ]+)[ ]*$/\1/gp' "$pgsysconf"); \
-   echo "Update PGUSER = '$PGUSER'."; \
-   sed -i 's/^[ ]*PGUSER=[^ ]+[ ]*$/PGUSER='${PGUSER}'/g' "$pgsysconf"; \
-   [ -z "${PGUSER_OLD}" ] || { \
-    usermod -l "${PGUSER}" "${PGUSER_OLD}"; \
-    groupmod -n "${PGUSER}" "${PGUSER_OLD}"; \
-   }; \
- }; }; \
- [ -n "$PGHOME" ] && { \
-  grep -E '^[ ]*PGHOME='${PGHOME}'[ ]*$' "$pgsysconf" 1>/dev/null 2>&1 || { \
-   echo "Update PGHOME = '$PGHOME'."; \
-   sed -i 's/^[ ]*PGHOME=[^ ]+[ ]*$/PGHOME='${PGHOME}'/g' "$pgsysconf"; \
-   usermod -d "${PGHOME}" -m "${PGUSER}"; \
- }; }; \
- [ -n "$PGROOT" ] && { \
-  grep -E '^[ ]*PGROOT='${PGROOT}'[ ]*$' "$pgsysconf" 1>/dev/null 2>&1 || { \
-   echo "Update PGROOT = '$PGROOT'."; \
-   sed -i 's/^[ ]*PGROOT=[^ ]+[ ]*$/PGROOT='${PGROOT}'/g' "$pgsysconf"; \
- }; }; \
- [ -n "$PGDATA" ] && { \
-  grep -E '^[ ]*PGDATA='${PGDATA}'[ ]*$' "$pgsysconf" 1>/dev/null 2>&1 || { \
-   echo "Update PGDATA = '$PGDATA'."; \
-   sed -i 's/^[ ]*PGDATA=[^ ]+[ ]*$/PGDATA='${PGDATA}'/g' "$pgsysconf"; \
- }; }; \
- [ -n "$PGPORT" ] && { \
-  grep -E '^[ ]*PGPORT='${PGPORT}'[ ]*$' "$pgsysconf" 1>/dev/null 2>&1 || { \
-   echo "Update PGPORT = '$PGPORT'."; \
-   sed -i 's/^[ ]*PGPORT=[^ ]+[ ]*$/PGPORT='${PGPORT}'/g' "$pgsysconf"; \
- }; }; \
- case "${PGSQLVAR}" in \
- 8.[0-2]*) \
-  sed -i 's/^[ ]*(PGCTL_START_OPTS)=[^ ].*[^ ]*[ ]*$/\1="-s -w"/g' "$pgsysconf" ;; \
- *) \
-  sed -i 's/^[ ]*(PGCTL_START_OPTS)=[^ ].*[^ ]*[ ]*$/\1="-s -w -t 300"/g' "$pgsysconf" ;; \
- esac; \
- echo "$pgsysconf" && \
- cat "$pgsysconf"
+ set -x; . /etc/sysconfig/postgresql && \
+ bash ${PGHOME}/pgsysconfig.sh \
+  -f "/etc/sysconfig/postgresql" \
+  "PGSQLVER=${PGSQLVER}" \
+  "PGUSER=${PGUSER}" \
+  "PGHOME=${PGHOME}" \
+  "PGROOT=${PGROOT}" \
+  "PGDATA=${PGDATA}" \
+  "PGPORT=${PGPORT}"
 
-# Install postgresql
+# Install postgresql and pgTAP
 ONBUILD \
 ARG \
  PG_GCC_PKG=""
@@ -204,81 +175,20 @@ ARG \
  PG_GCC_CMD=""
 ONBUILD \
 ARG \
- PG_CONFIGURE_OPTIONS=""
+ PG_CONFIGURE_OPTS=""
 ONBUILD \
 RUN \
  [ -n "$PGSQLVER" ] || { \
   echo "'PGSQLVER' is not set !!" 1>&2; \
   exit 127; \
  }; \
- set -x; \
- [ -n "${PG_GCC_PKG}" ] && { \
-  yum -y update && yum -y install "${PG_GCC_PKG}" &&  yum -y clean all; \
- }; \
- . /etc/sysconfig/postgresql && \
- pgname="postgresql-${PGSQLVER}" && \
- pg_ver="${PGSQLVER}" && \
- pg_url="https://ftp.postgresql.org/pub/source/v${pg_ver}/${pgname}.tar.gz" && \
- curl -sL -o - "${pg_url}" |tar -zpxvf - && \
- ( [ -n "${PG_GCC_CMD}" -a -x "${PG_GCC_CMD}" ] && { \
-    CC="${PG_GCC_CMD}"; export CC; \
-   }; \
-   cd "${pgname}" && \
-   ./configure --prefix="${PGROOT}-${pg_ver}" ${PG_CONFIGURE_OPTIONS} && \
-   make && make install && \
-   cd ./contrib && make && make install; ) && \
- ( [ -d "${PGROOT}" ] || { \
-    mkdir -p "${PGROOT}"; \
-   }; \
-   cd "${PGROOT}" && { \
-    rm -rf "${PGROOT}-latest"; \
-    ln -sf "${PGROOT}-${pg_ver}" "${PGROOT}-latest"; \
-   } && \
-   for dir in bin include lib share; do \
-    [ -e "${dir}" ] && rm -rf "${dir}"; \
-    ln -sf "${PGROOT}-latest/${dir}" .; \
-   done; ); \
- ( cd "${PGHOME}" && { \
-    PGALOG="${PGALOG:-archivelogs}"; \
-    for dir in "${PGDATA}" "${PGALOG}"; do \
-     [ -d "${dir}" ] || mkdir -p "${dir}"; \
-     chown "${PGUSER}:${PGUSER}" "${dir}" && \
-     chmod 2750 "${dir}"; \
-    done; \
-   }; );
-
-# Install pgTAP
-ONBUILD \
-RUN \
- if [ -n "${PGTAPVER}" ]; \
- then \
-  set -x; . /etc/sysconfig/postgresql && \
-  pgtapname="pgtap-${PGTAPVER}" && \
-  pgtap_ver="${PGTAPVER}" && \
-  pgtap_url="http://api.pgxn.org/dist/pgtap/${pgtap_ver}/${pgtapname}.zip" && \
-  curl -sL -o "${pgtapname}.zip" "${pgtap_url}" && unzip "${pgtapname}.zip" && \
-  ( export PATH="$PATH:${PGROOT}/bin" && \
-    cd "${pgtapname}" && \
-    make && make install; ) && \
-  rm -rf "./${pgtapname}"*; \
- else \
-  echo "'PGTAPVER' is not set, skipping."; \
- fi
-
-# Install pg_prove
-ONBUILD \
-RUN \
- if [ -n "${PGTAPVER}" ]; \
- then \
-  set -x; \
-  export PERL_MM_OPT="install_base" && \
-  export PERL_AUTOINSTALL="--defaultdeps" && \
-  cpan -i Module::Build && \
-  cpan -i TAP::Parser::SourceHandler::pgTAP && \
-  rm -rf /root/.cpan; \
- else \
-  echo "'PGTAPVER' is not set, skipping."; \
- fi
+ set -x; . /etc/sysconfig/postgresql && \
+ bash ${PGHOME}/pginstall.sh \
+  -w "${WORKDIR}" \
+  "PGSQLVER=${PGSQLVER}" "PGTAPVER=${PGTAPVER}" \
+  "PG_GCC_PKG=${PG_GCC_PKG}" "PG_GCC_CMD=${PG_GCC_CMD}" \
+  "PG_CONFIGURE_OPTS=${PG_CONFIGURE_OPTS}" \
+  "PGALOG=${PGALOG}"
 
 # Add to the service
 ONBUILD \
@@ -325,10 +235,12 @@ ONBUILD \
 RUN \
  set -x; \
  options=""; \
- options="${options:+$options }${PGDATA:+-D $PGDATA}"; \
- options="${options:+$options }${PGPORT:+-p $PGPORT}"; \
+ options="${options:+$options }PGDATA=${PGDATA}"; \
+ options="${options:+$options }PGPORT=${PGPORT}"; \
  . /etc/sysconfig/postgresql && \
- bash ${PGHOME}/dbbuild.sh $options "${WORKDIR}/data"
+ bash ${PGHOME}/dbbuild.sh \
+  -f "/etc/sysconfig/postgresql" $options \
+  "${WORKDIR}/data"
 
 # Reset Work dir
 ONBUILD \
