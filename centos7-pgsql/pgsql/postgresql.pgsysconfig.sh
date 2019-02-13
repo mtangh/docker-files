@@ -6,6 +6,10 @@ CDIR=$([ -n "${0%/*}" ] && cd "${0%/*}" 2>/dev/null; pwd)
 THIS="${THIS:-pgsysconfig.sh}"
 BASE="${THIS%.*}"
 
+# sed
+SED="${SED:-$(type -P gsed)}"
+SED="${SED:-$(type -P sed)}"
+
 # postgresql sysconfig
 pgsyscfg="/etc/sysconfig/postgresql"
 
@@ -14,7 +18,7 @@ pgsystmp="${TMPDIR:-/tmp}/postgresql.sysconfig.$(date +'%Y%m%d%H%M%S')"
 
 # trap
 trap \
-  "rm -f ${pgsystmp} &>/dev/null || :" \
+  "rm -rf ${pgsystmp} &>/dev/null || :" \
   EXIT SIGTERM SIGINT SIGQUIT
 
 # Parse options
@@ -52,7 +56,7 @@ done
 }
 
 # Make temp
-cat "${pgsyscfg}" |>"${pgsystmp}" 2>/dev/null || {
+cat "${pgsyscfg}" >|"${pgsystmp}" 2>/dev/null || {
   echo "$THIS: ERROR: no such file or directory '$pgsyscfg'." 1>&2
   exit 3
 }
@@ -63,11 +67,11 @@ do
 
   # New value
   syscfg_val="${!syscfg_key}"
-  
+
   # Old value
   syscfg_old=$(
     cat "${pgsystmp}" |
-    sed -nre 's/^[ ]*'"${syscfg_val}"'=([^ ]+)[ ]*$/\1/gp' 2>/dev/null)
+    $SED -nre 's;^[ ]*'${syscfg_key}'=["]*([^ ][^"]*)["]*[ ]*$;\1;gp'; )
 
   # Ignore
   [ -n "${syscfg_val}" ] ||
@@ -79,29 +83,36 @@ do
   echo "$THIS: '${syscfg_key}' = '${syscfg_old}' to '${syscfg_val}'."
 
   # Replace
-  sed -ri \
-    's/^[ ]*'${syscfg_key}'=[^ ]+.*$/'${syscfg_key}'="'${syscfg_val}'"/g' \
+  $SED -ri \
+    's;^[ ]*'${syscfg_key}'=[^ ]+.*$;'${syscfg_key}'="'${syscfg_val}'";g' \
     "${pgsystmp}" || continue
 
   # Additional changes
   case "${syscfg_key}" in
   PGUSER)
-    usermod -l "${syscfg_val}" "${syscfg_old:-postgres}"
-    groupmod -n "${syscfg_val}" "${syscfg_old:-postgres}"
+    [ -x "$(type -P usermod)" ] && {
+      usermod -l "${syscfg_val}" "${syscfg_old:-postgres}" ||
+      echo "$THIS: Failed to command 'usermod -l ${syscfg_val} ${syscfg_old:-postgres}'."
+    }
+    [ -x "$(type -P groupmod)" ] && {
+      groupmod -n "${syscfg_val}" "${syscfg_old:-postgres}" ||
+      echo "$THIS: Failed to command 'groupmod -n ${syscfg_val} ${syscfg_old:-postgres}'." 1>&2
+    }
     ;;
   PGHOME)
     dirowner=$(
       stat -c '%U' "${syscfg_old:-/opt/postgresql}" \
       2>/dev/null; )
-    [ -n "${dirowner}" ] && {
-      usermod -d "${syscfg_val}" -m "${dirowner}"
+    [ -x "$(type -P usermod)" ] && {
+      usermod -d "${syscfg_val}" -m "${dirowner:-postgres}" ||
+      echo "$THIS: Failed to command 'usermod -d ${syscfg_val} -m ${dirowner:-postgres}'." 1>&2
     }
     ;;
   PGROOT)
     ( [ -d "${syscfg_val}" ] || {
         mkdir -p "${syscfg_val}"
-      }
-      cd "${syscfg_val}" && {
+      } 2>/dev/null
+      cd "${syscfg_val}" &>/dev/null && {
         for childdir in $(ls -1d "${syscfg_old:-/opt/postgresql}"/*)
         do
           [ -e "${childdir##*/}" ] &&
@@ -117,15 +128,15 @@ do
 done
 
 # PGCTL_START_OPTS
-[ -n "${PGSQLVAR}" ] && {
+[ -n "${PGSQLVER}" ] && {
 
-  case "${PGSQLVAR}" in
+  case "${PGSQLVER}" in
   8.[0-2]*)
     egrep \
     '^[ ]*PGCTL_START_OPTS=[^ ].*-t[ ]*[0-9]+.*$' \
     "$pgsystmp" &>/dev/null && {
-      sed -ri \
-      's/^[ ]*(PGCTL_START_OPTS)=([^ ].*)-t[ ]*[0-9]+(.*)[ ]*$/\1=\2\3/g' \
+      $SED -ri \
+      's/^[ ]*(PGCTL_START_OPTS)=([^ ].*)[ ]+-t[ ]*[0-9]+([^0-9].*)[ ]*$/\1=\2\3/g' \
       "$pgsystmp"
     }
     ;;
@@ -136,18 +147,22 @@ done
 } || :
 
 # Update check
-diff "${pgsyscfg}" "${pgsystmp}" &>/dev/null || {
- 
-  echo
-  echo "$THIS: ${pgsyscfg} >>>"
-  
-  diff "${pgsyscfg}" "${pgsystmp}" || {
-    cat "${pgsystmp}" |>"${pgsyscfg}"
-  } &>/dev/null
+[ -s "${pgsystmp}" ] && {
 
-  echo
+  diff "${pgsyscfg}" "${pgsystmp}" &>/dev/null || {
 
-} # diff "${pgsyscfg}" "${pgsystmp}"
+    echo
+    echo "$THIS: ${pgsyscfg} >>>"
+
+    diff "${pgsyscfg}" "${pgsystmp}" || {
+      cat "${pgsystmp}" >|"${pgsyscfg}"
+    } &>/dev/null
+
+    echo
+
+  } # diff "${pgsyscfg}" "${pgsystmp}"
+
+}
 
 # end
 exit 0

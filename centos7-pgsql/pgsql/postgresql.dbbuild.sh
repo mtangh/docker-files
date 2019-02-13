@@ -6,6 +6,10 @@ CDIR=$([ -n "${0%/*}" ] && cd "${0%/*}" 2>/dev/null; pwd)
 THIS="${THIS:-dbbuild.sh}"
 BASE="${THIS%.*}"
 
+# sed
+SED="${SED:-$(type -P gsed)}"
+SED="${SED:-$(type -P sed)}"
+
 # LANG
 export LANG=C
 
@@ -267,13 +271,13 @@ then
   if [ -n "$P_PGDATA" ] && [ "$P_PGDATA" != "$PGDATA" ]
   then
     echo "$THIS: CHANGE PGDATA '${PGDATA}' TO '${P_PGDATA}'."
-    sed -i 's!^[ ]*PGDATA=[^ ]+[ ]*$!PGDATA='${P_PGDATA}'!g' "${PGSCFG}.tmp"
+    $SED -ri 's!^[ ]*PGDATA=[^ ]+[ ]*$!PGDATA='${P_PGDATA}'!g' "${PGSCFG}.tmp"
   fi
   # Check PGPORT Param
   if [ -n "$P_PGPORT" ] && [ "$P_PGPORT" != "$PGPORT" ]
   then
     echo "$THIS: CHANGE PGPORT '${PGPORT}' TO '${P_PGPORT}'."
-    sed -i 's!^[ ]*PGPORT=[^ ]+[ ]*$!PGPORT='${P_PGPORT}'!g' "${PGSCFG}.tmp"
+    $SED -ri 's!^[ ]*PGPORT=[^ ]+[ ]*$!PGPORT='${P_PGPORT}'!g' "${PGSCFG}.tmp"
   fi
 fi 2>/dev/null
 

@@ -80,7 +80,7 @@ PGROOT="${PGROOT:-/opt/postgresql}"
 # PGDATA
 PGDATA="${PGDATA:-$PGHOME/data}"
 
-# PGALOG   
+# PGALOG
 PGALOG="${PGALOG:-$PGHOME/archivelogs}"
 
 # MKDIR PGHOME
@@ -96,7 +96,7 @@ PGALOG="${PGALOG:-$PGHOME/archivelogs}"
   chown "${PGUSER}:${PGUSER}" "${PGROOT}" &&
   chmod 2755 "${PGROOT}"
 } &>/dev/null
-    
+
 # Install PostgreSQL
 [ -z "${PGSQLVER}" ] || {
 
@@ -112,7 +112,7 @@ _EOF_
 
   # PostgreSQL Source URL
   PGSRCURL="${PGSRCURL:-https://ftp.postgresql.org/pub/source/v$PGSQLVER/$PGSQLSRC.tar.gz}"
-  
+
   # PostgreSQL Install Prefix
   PGSRCDIR="${PGSRCDIR:-${PGROOT%/*}-$PGSQLVER}"
 
@@ -144,13 +144,13 @@ _EOF_
   curl -sL -o - "${PGSRCURL}" |
   tar -zpxvf - &&
   ( cd "${PGSQLSRC}" && {
- 
+
       [ -n "${PG_GCC_CMD}" ] &&
       [ -x "${PG_GCC_CMD}" ] && {
         CC="${PG_GCC_CMD}"
         export CC
       } || :
-  
+
       echo "$THIS: ./configure ${PG_CONFIGURE_OPTS}"
 
       ./configure ${PG_CONFIGURE_OPTS} &&
@@ -184,7 +184,7 @@ _EOF_
 
   # PGDATA, Archivelogs
   ( cd "${PGHOME}" && {
-      
+
       for dir in "${PGDATA}" "${PGALOG}"
       do
         [ -d "${dir}" ] || {
@@ -214,13 +214,13 @@ $THIS:
 $THIS: pgTAP v$PGTAPVER
 $THIS:
 _EOF_
-  
+
   # pgTAP Name
   PGTAPSRC="${PGTAPSRC:-pgtap-$PGTAPVER}"
 
   # pgTAP Source URL
   PGTAPURL="${PGTAPURL:-http://api.pgxn.org/dist/pgtap/$PGTAPVER/$PGTAPSRC.zip}"
-  
+
   # Print
   cat <<_EOF_
 $THIS: PGTAPSRC=$PGTAPSRC
@@ -249,7 +249,7 @@ _EOF_
       export PERL_AUTOINSTALL="--defaultdeps"
       cpan -i Module::Build &&
       cpan -i TAP::Parser::SourceHandler::pgTAP &&
-      rm -rf /root/.cpan &>/dev/null &&
+      rm -rf /root/.cpan &>/dev/null
     }; ) || exit 113
 
 } # [ -z "${PGTAPVER}" ]
