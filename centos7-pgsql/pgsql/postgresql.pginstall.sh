@@ -133,12 +133,12 @@ _EOF_
   esac
 
   # GCC
-  ( [ -n "${PG_GCC_PKG}" ] && {
-      echo "$THIS: GCC=${PG_GCC_PKG}"
-      yum -y update &&
-      yum -y install "${PG_GCC_PKG}" &&
-      yum -y clean all
-    }; ) || exit 100
+  [ -n "${PG_GCC_PKG}" ] && {
+    echo "$THIS: GCC=${PG_GCC_PKG}"
+    yum -y update &&
+    yum -y install "${PG_GCC_PKG}" &&
+    yum -y clean all || exit 100
+  } || :
 
   # Download, make, make install
   curl -sL -o - "${PGSRCURL}" |
@@ -211,6 +211,9 @@ _EOF_
     exit 110
   }
 
+  # Path
+  export PATH="${PGROOT}/bin:${PATH}"
+
   # Print
   cat <<_EOF_
 $THIS:
@@ -242,9 +245,11 @@ _EOF_
   unzip "${PGTAPSRC}.zip" &&
   ( cd "${PGTAPSRC}" && {
       make &&
-      make install &&
-      rm -rf "./${PGTAPSRC}"* &>/dev/null
+      make install
     }; ) || exit 112
+  [ -d "${PGTAPSRC}" ] && {
+    rm -rf "${PGTAPSRC}"*
+  } &>/dev/null
 
   # Install pg_prove
   ( : && {
