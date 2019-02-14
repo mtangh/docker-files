@@ -83,14 +83,18 @@ RUN \
  mv -f "${WORKDIR}/postgresql.service" "/etc/systemd/system/" && \
  chown root:root /etc/systemd/system/postgresql.service && \
  chmod 0644 /etc/systemd/system/postgresql.service && \
- for pg_shell_scr in pginstall pgsysconfig dbbuild; \
+ [ -d "/usr/local/bin" ] || { \
+  mkdir -p "/usr/local/bin"; \
+ } || : ; \
+ for pg_shell_scr in pgsysconfig pginstall pgdbbuild; \
  do \
   [ -e "${WORKDIR}/postgresql.${pg_shell_scr}.sh" ] && { \
     mv -f \
       "${WORKDIR}/postgresql.${pg_shell_scr}.sh" \
-      "${PGHOME}/${pg_shell_scr}.sh" && \
-    chown "root:${PGUSER}" "${PGHOME}/${pg_shell_scr}.sh" && \
-    chmod 0775 "${PGHOME}/${pg_shell_scr}.sh"; \
+      "/usr/local/bin/${pg_shell_scr}.sh" && \
+    chown "root:root" "/usr/local/bin/${pg_shell_scr}.sh" && \
+    chmod 0775 "/usr/local/bin/${pg_shell_scr}.sh" && \
+    ln -sf "/usr/local/bin/${pg_shell_scr}.sh" "${PGHOME}"/; \
   }; \
  done
 
@@ -164,6 +168,19 @@ ONBUILD \
 ARG \
  PGARCHLOGDIR=""
 
+# PostgreSQL sysconfig Updat
+ONBUILD \
+RUN \
+ set -x; \
+ bash -vx /usr/local/bin/pgsysconfig.sh \
+  -f "/etc/sysconfig/postgresql" \
+  "PGSQLVER=${PGSQLVER}" \
+  "PGUSER=${PGUSER}" \
+  "PGHOME=${PGHOME}" \
+  "PGROOT=${PGROOT}" \
+  "PGDATA=${PGDATA}" \
+  "PGPORT=${PGPORT}"
+
 # Install postgresql and pgTAP
 ONBUILD \
 ARG \
@@ -182,15 +199,7 @@ RUN \
  }; \
  set -x; \
  . /etc/sysconfig/postgresql && \
- bash -vx ${PGHOME}/pgsysconfig.sh \
-  -f "/etc/sysconfig/postgresql" \
-  "PGSQLVER=${PGSQLVER}" \
-  "PGUSER=${PGUSER}" \
-  "PGHOME=${PGHOME}" \
-  "PGROOT=${PGROOT}" \
-  "PGDATA=${PGDATA}" \
-  "PGPORT=${PGPORT}" && \
- bash -vx ${PGHOME}/pginstall.sh \
+ bash -vx /usr/local/bin/pginstall.sh \
   -w "${WORKDIR}" \
   "PGSQLVER=${PGSQLVER}" \
   "PGTAPVER=${PGTAPVER}" \
@@ -213,7 +222,7 @@ ONBUILD \
 RUN \
  set -x; \
  . /etc/sysconfig/postgresql && \
- bash -vx ${PGHOME}/pgsysconfig.sh \
+ bash -vx /usr/local/bin/pgsysconfig.sh \
   -f "/etc/sysconfig/postgresql" \
   "PGCTL_START_OPTS=${PGCTL_START_OPTS}" \
   "PGCTL_STOP_OPTS="${PGCTL_STOP_OPTS}" \
@@ -261,7 +270,7 @@ ONBUILD \
 RUN \
  set -x; \
  . /etc/sysconfig/postgresql; \
- bash -vx ${PGHOME}/dbbuild.sh \
+ bash -vx /usr/local/bin/pgdbbuild.sh \
   -f "/etc/sysconfig/postgresql" \
   "${WORKDIR}/data"
 

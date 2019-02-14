@@ -30,8 +30,8 @@ do
     }
     ;;
   -w*)
-    if [ -n "${1##*-f}" ]
-    then PG_WORKDIR="${1##*-f}"
+    if [ -n "${1##*-w}" ]
+    then PG_WORKDIR="${1##*-w}"
     else shift; PG_WORKDIR="${1}"
     fi
     ;;
@@ -114,7 +114,7 @@ _EOF_
   PGSRCURL="${PGSRCURL:-https://ftp.postgresql.org/pub/source/v$PGSQLVER/$PGSQLSRC.tar.gz}"
 
   # PostgreSQL Install Prefix
-  PGSRCDIR="${PGSRCDIR:-${PGROOT%/*}-$PGSQLVER}"
+  PGSRCDIR="${PGSRCDIR:-${PGROOT%/*}/$PGSQLSRC}"
 
   # Print
   cat <<_EOF_
@@ -170,12 +170,15 @@ _EOF_
 
       ln -sf "${PGSRCDIR}" "${PGROOT}-latest" && {
 
-        for dir in $(ls -1d "${PGROOT}-latest"/* 2>/dev/null)
+        for dirpath in $(ls -1d "${PGROOT}-latest"/* 2>/dev/null)
         do
-          [ -e "${dir}" ] && rm -rf "${dir}"
-          ln -sf "${PGROOT}-latest/${dir}" . &&
-          chown -h "${PGUSER}:${PGUSER}" "${dir}" &&
-          echo "$THIS: symlink '${PGROOT}-latest/${dir}' to '${PGROOT}/${dir}'."
+          dirname="${dirpath##*/}"
+          [ -e "${PGROOT}/${dirname}" ] && {
+            rm -f "${PGROOT}/${dirname}"
+          } || :
+          ln -sf "${dirpath}" ${PGROOT}/${dirname} &&
+          chown -h "${PGUSER}:${PGUSER}" "${PGROOT}/${dirname}" &&
+          echo "$THIS: symlink '${dirpath}' to '${PGROOT}/${dirname}'."
         done
 
       }
@@ -185,14 +188,14 @@ _EOF_
   # PGDATA, Archivelogs
   ( cd "${PGHOME}" && {
 
-      for dir in "${PGDATA}" "${PGARCHLOGDIR}"
+      for dirpath in "${PGDATA}" "${PGARCHLOGDIR}"
       do
-        [ -d "${dir}" ] || {
-          mkdir -p "${dir}"
+        [ -d "${dirpath}" ] || {
+          mkdir -p "${dirpath}"
         } &&
-        chown "${PGUSER}:${PGUSER}" "${dir}" &&
-        chmod 2750 "${dir}" &&
-        echo "$THIS: mkdir '${dir}'."
+        chown "${PGUSER}:${PGUSER}" "${dirpath}" &&
+        chmod 2750 "${dirpath}" &&
+        echo "$THIS: Mkdir '${dirpath}'."
       done
 
     }; ) || exit 103
