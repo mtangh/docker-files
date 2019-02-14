@@ -93,6 +93,10 @@ do
     [ -x "$(type -P usermod)" ] && {
       usermod -l "${syscfg_val}" "${syscfg_old:-postgres}" ||
       echo "$THIS: Failed to command 'usermod -l ${syscfg_val} ${syscfg_old:-postgres}'."
+      [ -x "$(type -P chpasswd)" ] && {
+        echo "${syscfg_val}:${PGPASSWORD:-$syscfg_val}" |chpasswd ||
+        echo "$THIS: Failed to command 'echo "${syscfg_val}:*" |chpasswd'."
+      }
     }
     [ -x "$(type -P groupmod)" ] && {
       groupmod -n "${syscfg_val}" "${syscfg_old:-postgres}" ||

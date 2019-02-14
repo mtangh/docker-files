@@ -80,8 +80,8 @@ PGROOT="${PGROOT:-/opt/postgresql}"
 # PGDATA
 PGDATA="${PGDATA:-$PGHOME/data}"
 
-# PGALOG
-PGALOG="${PGALOG:-$PGHOME/archivelogs}"
+# PGARCHLOGDIR
+PGARCHLOGDIR="${PGARCHLOGDIR:-$PGHOME/archivelogs}"
 
 # MKDIR PGHOME
 [ -d "${PGHOME}" ] || {
@@ -185,7 +185,7 @@ _EOF_
   # PGDATA, Archivelogs
   ( cd "${PGHOME}" && {
 
-      for dir in "${PGDATA}" "${PGALOG}"
+      for dir in "${PGDATA}" "${PGARCHLOGDIR}"
       do
         [ -d "${dir}" ] || {
           mkdir -p "${dir}"
