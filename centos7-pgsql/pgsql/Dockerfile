@@ -85,7 +85,7 @@ RUN \
  chmod 0644 /etc/systemd/system/postgresql.service && \
  for pg_shell_scr in pginstall pgsysconfig dbbuild; \
  do \
-  [ -e "${WORKDIR}/postgresql.${pg_shell_scr}.sh" ] && {
+  [ -e "${WORKDIR}/postgresql.${pg_shell_scr}.sh" ] && { \
     mv -f \
       "${WORKDIR}/postgresql.${pg_shell_scr}.sh" \
       "${PGHOME}/${pg_shell_scr}.sh" && \
@@ -194,7 +194,7 @@ RUN \
   -w "${WORKDIR}" \
   "PGSQLVER=${PGSQLVER}" \
   "PGTAPVER=${PGTAPVER}" \
-  "PG_GCC_PKG=${PG_GCC_PKG}" 
+  "PG_GCC_PKG=${PG_GCC_PKG}" \
   "PG_GCC_CMD=${PG_GCC_CMD}" \
   "PG_CONFIGURE_OPTS=${PG_CONFIGURE_OPTS}" \
   "PGALOG=${PGALOG}"
