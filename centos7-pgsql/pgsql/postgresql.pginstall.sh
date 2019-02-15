@@ -15,15 +15,24 @@ pgsyscfg="/etc/sysconfig/postgresql"
   exit 127
 }
 
+# cleanup
+__pginstall_cleanup() {
+  : && {
+    [ -d "${PG_WORKSIR}" ] && rm -rf "${PG_WORKSIR}"
+    [ -d "/root/.cpan" ] && rm -rf /root/.cpan 
+  } &>/dev/null
+  return 0
+}
+
 # trap
-trap
-  "rm -rf ${PG_WORKDIR} &>/dev/null || :"
+trap \
+  "__pginstall_cleanup" \
   EXIT SIGTERM SIGINT SIGQUIT
 
 # Parse options
 while [ $# -gt 0 ]
 do
-  case "$1" in
+  case "${1}" in
   PG*=*)
     [ -n "${1%%=*}" -a -n "${1#*=}" ] && {
       eval "${1}"; export "${1%%=*}"
@@ -55,7 +64,7 @@ done
 } || :
 
 # PG Work dir
-PG_WORKDIR="${PG_WORKDIR:-/tmp/workdir}"
+PG_WORKDIR="${PG_WORKDIR:-/tmp/pginstall}"
 
 # Check PG_WORKDIR
 [ -d "${PG_WORKDIR}" ] || {
@@ -102,9 +111,11 @@ PGARCHLOGDIR="${PGARCHLOGDIR:-$PGHOME/archivelogs}"
 
   # Print
   cat <<_EOF_
-$THIS:
+$THIS: --------------------------------
 $THIS: PostgreSQL v$PGSQLVER
-$THIS:
+$THIS: $(date)
+$THIS: $(pwd}
+$THIS: --------------------------------
 _EOF_
 
   # PostgreSQL Name
@@ -200,6 +211,12 @@ _EOF_
 
     }; ) || exit 103
 
+  # Print
+  cat <<_EOF_
+$THIS: --------------------------------
+$THIS: $(date)
+_EOF_
+
 } # [ -z "${PGSQLVER}" ]
 
 # Install pgtap
@@ -216,9 +233,11 @@ _EOF_
 
   # Print
   cat <<_EOF_
-$THIS:
+$THIS: --------------------------------
 $THIS: pgTAP v$PGTAPVER
-$THIS:
+$THIS: $(date)
+$THIS: $(pwd)
+$THIS: --------------------------------
 _EOF_
 
   # pgTAP Name
@@ -244,21 +263,27 @@ _EOF_
   curl -sL -o "${PGTAPSRC}.zip" "${PGTAPURL}" &&
   unzip "${PGTAPSRC}.zip" &&
   ( cd "${PGTAPSRC}" && {
+  
       make &&
       make install
+      
     }; ) || exit 112
-  [ -d "${PGTAPSRC}" ] && {
-    rm -rf "${PGTAPSRC}"*
-  } &>/dev/null
 
   # Install pg_prove
   ( : && {
+
       export PERL_MM_OPT="install_base"
       export PERL_AUTOINSTALL="--defaultdeps"
       cpan -i Module::Build &&
-      cpan -i TAP::Parser::SourceHandler::pgTAP &&
-      rm -rf /root/.cpan &>/dev/null
+      cpan -i TAP::Parser::SourceHandler::pgTAP
+
     }; ) || exit 113
+
+  # Print
+  cat <<_EOF_
+$THIS: --------------------------------
+$THIS: $(date)
+_EOF_
 
 } # [ -z "${PGTAPVER}" ]
 

@@ -15,18 +15,9 @@ FROM centos7-pgsql:pgsql
 # Maintainer
 MAINTAINER MT
 
-# Install packages for PostgreSQL (and pgTAP)
-RUN \
- set -x; \
- yum -y update && \
- yum -y install \
-  which tar unzip gcc patch readline-devel zlib-devel \
-  perl perl-CPAN perl-parent && \
- yum -y clean all
-
 # Labels
 LABEL \
- name="postgresql82 Server on CentOS7 with Systemd"
+ name="PostgreSQL82 Server on CentOS7 with Systemd"
 
 # Labels for run
 LABEL \

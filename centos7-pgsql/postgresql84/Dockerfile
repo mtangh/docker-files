@@ -17,7 +17,7 @@ MAINTAINER MT
 
 # Labels
 LABEL \
- name="postgresql84 Server on CentOS7 with Systemd"
+ name="PostgreSQLP84 Server on CentOS7 with Systemd"
 
 # Labels for run
 LABEL \
