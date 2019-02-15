@@ -6,6 +6,14 @@ CDIR=$([ -n "${0%/*}" ] && cd "${0%/*}" 2>/dev/null; pwd)
 THIS="${THIS:-pginstall.sh}"
 BASE="${THIS%.*}"
 
+# awk
+AWK="${AWK:-$(type -P gawk)}"
+AWK="${AWK:-$(type -P awk)}"
+
+# sed
+SED="${SED:-$(type -P gsed)}"
+SED="${SED:-$(type -P sed)}"
+
 # postgresql sysconfig
 pgsyscfg="/etc/sysconfig/postgresql"
 
@@ -15,10 +23,21 @@ pgsyscfg="/etc/sysconfig/postgresql"
   exit 127
 }
 
+# Stdout
+__stdout() {
+  _tag="${1}"
+  $AWK '{
+  printf("%s: %s: %s%s\n",
+  "'"${BASE}"'",strftime("%Y%m%dT%H%M%S",systime()),"'"${_tag:+$_tag: }"'",$0);
+  fflush();};' |
+  $SED -r 's/\x1B\[([0-9]{1,2}(;[0-9]{1,2})*)?m//g'
+  return 0
+}
+
 # cleanup
 __pginstall_cleanup() {
   : && {
-    [ -d "${PG_WORKSIR}" ] && rm -rf "${PG_WORKSIR}"
+    [ -d "${PG_WORKSIR}" ] && rm -rf "${PG_WORKSIR}"/*
     [ -d "/root/.cpan" ] && rm -rf /root/.cpan 
   } &>/dev/null
   return 0
@@ -106,16 +125,29 @@ PGARCHLOGDIR="${PGARCHLOGDIR:-$PGHOME/archivelogs}"
   chmod 2755 "${PGROOT}"
 } &>/dev/null
 
+# Print
+: && {
+cat <<_EOF_
+Start '${CDIR}/${THIS}'.
+
+PGUSER=$PGUSER
+PGHOME=$PGHOME
+PGROOT=$PGROOT
+PGDATA=$PGDATA
+
+_EOF_
+} |
+__stdout
+
 # Install PostgreSQL
 [ -z "${PGSQLVER}" ] || {
 
   # Print
   cat <<_EOF_
-$THIS: --------------------------------
-$THIS: PostgreSQL v$PGSQLVER
-$THIS: $(date)
-$THIS: $(pwd}
-$THIS: --------------------------------
+# --------------------------------------
+# PostgreSQL v$PGSQLVER
+# $(pwd)
+# --------------------------------------
 _EOF_
 
   # PostgreSQL Name
@@ -129,9 +161,9 @@ _EOF_
 
   # Print
   cat <<_EOF_
-$THIS: PGSQLSRC=$PGSQLSRC
-$THIS: PGSRCURL=$PGSRCURL
-$THIS: PGSRCDIR=$PGSRCDIR
+PGSQLSRC=$PGSQLSRC
+PGSRCURL=$PGSRCURL
+PGSRCDIR=$PGSRCDIR
 _EOF_
 
   # Configure options
@@ -145,7 +177,7 @@ _EOF_
 
   # GCC
   [ -n "${PG_GCC_PKG}" ] && {
-    echo "$THIS: GCC=${PG_GCC_PKG}"
+    echo "GCC=${PG_GCC_PKG}"
     yum -y update &&
     yum -y install "${PG_GCC_PKG}" &&
     yum -y clean all || exit 100
@@ -154,7 +186,7 @@ _EOF_
   # Download, make, make install
   curl -sL -o - "${PGSRCURL}" |
   tar -zpxvf - &&
-  ( cd "${PGSQLSRC}" && {
+  ( pushd "${PGSQLSRC}" && {
 
       [ -n "${PG_GCC_CMD}" ] &&
       [ -x "${PG_GCC_CMD}" ] && {
@@ -162,7 +194,7 @@ _EOF_
         export CC
       } || :
 
-      echo "$THIS: ./configure ${PG_CONFIGURE_OPTS}"
+      echo "./configure ${PG_CONFIGURE_OPTS}"
 
       ./configure ${PG_CONFIGURE_OPTS} &&
       make &&
@@ -172,10 +204,11 @@ _EOF_
         make install
       }
 
-    }; ) || exit 101
+    } &&
+    popd; ) || exit 101
 
   # Symlink dirs
-  ( cd "${PGROOT}" && {
+  ( pushd "${PGROOT}" && {
 
       rm -rf "${PGROOT}-latest" &>/dev/null || :
 
@@ -194,10 +227,11 @@ _EOF_
 
       }
 
-    }; ) || exit 102
+    } &&
+    popd; ) || exit 102
 
   # PGDATA, Archivelogs
-  ( cd "${PGHOME}" && {
+  ( pushd "${PGHOME}" && {
 
       for dirpath in "${PGDATA}" "${PGARCHLOGDIR}"
       do
@@ -209,35 +243,41 @@ _EOF_
         echo "$THIS: Mkdir '${dirpath}'."
       done
 
-    }; ) || exit 103
+    } &&
+    popd; ) || exit 103
 
   # Print
   cat <<_EOF_
-$THIS: --------------------------------
-$THIS: $(date)
+# --------------------------------------
 _EOF_
 
-} # [ -z "${PGSQLVER}" ]
+} |
+__stdout PGSQL
+# [ -z "${PGSQLVER}" ]
+
+# Check
+[ -z "${PGTAPVER}" ] || {
+  # Check
+  [ -x "${PGROOT}/bin/pg_config" ] || {
+    echo "$THIS: ERROR: command 'pg_config' not found." 1>&2
+    exit 110
+  }
+  # Path
+  [ -x "$(type -P pg_config)" ] || {
+    PATH="${PGROOT}/bin:${PATH}"
+    export PATH
+  }
+}
 
 # Install pgtap
 [ -z "${PGTAPVER}" ] || {
 
-  # Check
-  [ -x "${PGROOT}/bin/psql" ] || {
-    echo "$THIS: ERROR: Command 'psql' not found." 1>&2
-    exit 110
-  }
-
-  # Path
-  export PATH="${PGROOT}/bin:${PATH}"
-
   # Print
   cat <<_EOF_
-$THIS: --------------------------------
-$THIS: pgTAP v$PGTAPVER
-$THIS: $(date)
-$THIS: $(pwd)
-$THIS: --------------------------------
+# --------------------------------------
+# pgTAP v$PGTAPVER
+# $(pwd)
+# --------------------------------------
 _EOF_
 
   # pgTAP Name
@@ -248,26 +288,39 @@ _EOF_
 
   # Print
   cat <<_EOF_
-$THIS: PGTAPSRC=$PGTAPSRC
-$THIS: PGTAPURL=$PGTAPURL
+PGTAPSRC=$PGTAPSRC
+PGTAPURL=$PGTAPURL
 _EOF_
 
   # Install CPAN
-  ( : && {
-      yum -y update &&
-      yum -y install unzip perl perl-CPAN perl-parent &&
-      yum -y clean all
-    }; ) || exit 111
+  [ -x "$(type -P cpan)" ] || {
+  
+    # Print
+    echo "CPAN not found."
 
-  # Download, make,make install, pg_prove install
+    yum -y update &&
+    yum -y install unzip perl perl-CPAN perl-parent &&
+    yum -y clean all &&
+    echo "CPAN install successfuly."
+
+  } || exit 111
+
+  # Print
+  echo "# pgTAP"
+  
+  # Download, make, make install
   curl -sL -o "${PGTAPSRC}.zip" "${PGTAPURL}" &&
   unzip "${PGTAPSRC}.zip" &&
-  ( cd "${PGTAPSRC}" && {
+  ( pushd "${PGTAPSRC}" && {
   
       make &&
       make install
-      
-    }; ) || exit 112
+
+    } &&
+    popd; ) || exit 112
+
+  # Print
+  echo "# pg_prove"
 
   # Install pg_prove
   ( : && {
@@ -279,13 +332,23 @@ _EOF_
 
     }; ) || exit 113
 
+
   # Print
   cat <<_EOF_
-$THIS: --------------------------------
-$THIS: $(date)
+# --------------------------------------
 _EOF_
 
-} # [ -z "${PGTAPVER}" ]
+} |
+__stdout PGTAP
+# [ -z "${PGTAPVER}" ]
+
+# Print
+: && {
+cat <<_EOF_
+Exit '${CDIR}/${THIS}'.
+_EOF_
+} |
+__stdout
 
 # end
 exit 0

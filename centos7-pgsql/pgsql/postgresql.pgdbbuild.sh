@@ -6,6 +6,10 @@ CDIR=$([ -n "${0%/*}" ] && cd "${0%/*}" 2>/dev/null; pwd)
 THIS="${THIS:-dbbuild.sh}"
 BASE="${THIS%.*}"
 
+# awk
+AWK="${AWK:-$(type -P gawk)}"
+AWK="${AWK:-$(type -P awk)}"
+
 # sed
 SED="${SED:-$(type -P gsed)}"
 SED="${SED:-$(type -P sed)}"
@@ -77,15 +81,17 @@ done
 [ -n "$PGDATA" ] || exit 93
 [ -n "$PGPORT" ] || exit 94
 
-# PGCTL
-PGCTL="${PGROOT}/bin/pg_ctl"
+# PCTL
+PCTL="${PCTL:-$(type -P pg_ctl)}"
+PCTL="${PCTL:-${PGROOT}/bin/pg_ctl}"
 
 # PSQL
-PSQL="${PGROOT}/bin/psql"
+PSQL="${PSQL:-$(type -P psql)}"
+PSQL="${PSQL:-${PGROOT}/bin/psql}"
 
 # Check the bin
-[ -x "${PGCTL}" ] || exit 95
-[ -x "${PSQL}" ]  || exit 96
+[ -x "${PCTL}" ] || exit 95
+[ -x "${PSQL}" ] || exit 96
 
 # PG_CTL Wrapper
 _pgctl_wrapper() {
@@ -95,7 +101,7 @@ _pgctl_wrapper() {
   local pgctlret=0
   local _waitfor=0
   : && {
-    /bin/su - "${PGUSER}" -c "${PGCTL} status -D ${PGDATA}"
+    /bin/su - "${PGUSER}" -c "${PCTL} status -D ${PGDATA}"
     pgstatus=$?
   } 1>/dev/null 2>&1
   case "$_command" in
@@ -126,12 +132,12 @@ _pgctl_wrapper() {
       pgctlret=999
       if [ -n "$(type -P systemctl 2>/dev/null)" ]
       then
-        echo "$THIS: PGCTL: command 'systemctl' found."
+        echo "$THIS: PCTL: command 'systemctl' found."
         systemctl "$_command" postgresql; pgctlret=$?
         echo "$THIS: PGTCL: systrmctl $_command postgresql; ret=$pgctlret."
       elif [ -n "$(type -P service 2>/dev/null)" ]
       then
-        echo "$THIS: PGCTL: command 'service' found."
+        echo "$THIS: PCTL: command 'service' found."
         service postgresql "$_command"; pgctlret=$?
         echo "$THIS: PGTCL: service postgresql $_command; ret=$pgctlret."
       fi
@@ -142,9 +148,9 @@ _pgctl_wrapper() {
         pgctlopt=$(echo $pgctlopt "-o '-p ${PGPORT}' -w")
         [ "$_command" != "start" ] &&
         pgctlopt=$(echo $pgctlopt "-m fast")
-        /bin/su - ${PGUSER} -c "${PGCTL} $_command $pgctlopt"
+        /bin/su - ${PGUSER} -c "${PCTL} $_command $pgctlopt"
         pgctlret=$?
-        echo "$THIS: PGCTL: ${PGCTL} $_command $pgctlopt - ret=$pgctlret."
+        echo "$THIS: PCTL: ${PCTL} $_command $pgctlopt - ret=$pgctlret."
       fi
       [ $pgctlret -eq 0 ] &&
       [ $_waitfor -ne 0 ] &&
@@ -309,7 +315,7 @@ fi 2>/dev/null
 }
 
 # PSQL
-PSQL="${PSQL} -U ${PGUSER} -p ${PGPORT}"
+PSQL="${PSQL} -U${PGUSER} -p${PGPORT}"
 
 # Replacing configs
 for config in $(cd "${SRCDIR}/" && ls -1 *.conf 2>/dev/null)

@@ -6,6 +6,10 @@ CDIR=$([ -n "${0%/*}" ] && cd "${0%/*}" 2>/dev/null; pwd)
 THIS="${THIS:-pgsysconfig.sh}"
 BASE="${THIS%.*}"
 
+# awk
+AWK="${AWK:-$(type -P gawk)}"
+AWK="${AWK:-$(type -P awk)}"
+
 # sed
 SED="${SED:-$(type -P gsed)}"
 SED="${SED:-$(type -P sed)}"

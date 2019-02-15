@@ -2,6 +2,14 @@
 DOCKERFUNC_SRC="${BASH_SOURCE##*/}"
 DOCKERFUNC_DIR=$([ -n "${BASH_SOURCE%/*}" ] && cd "${BASH_SOURCE%/*}"; pwd)
 
+# awk
+AWK="${AWK:-$(type -P gawk)}"
+AWK="${AWK:-$(type -P awk)}"
+
+# sed
+SED="${SED:-$(type -P gsed)}"
+SED="${SED:-$(type -P sed)}"
+
 # Load the functins
 if [ -n "${DOCKERFUNC_DIR}" -a -d "${DOCKERFUNC_DIR}/functions" ]
 then
@@ -42,10 +50,11 @@ __section() {
 # Stdout with TS
 __stdout_with_ts() {
   _tag="${1}"
-  awk '{
+  $AWK '{
   printf("%s: %s: %s%s\n",
   "'"${BASE:-MAKE}"'",strftime("%Y%m%dT%H%M%S",systime()),"'"${_tag:+$_tag: }"'",$0);
-  fflush();};' |col -bx
+  fflush();};' |
+  $SED -r 's/\x1B\[([0-9]{1,2}(;[0-9]{1,2})*)?m//g'
   return 0
 }
 
