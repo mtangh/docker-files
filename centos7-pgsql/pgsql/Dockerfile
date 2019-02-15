@@ -221,7 +221,6 @@ ARG \
 ONBUILD \
 RUN \
  set -x; \
- . /etc/sysconfig/postgresql && \
  bash -vx /usr/local/bin/pgsysconfig.sh \
   -f "/etc/sysconfig/postgresql" \
   "PGCTL_START_OPTS=${PGCTL_START_OPTS}" \

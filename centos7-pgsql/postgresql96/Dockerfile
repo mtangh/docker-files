@@ -8,7 +8,7 @@
 #@  DOCKER_BUILDOPTS="${DOCKER_BUILDOPTS} --build-arg PGTAPVER=0.99.0"
 #@  DOCKER_BOOT_OPTS=""
 #
-FROM centos7-pgsql:pgsqlp
+FROM centos7-pgsql:pgsql
 
 # Maintainer
 MAINTAINER MT

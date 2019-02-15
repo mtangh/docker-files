@@ -11,7 +11,7 @@
 FROM centos7-pgsql:pgsql
 
 # Maintainer
-MAINTAINER MTp
+MAINTAINER MT
 
 # Labels
 LABEL \

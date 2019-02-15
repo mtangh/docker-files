@@ -27,8 +27,8 @@ pgsyscfg="/etc/sysconfig/postgresql"
 __stdout() {
   _tag="${1}"
   $AWK '{
-  printf("%s: %s: %s%s\n",
-  "'"${BASE}"'",strftime("%Y%m%dT%H%M%S",systime()),"'"${_tag:+$_tag: }"'",$0);
+  printf("%s: %s%s\n",
+  "'"${BASE}"'","'"${_tag:+$_tag: }"'",$0);
   fflush();};' |
   $SED -r 's/\x1B\[([0-9]{1,2}(;[0-9]{1,2})*)?m//g'
   return 0
