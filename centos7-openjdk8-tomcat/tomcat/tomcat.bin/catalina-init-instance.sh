@@ -2,6 +2,19 @@
 THIS="${0##*/}"
 CDIR=$([ -n "${0%/*}" ] && cd "${0%/*}" 2>/dev/null; pwd)
 
+# Name
+THIS="${THIS:-catalina-init-instance.sh}"
+BASE="${THIS%.*}"
+
+# awk
+AWK="${AWK:-$(type -P gawk)}"
+AWK="${AWK:-$(type -P awk)}"
+
+# sed
+SED="${SED:-$(type -P gsed)}"
+SED="${SED:-$(type -P sed)}"
+
+# Instance Name
 INSTANCENAME="${TC_INSTANCE:-}"
 
 # Parsing options
@@ -92,10 +105,8 @@ _EOF_
   } # [ -n "${CATALINA_OUT}" -a -d "${CATALINA_OUT%/*}" ] &&
 
 } 2>/dev/null |
-while read stdoutln
-do
-  echo "$THIS: $stdoutln"
-done
+$AWK '{printf("%s: %s\n","'"${BASE}"'",$0);fflush();};' |
+$SED -r 's/\x1B\[([0-9]{1,2}(;[0-9]{1,2})*)?m//g'
 
 # end of script
 exit 0

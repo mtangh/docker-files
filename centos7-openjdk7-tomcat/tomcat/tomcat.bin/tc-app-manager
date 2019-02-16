@@ -1,6 +1,5 @@
 #!/bin/bash
-THIS="${0##*/}"
-BASE="${THIS%.*}"
+THIS=$([ -n "${0##*/}" ] && echo "${0##*/}" || echo "tc-app-manager")
 CDIR=$([ -n "${0%/*}" ] && cd "${0%/*}" 2>/dev/null; pwd)
 
 # Load the tomcat-tools.rc
@@ -29,20 +28,20 @@ function context_deploy() {
   _warfile="$2"
   if [ -z "${_ctxname}" ]
   then
-    echo echo "$THIS: context-name is not specified." 1>&2
-    return 1
+    echo "$THIS: context-name is not specified." 1>&2
+    return 51
   fi
   if [ -d "${CATALINA_APPDIR}/${_ctxname}" ] ||
      [ -f "${CATALINA_APPDIR}/${_ctxname}.war" ]
   then
     echo "$THIS: context-name '$_ctxname' found. skipping." 1>&2
-    return 1
+    return 52
   fi
   if [ -z "${_warfile}" ] ||
      [ ! -e "${_warfile}" ]
   then
     echo "$THIS: '$_warfile': no such file or directory." 1>&2
-    return 1
+    return 53
   fi
   _ctxname="${_ctxname#*/}"
   basename="${_warfile##*/}"
@@ -64,9 +63,9 @@ function context_undeploy() {
   if [ -z "$_ctxname" ]
   then
     echo "$THIS: context-name is not specified." 1>&2
-    return 1
+    return 56
   fi
-  if [ -e "$_ctxname" ] || 
+  if [ -e "$_ctxname" ] ||
      [ -e "${_ctxname}.war" ]
   then
     _ctxname="${_ctxname##*/}"
@@ -76,7 +75,7 @@ function context_undeploy() {
      [ ! -f "${CATALINA_APPDIR}/${_ctxname}.war" ]
   then
     echo "$THIS: context-name '$_ctxname' not found." 1>&2
-    return 1
+    return 57
   fi
   $tomcatman "$tomcaturl/undeploy?path=/${_ctxname}" ; _RET=$?
   if [ $_RET -eq 0 ]
@@ -94,9 +93,9 @@ function context_start() {
   if [ -z "$_ctxname" ]
   then
     echo "$THIS: context-name is not specified." 1>&2
-    return 1
+    return 61
   fi
-  if [ -e "$_ctxname" ] || 
+  if [ -e "$_ctxname" ] ||
      [ -e "${_ctxname}.war" ]
   then
     _ctxname="${_ctxname##*/}"
@@ -106,7 +105,7 @@ function context_start() {
      [ ! -f "${CATALINA_APPDIR}/${_ctxname}.war" ]
   then
     echo "$THIS: context-name '$_ctxname' not found." 1>&2
-    return 1
+    return 62
   fi
   $tomcatman "$tomcaturl/start?path=/${_ctxname}" ; _RET=$?
   return $_RET
@@ -118,9 +117,9 @@ function context_stop() {
   if [ -z "$_ctxname" ]
   then
     echo "$THIS: context-name is not specified." 1>&2
-    return 1
+    return 66
   fi
-  if [ -e "$_ctxname" ] || 
+  if [ -e "$_ctxname" ] ||
      [ -e "${_ctxname}.war" ]
   then
     _ctxname="${_ctxname##*/}"
@@ -130,7 +129,7 @@ function context_stop() {
      [ ! -f "${CATALINA_APPDIR}/${_ctxname}.war" ]
   then
     echo "$THIS: context-name '$_ctxname' not found." 1>&2
-    return 1
+    return 67
   fi
   $tomcatman "$tomcaturl/stop?path=/${_ctxname}" ; _RET=$?
   return $_RET
@@ -142,9 +141,9 @@ function context_reload() {
   if [ -z "$_ctxname" ]
   then
     echo "$THIS: context-name is not specified." 1>&2
-    return 1
+    return 71
   fi
-  if [ -e "$_ctxname" ] || 
+  if [ -e "$_ctxname" ] ||
      [ -e "${_ctxname}.war" ]
   then
     _ctxname="${_ctxname##*/}"
@@ -154,7 +153,7 @@ function context_reload() {
      [ ! -f "${CATALINA_APPDIR}/${_ctxname}.war" ]
   then
     echo "$THIS: context-name '$_ctxname' not found." 1>&2
-    return 1
+    return 72
   fi
   case "$TOMCAT_VERSION" in
   [0-6])
@@ -176,9 +175,9 @@ function context_sessions() {
   if [ -z "$_ctxname" ]
   then
     echo "$THIS: context-name is not specified." 1>&2
-    return 1
+    return 81
   fi
-  if [ -e "$_ctxname" ] || 
+  if [ -e "$_ctxname" ] ||
      [ -e "${_ctxname}.war" ]
   then
     _ctxname="${_ctxname##*/}"
@@ -188,7 +187,7 @@ function context_sessions() {
      [ ! -f "${CATALINA_APPDIR}/${_ctxname}.war" ]
   then
     echo "$THIS: context-name '$_ctxname' not found." 1>&2
-    return 1
+    return 82
   fi
   $tomcatman "$tomcaturl/sessions?path=/${_ctxname}" ; _RET=$?
   return $_RET
@@ -200,9 +199,9 @@ function context_expire() {
   if [ -z "$_ctxname" ]
   then
     echo "$THIS: context-name is not specified." 1>&2
-    return 1
+    return 86
   fi
-  if [ -e "$_ctxname" ] || 
+  if [ -e "$_ctxname" ] ||
      [ -e "${_ctxname}.war" ]
   then
     _ctxname="${_ctxname##*/}"
@@ -212,7 +211,7 @@ function context_expire() {
      [ ! -f "${CATALINA_APPDIR}/${_ctxname}.war" ]
   then
     echo "$THIS: context-name '$_ctxname' not found." 1>&2
-    return 1
+    return 87
   fi
   $tomcatman "$tomcaturl/expire?path=/${_ctxname}" ; _RET=$?
   return $_RET
@@ -223,9 +222,9 @@ function removeCtxDir() {
   _ctxname="${1}"
   if [ -z "${_ctxname}" ]
   then
-    return 1
+    return 91
   fi
-  if [ -e "$_ctxname" ] || 
+  if [ -e "$_ctxname" ] ||
      [ -e "${_ctxname}.war" ]
   then
     _ctxname="${_ctxname##*/}"
@@ -234,7 +233,7 @@ function removeCtxDir() {
   if [ ! -e "${CATALINA_APPDIR}/${_ctxname}.war" ] ||
      [ ! -d "${CATALINA_APPDIR}/${_ctxname}" ] ;
   then
-    return 1
+    return 92
   fi
   (
     cd "${CATALINA_APPDIR}"
@@ -249,9 +248,9 @@ function unpackWar() {
   _ctxname="${1}"
   if [ -z "${_ctxname}" ]
   then
-    return 1
+    return 93
   fi
-  if [ -e "$_ctxname" ] || 
+  if [ -e "$_ctxname" ] ||
      [ -e "${_ctxname}.war" ]
   then
     _ctxname="${_ctxname##*/}"
@@ -259,11 +258,11 @@ function unpackWar() {
   fi
   if [ ! -e "${CATALINA_APPDIR}/${_ctxname}.war" ]
   then
-    return 1
+    return 94
   fi
   if [ -d "${CATALINA_APPDIR}/${_ctxname}" ]
   then
-    return 1
+    return 95
   fi
   (
     cd "${CATALINA_APPDIR}"
@@ -306,11 +305,13 @@ list)
   _retval=$?
   ;;
 *)
-  echo "Usage: $THIS deploy context-name war-file"
-  echo "       $THIS undeploy context-name"
-  echo "       $THIS {start|stop|reload} context-name"
-  echo "       $THIS {sessions|expire} context-name"
-  echo "       $THIS list"
+  cat <<_USAGE_
+Usage: $THIS deploy context-name war-file
+       $THIS undeploy context-name
+       $THIS {start|stop|reload} context-name
+       $THIS {sessions|expire} context-name
+       $THIS list
+_USAGE_
   _retval=1
   ;;
 esac

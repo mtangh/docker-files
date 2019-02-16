@@ -25,8 +25,7 @@ WORKDIR \
 RUN \
  set -x; \
  yum -y update && \
- yum -y install \
-  which tar unzip gcc patch readline-devel zlib-devel && \
+ yum -y install which tar unzip gcc patch readline-devel zlib-devel && \
  yum -y clean all
 
 # COPY sysconfig file to /etc/sysconfig
@@ -74,7 +73,7 @@ RUN \
   echo ''; \
  } >>"${PGHOME}/.bashrc"
 
-# Install init and db build script
+# Install systemd service file and db* scripts
 COPY \
  postgresql.* ${WORKDIR}/
 RUN \
@@ -181,7 +180,7 @@ RUN \
   "PGDATA=${PGDATA}" \
   "PGPORT=${PGPORT}"
 
-# Install postgresql and pgTAP
+# Install postgresql and pgTAP, pg_prove
 ONBUILD \
 ARG \
  PG_GCC_PKG=""
@@ -224,8 +223,8 @@ RUN \
  bash -vx /usr/local/bin/pgsysconfig.sh \
   -f "/etc/sysconfig/postgresql" \
   "PGCTL_START_OPTS=${PGCTL_START_OPTS}" \
-  "PGCTL_STOP_OPTS="${PGCTL_STOP_OPTS}" \
-  "PGCTL_RELOAD_OPTS="${PGCTL_RELOAD_OPTS}" && \
+  "PGCTL_STOP_OPTS=${PGCTL_STOP_OPTS}" \
+  "PGCTL_RELOAD_OPTS=${PGCTL_RELOAD_OPTS}" && \
  systemctl enable postgresql.service || :
 
 # Init database

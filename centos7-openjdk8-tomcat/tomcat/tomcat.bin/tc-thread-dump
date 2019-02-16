@@ -1,6 +1,5 @@
 #!/bin/bash
-THIS="${0##*/}"
-BASE="${THIS%.*}"
+THIS=$([ -n "${0##*/}" ] && echo "${0##*/}" || echo "tc-thread-dump")
 CDIR=$([ -n "${0%/*}" ] && cd "${0%/*}" 2>/dev/null; pwd)
 
 # Load the tomcat-tools.rc

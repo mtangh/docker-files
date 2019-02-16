@@ -25,9 +25,7 @@ WORKDIR \
 RUN \
  set -x; \
  yum -y update && \
- yum -y install \
-  which tar unzip gcc patch readline-devel zlib-devel \
-  perl perl-CPAN perl-parent && \
+ yum -y install which tar unzip gcc patch readline-devel zlib-devel && \
  yum -y clean all
 
 # COPY sysconfig file to /etc/sysconfig
@@ -49,40 +47,52 @@ RUN \
  useradd -u "${PG_UID:-26}" -g "${PGUSER}" -d "${PGHOME}" -m "${PGUSER}" && \
  echo "${PGUSER}:${PGPASSWORD:-$PGUSER}" |chpasswd
 
-# Setup $PGHOME
-RUN \
- set -x; . /etc/sysconfig/postgresql && \
+ set -x; \
+ . /etc/sysconfig/postgresql && \
  [ -d "${PGHOME}" ] || { \
   mkdir -p "${PGHOME}" && \
   chown "${PGUSER}:${PGUSER}" "${PGHOME}" && \
   chmod 0755 "${PGHOME}"; \
  }; \
  : && { \
-  echo && \
+  echo '' && \
   echo '# For PostgreSQL' && \
   echo 'if [ -r "/etc/sysconfig/postgresql" ]' && \
   echo 'then' && \
   echo '  . /etc/sysconfig/postgresql' && \
-  echo '  export PGUSER PGHOME PGDATA PGPORT' && \
+  echo '  export PGUSER PGHOME PGROOT PGDATA PGPORT' && \
   echo 'fi' && \
-  echo '[ -n "${PGHOME}" ] &&' && \
-  echo '[ -d "${PGHOME}/bin" ] &&' && \
-  echo '[ -z "$(type -p psql)" ] &&' && \
-  echo 'export PATH="${PATH}:${PGHOME}/bin"' && \
-  echo; \
+  echo 'if [ -z "$(type -P psql)" -a -x "${PGROOT:-X}/bin/psql" ]' && \
+  echo 'then' && \
+  echo '  PATH="${PGROOT}/bin:${PATH}"' && \
+  echo '  export PATH' && \
+  echo 'fi' && \
+  echo ''; \
  } >>"${PGHOME}/.bashrc"
 
-# Install init and db build script
+# Install init.d and and db* scripts
 COPY \
  postgresql.* ${WORKDIR}/
 RUN \
- set -x; . /etc/sysconfig/postgresql && \
+ set -x; \
+ . /etc/sysconfig/postgresql && \
  mv -f "${WORKDIR}/postgresql.init.sh" "/etc/init.d/postgresql" && \
  chown root:root /etc/init.d/postgresql && \
  chmod 0755 /etc/init.d/postgresql && \
- mv -f "${WORKDIR}/postgresql.dbbuild.sh" "${PGHOME}/dbbuild.sh" && \
- chown "root:${PGUSER}" "${PGHOME}/dbbuild.sh" && \
- chmod 0775 "${PGHOME}/dbbuild.sh"
+ [ -d "/usr/local/bin" ] || { \
+  mkdir -p "/usr/local/bin"; \
+ } || : ; \
+ for pg_shell_scr in pgsysconfig pginstall pgdbbuild; \
+ do \
+  [ -e "${WORKDIR}/postgresql.${pg_shell_scr}.sh" ] && { \
+    mv -f \
+      "${WORKDIR}/postgresql.${pg_shell_scr}.sh" \
+      "/usr/local/bin/${pg_shell_scr}.sh" && \
+    chown "root:root" "/usr/local/bin/${pg_shell_scr}.sh" && \
+    chmod 0775 "/usr/local/bin/${pg_shell_scr}.sh" && \
+    ln -sf "/usr/local/bin/${pg_shell_scr}.sh" "${PGHOME}"/; \
+  }; \
+ done
 
 # Reset Work dir
 WORKDIR /
@@ -129,6 +139,11 @@ ONBUILD \
 ARG \
  PGHOME="/opt/postgresql"
 
+# PGROOT
+ONBUILD \
+ARG \
+ PGROOT="/opt/postgresql"
+
 # PGDATA
 ONBUILD \
 ARG \
@@ -139,35 +154,30 @@ ONBUILD \
 ARG \
  PGPORT="5432"
 
-# Update sysconfig
+# PGPASSWORD
+ONBUILD \
+ARG \
+ PGPASSWORD=""
+
+# PGARCHLOGDIR
+ONBUILD \
+ARG \
+ PGARCHLOGDIR=""
+
+# PostgreSQL sysconfig Updat
 ONBUILD \
 RUN \
  set -x; \
- pgsysconf="/etc/sysconfig/postgresql"; \
- [ -n "$PGUSER" ] && { \
-  grep -E '^[ ]*PGUSER='${PGUSER}'[ ]*$' "$pgsysconf" 1>/dev/null 2>&1 || { \
-   echo "Update PGUSER = '$PGUSER'."; \
-   sed -i 's/^[ ]*PGUSER=[^ ]*[ ]*$/PGUSER='${PGUSER}'/g' "$pgsysconf"; \
- }; }; \
- [ -n "$PGHOME" ] && { \
-  grep -E '^[ ]*PGHOME='${PGHOME}'[ ]*$' "$pgsysconf" 1>/dev/null 2>&1 || { \
-   echo "Update PGHOME = '$PGHOME'."; \
-   sed -i 's/^[ ]*PGHOME=[^ ]*[ ]*$/PGHOME='${PGHOME}'/g' "$pgsysconf"; \
- }; }; \
- [ -n "$PGDATA" ] && { \
-  grep -E '^[ ]*PGDATA='${PGDATA}'[ ]*$' "$pgsysconf" 1>/dev/null 2>&1 || { \
-   echo "Update PGDATA = '$PGDATA'."; \
-   sed -i 's/^[ ]*PGDATA=[^ ]*[ ]*$/PGDATA='${PGDATA}'/g' "$pgsysconf"; \
- }; }; \
- [ -n "$PGPORT" ] && { \
-  grep -E '^[ ]*PGPORT='${PGPORT}'[ ]*$' "$pgsysconf" 1>/dev/null 2>&1 || { \
-   echo "Update PGPORT = '$PGPORT'."; \
-   sed -i 's/^[ ]*PGPORT=[^ ]*[ ]*$/PGPORT='${PGPORT}'/g' "$pgsysconf"; \
- }; }; \
- echo "$pgsysconf" && \
- cat "$pgsysconf"
+ bash -vx /usr/local/bin/pgsysconfig.sh \
+  -f "/etc/sysconfig/postgresql" \
+  "PGSQLVER=${PGSQLVER}" \
+  "PGUSER=${PGUSER}" \
+  "PGHOME=${PGHOME}" \
+  "PGROOT=${PGROOT}" \
+  "PGDATA=${PGDATA}" \
+  "PGPORT=${PGPORT}"
 
-# Install postgresql
+# Install postgresql and pgTAP, pg_prove
 ONBUILD \
 ARG \
  PG_GCC_PKG=""
@@ -176,7 +186,7 @@ ARG \
  PG_GCC_CMD=""
 ONBUILD \
 ARG \
- PG_CONFIGURE_OPTIONS=""
+ PG_CONFIGURE_OPTS=""
 ONBUILD \
 RUN \
  [ -n "$PGSQLVER" ] || { \
@@ -184,72 +194,34 @@ RUN \
   exit 127; \
  }; \
  set -x; \
- [ -n "${PG_GCC_PKG}" ] && { \
-  yum -y update && yum -y install "${PG_GCC_PKG}" &&  yum -y clean all; \
- }; \
  . /etc/sysconfig/postgresql && \
- pgname="postgresql-${PGSQLVER}" && \
- pg_ver="${PGSQLVER}" && \
- pg_url="https://ftp.postgresql.org/pub/source/v${pg_ver}/${pgname}.tar.gz" && \
- curl -sL -o - "${pg_url}" |tar -zpxvf - && \
- ( [ -n "${PG_GCC_CMD}" -a -x "${PG_GCC_CMD}" ] && { \
-    CC="${PG_GCC_CMD}"; export CC; \
-   }; \
-   cd "${pgname}" && \
-   ./configure --prefix="${PGHOME}-${pg_ver}" ${PG_CONFIGURE_OPTIONS} && \
-   make && make install && \
-   cd ./contrib && make && make install; ) && \
- ( cd "${PGHOME}" && { \
-    rm -rf "${PGHOME}-latest"; \
-    ln -sf "${PGHOME}-${pg_ver}" "${PGHOME}-latest"; \
-   } && \
-   for dir in "${PGHOME}/archivelogs" "${PGDATA}"; do \
-    [ -d "$dir" ] || mkdir -p "$dir"; \
-    chown "${PGUSER}:${PGUSER}" "$dir" && \
-    chmod 2750 "$dir"; \
-   done && \
-   for dir in bin include lib share; do \
-    [ -e "$dir" ] && rm -rf "./$dir"; \
-    ln -sf "${PGHOME}-latest/$dir" .; \
-   done; )
-
-# Install pgTAP
-ONBUILD \
-RUN \
- if [ -n "${PGTAPVER}" ]; \
- then \
-  set -x; . /etc/sysconfig/postgresql && \
-  pgtapname="pgtap-${PGTAPVER}" && \
-  pgtap_ver="${PGTAPVER}" && \
-  pgtap_url="http://api.pgxn.org/dist/pgtap/${pgtap_ver}/${pgtapname}.zip" && \
-  curl -sL -o "${pgtapname}.zip" "${pgtap_url}" && unzip "${pgtapname}.zip" && \
-  ( export PATH="$PATH:${PGHOME}/bin" && \
-    cd "${pgtapname}" && \
-    make && make install; ) && \
-  rm -rf "./${pgtapname}"*; \
- else \
-  echo "'PGTAPVER' is not set, skipping."; \
- fi
-
-# Install pg_prove
-ONBUILD \
-RUN \
- if [ -n "${PGTAPVER}" ]; \
- then \
-  set -x; \
-  export PERL_MM_OPT="install_base" && \
-  export PERL_AUTOINSTALL="--defaultdeps" && \
-  cpan -i Module::Build && \
-  cpan -i TAP::Parser::SourceHandler::pgTAP && \
-  rm -rf /root/.cpan; \
- else \
-  echo "'PGTAPVER' is not set, skipping."; \
- fi
+ bash -vx /usr/local/bin/pginstall.sh \
+  -w "${WORKDIR}" \
+  "PGSQLVER=${PGSQLVER}" \
+  "PGTAPVER=${PGTAPVER}" \
+  "PG_GCC_PKG=${PG_GCC_PKG}" \
+  "PG_GCC_CMD=${PG_GCC_CMD}" \
+  "PG_CONFIGURE_OPTS=${PG_CONFIGURE_OPTS}" \
+  "PGARCHLOGDIR=${PGARCHLOGDIR}"
 
 # Add to the service
 ONBUILD \
+ARG \
+ PGCTL_START_OPTS=""
+ONBUILD \
+ARG \
+ PGCTL_STOP_OPTS=""
+ONBUILD \
+ARG \
+ PGCTL_RELOAD_OPTS=""
+ONBUILD \
 RUN \
  set -x; \
+ bash -vx /usr/local/bin/pgsysconfig.sh \
+  -f "/etc/sysconfig/postgresql" \
+  "PGCTL_START_OPTS=${PGCTL_START_OPTS}" \
+  "PGCTL_STOP_OPTS=${PGCTL_STOP_OPTS}" \
+  "PGCTL_RELOAD_OPTS=${PGCTL_RELOAD_OPTS}" && \
  /sbin/chkconfig --add postgresql && \
  /sbin/chkconfig --levels 2345 postgresql on; \
  /sbin/chkconfig --list |grep postgresql
@@ -257,14 +229,15 @@ RUN \
 # Init database
 ONBUILD \
 ARG \
- PG_INITDB_OPTIONS="-E UTF-8 --locale=C"
+ PG_INITDB_OPTS="-E UTF-8 --locale=C"
 ONBUILD \
 RUN \
- set -x; . /etc/sysconfig/postgresql && \
+ set -x; \
+ . /etc/sysconfig/postgresql && \
  [ -d "${PGDATA}" ] || mkdir -p "${PGDATA}"; \
  chown "${PGUSER}:${PGUSER}" "${PGDATA}" && \
  chmod 2750 "${PGDATA}"; \
- su - "${PGUSER}" -c "LANG= ${PGHOME}/bin/initdb ${PG_INITDB_OPTIONS} ${PGDATA}"
+ su - "${PGUSER}" -c "LANG= ${PGROOT}/bin/initdb ${PG_INITDB_OPTS} ${PGDATA}"
 
 ONBUILD \
 WORKDIR \
@@ -278,7 +251,8 @@ COPY \
 # Setup default config
 ONBUILD \
 RUN \
- set -x; . /etc/sysconfig/postgresql && \
+ set -x; \
+ . /etc/sysconfig/postgresql && \
  for config in *.conf; do \
   [ -r "${PGDATA}/${config}" ] && \
   [ ! -e "${PGDATA}/${config}.ORIG" ] && \
@@ -292,11 +266,10 @@ RUN \
 ONBUILD \
 RUN \
  set -x; \
- options=""; \
- options="$options "$([ -n "$PGDATA" ] && echo "-D $PGDATA"); \
- options="$options "$([ -n "$PGPORT" ] && echo "-p $PGPORT"); \
- . /etc/sysconfig/postgresql && \
- bash ${PGHOME}/dbbuild.sh $options "${WORKDIR}/data"
+ . /etc/sysconfig/postgresql; \
+ bash -vx /usr/local/bin/pgdbbuild.sh \
+  -f "/etc/sysconfig/postgresql" \
+  "${WORKDIR}/data"
 
 # Reset Work dir
 ONBUILD \

@@ -13,3 +13,7 @@ TOMCAT_USER=tomcat
 CATALINA_HOME=/opt/tomcat/default
 CATALINA_BASE=/opt/tomcat/instances/tomcat
 
+# For ttomcat-cleanup-logs.service
+TCLOG_ARCHIVEDAYS=3
+TCLOG_REMOVE_DAYS=7
+

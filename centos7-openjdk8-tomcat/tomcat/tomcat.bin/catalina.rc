@@ -1,8 +1,13 @@
 # catalina.rc
+CATALINA_RCFILE="${BASH_SOURCE##*/}"
+CATALINA_RC_DIR=$([ -n "${BASH_SOURCE%/*}" ] && cd "${BASH_SOURCE%/*}" 2>/dev/null; pwd)
 
+# Instance
 INSTANCENAME="${INSTANCENAME:-$TC_INSTANCE}"
 INSTANCESDIR="${INSTANCESDIR:-$TC_INSTANCES_DIR}"
 TEMPLATE_DIR="${TEMPLATE_DIR:-$TC_INSTANCE_TEMPLATE}"
+
+# sysconf load
 sysconf_load=0
 
 # instance name
@@ -21,7 +26,7 @@ for instance_cfg in \
 "${INSTANCENAME:+/etc/sysconfig/tomcat@$INSTANCENAME}"
 do
   [ ! -r "${instance_cfg}" ] || {
-    echo "SYSCONFIG: ${instance_cfg}" 
+    echo "SYSCONFIG: ${instance_cfg}"
     . "${instance_cfg}" && sysconf_load=1
   }
 done

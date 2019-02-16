@@ -1,11 +1,34 @@
-# tomcat-tools-common.sh
-[ -n "${BASH_SOURCE}" ] && {
-  TCTOOLS_CONFIG="${BASH_SOURCE##*/}"
-  TCTOOLSBASEDIR=$([ -n "${TCTOOLS_CONFIG%/*}" ] && cd "${TCTOOLS_CONFIG%/*}" 2>/dev/null; pwd)
-}
+# tomcat-tools.rc
+TCTOOLS_CONFIG="${BASH_SOURCE##*/}"
+TCTOOLSBASEDIR=$([ -n "${BASH_SOURCE%/*}" ] && cd "${BASH_SOURCE%/*}" 2>/dev/null; pwd)
+
+# BASH ?
 [ -n "${BASH_SOURCE}" ] || {
   exit 125
 }
+
+# awk
+AWK="${AWK:-$(type -P gawk)}"
+AWK="${AWK:-$(type -P awk)}"
+
+# sed
+SED="${SED:-$(type -P gsed)}"
+SED="${SED:-$(type -P sed)}"
+
+# Options
+for tc_command_argv in "$@"
+do
+  case "$tc_command_argv" in
+  TC_*=*|TOMCAT_*=*|CATALINA_*=*)
+    [ -n "${tc_command_argv%%=*}" -a -n "${tc_command_argv#*=}" ] && {
+      eval "${tc_command_argv}"; export "${tc_command_argv%%=*}"
+    }
+    ;;
+  *)
+    ;;
+  esac
+done
+unset tc_command_argv
 
 # Tomcat version
 TOMCAT_VERSION="${TOMCAT_VERSION:-}"
@@ -64,7 +87,7 @@ TC_MANAGE_PASS="${TC_MANAGE_PASS:-}"
     TC_MANAGE_PASS=$(
       echo 'cat /tomcat-users/user[@username="'${TC_MANAGE_USER}'"]/@password' |
       xmllint --shell "${user_xml}" |
-      sed -ne 's/^[ ]*password="\([^"][^"]*\)"/\1/gp' )
+      $SED -rne 's/^[ ]*password="([^"][^"]*)"/\1/gp' )
     [ -n "$TC_MANAGE_PASS" ] &&
     break
   done
@@ -81,8 +104,8 @@ TOMCAT_VERSION=$(
       continue
     }
     $vers_bin |
-    sed -rne 's#^Server[ ]+version[ ]*:[ ]+([^ ].+[^ ])[ ]*$#\1#gp' |
-    sed -rne 's#^.*[^ ]+[ ]*/[ ]*(|[1-9][0-9]*)[^0-9]*.*$#\1#gp' |
+    $SED -rne 's#^Server[ ]+version[ ]*:[ ]+([^ ].+[^ ])[ ]*$#\1#gp' |
+    $SED -rne 's#^.*[^ ]+[ ]*/[ ]*(|[1-9][0-9]*)[^0-9]*.*$#\1#gp' |
     cat
     break
   done 2>/dev/null )

@@ -2,47 +2,23 @@
 THIS="${0##*/}"
 CDIR=$([ -n "${0%/*}" ] && cd "${0%/*}" 2>/dev/null; pwd)
 
+# Name
+THIS="${THIS:-catalina-cleanup-logs.sh}"
+BASE="${THIS%.*}"
+
+# awk
+AWK="${AWK:-$(type -P gawk)}"
+AWK="${AWK:-$(type -P awk)}"
+
+# sed
+SED="${SED:-$(type -P gsed)}"
+SED="${SED:-$(type -P sed)}"
+
+# Vars
 tcinstances=""
 archivedays=""
 delete_days=""
 verboseflag=0
-
-# Parsing options
-while [ $# -gt 0 ]
-do
-  case "$1" in
-  -v*|--verbose*)
-    verboseflag=1
-    ;;
-  -*)
-    ;;
-  *)
-    if [ -z "$archivedays" ]
-    then
-      expr "$1" + 1 1>/dev/null 2>&1 &&
-      archivedays="$1"
-    elif [ -z "$delete_days" ]
-    then
-      expr "$1" + 1 1>/dev/null 2>&1 &&
-      delete_days="$1"
-    fi
-    ;;
-  esac
-  shift
-done
-
-# Load the catalina.rc
-[ -r "${CDIR}/catalina.rc" ] || {
-  echo "$THIS: ERROR: 'catalina.rc' is not set." 1>&2
-  exit 127
-}
-. "${CDIR}/catalina.rc" 1>/dev/null || {
-  exit $?
-}
-[ -d "${TOMCAT_HOME}/var/log" ] || {
-  echo "$THIS: ERROR: '${TOMCAT_HOME}/var/log' is not a directory." 1>&2
-  exit 97
-}
 
 # Usage
 _usage() {
@@ -63,6 +39,43 @@ _verbose() {
     [ $verboseflag -gt 0 ]
   fi
   return $?
+}
+
+# Parsing options
+while [ $# -gt 0 ]
+do
+  case "$1" in
+  -v*|--verbose*)
+    verboseflag=1
+    ;;
+  -*)
+    ;;
+  *)
+    if [ -z "$archivedays" ]
+    then
+      expr "$1" + 1 &&
+      archivedays="$1"
+    elif [ -z "$delete_days" ]
+    then
+      expr "$1" + 1 &&
+      delete_days="$1"
+    fi 1>/dev/null 2>&1
+    ;;
+  esac
+  shift
+done
+
+# Load the catalina.rc
+[ -r "${CDIR}/catalina.rc" ] || {
+  echo "$THIS: ERROR: 'catalina.rc' is not set." 1>&2
+  exit 127
+}
+. "${CDIR}/catalina.rc" 1>/dev/null || {
+  exit $?
+}
+[ -d "${TOMCAT_HOME}/var/log" ] || {
+  echo "$THIS: ERROR: '${TOMCAT_HOME}/var/log' is not a directory." 1>&2
+  exit 97
 }
 
 # Set the shell flags
@@ -92,9 +105,11 @@ cd "${TOMCAT_HOME}/var/log" && {
   archivecount=0
   delete_count=0
 
-  echo "Logs dir: $(pwd)"
-  echo "Tomcat instance PIDs: $tcinstances."
-  echo "Compressed / deleted: after $archivedays / $delete_days days."
+  cat <<_EOF_
+Logs dir: $(pwd)
+Tomcat instance PIDs: $tcinstances.
+Compressed / deleted: after $archivedays / $delete_days days.
+_EOF_
 
   # Compress old logs
   for log_file in $(
@@ -145,10 +160,8 @@ cd "${TOMCAT_HOME}/var/log" && {
   echo "Compressed / deleted: $archivecount / $delete_count files."
 
 } 2>/dev/null |
-while read stdoutln
-do
-  echo "$THIS: $stdoutln"
-done
+$AWK '{printf("%s: %s\n","'"${BASE}"'",$0);fflush();};' |
+$SED -r 's/\x1B\[([0-9]{1,2}(;[0-9]{1,2})*)?m//g'
 
 # end of script
 exit 0

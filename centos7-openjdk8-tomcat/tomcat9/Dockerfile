@@ -20,6 +20,3 @@ LABEL \
  docker.run.options="-d -P -h co7oj8-tomcat9 --privileged" \
  docker.run.confirm-startup=""
 
-# Publish a container's port(s) to the host
-EXPOSE 8080 8443
-

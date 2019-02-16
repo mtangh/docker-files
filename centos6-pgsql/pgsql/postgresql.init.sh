@@ -40,21 +40,22 @@ PGUSER="${PGUSER:-postgres}"
 
 # directories
 PGHOME="${PGHOME:-/opt/postgresql}"
+PGROOT="${PGROOT:-/opt/postgresql}"
 PGDATA="${PGDATA:-$PGHOME/data}"
 PGPORT="${PGPORT:-5432}"
 
 # postgresql commands
-POSTMASTER="${PGHOME}/bin/postmaster"
-PG_CONTROL="${PGHOME}/bin/pg_ctl"
+POSTMASTER="${PGROOT}/bin/postmaster"
+PG_CONTROL="${PGROOT}/bin/pg_ctl"
 
 # log file
 PG_LOG="${PG_LOG:-/var/log/$NAME.log}"
 
 # lock file
-LOCKDILE="/var/lock/subsys/${NAME}"
+PGLOCK="${PGLOCK:-/var/lock/subsys/$NAME}"
 
 # PID file
-PID_FILE="/var/run/postmaster.${PGPORT}.pid"
+PG_PID="${PG_PID:-/var/run/postmaster.$PGPORT.pid}"
 
 # export environment variables
 export PGDATA PGPORT
@@ -73,70 +74,78 @@ script_result=0
 ##
 
 start() {
-
   # Make sure startup-time log file is valid
   if [ ! -e "$PG_LOG" ]
   then
-    touch "$PG_LOG" || exit 1
-    chown "$PGUSER:$PGUSER" "$PG_LOG"
-    chmod 0660 "$PG_LOG"
-    if [ -x /usr/bin/chcon ]
+    touch "$PG_LOG" &&
+    chown "$PGUSER:$PGUSER" "$PG_LOG" &&
+    chmod 0660 "$PG_LOG" || exit 1
+    if [ -x "/usr/bin/chcon" ]
     then
-      /usr/bin/chcon -u system_u -r object_r -t postgresql_log_t "$PG_LOG" 2>/dev/null
+      /usr/bin/chcon -u system_u -r object_r -t postgresql_log_t "$PG_LOG"
     fi
   fi 1>/dev/null 2>&1
-
+  # Starting PostgreSQL Service
   echo -n $"Starting ${NAME} service: "
-  $SU -l "$PGUSER" -c "$POSTMASTER -p '$PGPORT' -D '$PGDATA' ${PGOPTS} &" 1>>"$PG_LOG" 2>&1 </dev/null
-  for count in 1 2 3 4 5 6 7 8
-  do
-    postmaster_pid=$(pidof -s "$POSTMASTER" 2>/dev/null)
-    [ -n "$postmaster_pid" ] && break
-    sleep 1
-  done
-  if [ -n "$postmaster_pid" ] &&
-     [ -f "${PGDATA}/postmaster.pid" ]
+  # PG_CTL start
+  : && {
+    # pg_ctl start
+    $SU -l "$PGUSER" -c "$PG_CONTROL start -D '$PGDATA' -o '-p ${PGPORT}' ${PGCTL_START_OPTS:--s -w}" </dev/null &&
+    for count in $(seq 1 30 2>/dev/null)
+    do
+      [ -n "$(pidof -s "$POSTMASTER" 2>/dev/null)" ] && break
+      sleep 1
+    done
+  } 1>>"$PG_LOG" 2>&1
+  # The postmaster is running ?
+  if [ -f "${PGDATA}/postmaster.pid" ]
   then
     echo_success
-    touch "$LOCKFILE" 1>/dev/null 2>&1
-    head -n 1 "${PGDATA}/postmaster.pid" 1>"$PID_FILE" 2>&1
+    touch "$PGLOCK"
+    head -n 1 "${PGDATA}/postmaster.pid" 1>"$PG_PID"
     script_result=0
   else
     echo_failure
     script_result=1
-  fi
+  fi 2>/dev/null
   echo
-  
+  # end
   return $script_result
 }
 
 stop() {
-
   # Stopping PostgreSQL Service
   echo -n $"Stopping ${NAME} service: "
-  $SU -l "$PGUSER" -c "$PG_CONTROL stop -D '$PGDATA' -s -m fast" 1>>"$PG_LOG" 2>&1 </dev/null
+  # PG_CTL stop
+  : && {
+    $SU -l "$PGUSER" -c "$PG_CONTROL stop -D '$PGDATA' ${PGCTL_STOP_OPTS:--s -m fast}" </dev/null
+  } 1>>"$PG_LOG" 2>&1
   script_result=$?
   if [ $script_result -eq 0 ]
   then
     echo_success
+    trap "rm -f $PG_PID $PGLOCK" EXIT SIGTERM SIGINT SIGQUIT
   else
     echo_failure
   fi
   echo
-  trap "rm -f $PID_FILE $LOCKFILE" EXIT SIGTERM SIGINT SIGQUIT
-
+  # end
   return  $script_result
 }
 
 status() {
-  if [ -n "$(/usr/bin/pgrep postmaster|head -n 1)" ]
+  # psotmaster pid
+  postmaster_pid="$(/usr/bin/pgrep $POSTMASTER |head -n 1)"
+  # The postmaster is running ?
+  if [ -n "$postmaster_pid" ]
   then
-    echo $"${NAME} (pid $pid) is running..."
+    echo $"${NAME} (pid $postmaster_pid) is running..."
     script_result=0
   else
     echo $"${NAME} is stopped"
     script_result=3
   fi
+  # end
   return $script_result
 }
 
@@ -146,21 +155,21 @@ restart() {
 }
 
 condstart() {
-  if [ ! -e "$LOCKFILE" ]
+  if [ ! -e "$PGLOCK" ]
   then
     restart
   fi
 }
 
 condstop() {
-  if [ -e "$LOCKFILE" ]
+  if [ -e "$PGLOCK" ]
   then
     stop
   fi
 }
 
 condrestart() {
-  if [ -e "$LOCKFILE" ]
+  if [ -e "$PGLOCK" ]
   then
     restart
   else
@@ -169,8 +178,13 @@ condrestart() {
 }
 
 reload() {
-  $SU -l "$PGUSER" -c "$PG_CONTROL reload -D '$PGDATA' -s" 1>/dev/null 2>&1 </dev/null
+  : && {
+    $SU -l "$PGUSER" -c "$PG_CONTROL reload -D '$PGDATA' ${PGCTL_RELOAD_OPTS:--s}" </dev/null
+  } 1>/dev/null 2>&1
+  # command state
   script_result=$?
+  # end
+  return $script_result
 }
 
 # This script is slightly unusual in that the name of the daemon (postmaster)
@@ -190,4 +204,5 @@ condrestart|condstart|condstop)
   ;;
 esac
 
+# End
 exit $script_result

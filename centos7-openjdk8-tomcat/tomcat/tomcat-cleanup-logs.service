@@ -7,7 +7,7 @@ Description=Tomcat Cleanup logs
 Type=simple
 
 # Exec Start,Stop,etc...
-ExecStart=/bin/bash ${TOMCAT_HOME}/bin/catalina-cleanup-logs.sh 3 7
+ExecStart=/bin/bash ${TOMCAT_HOME}/bin/catalina-cleanup-logs.sh $TCLOG_ARCHIVEDAYS $TCLOG_REMOVE_DAYS
 
 # Environment File
 EnvironmentFile=/etc/sysconfig/tomcat

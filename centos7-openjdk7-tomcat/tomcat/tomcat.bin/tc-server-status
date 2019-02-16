@@ -1,6 +1,5 @@
 #!/bin/bash
-THIS="${0##*/}"
-BASE="${THIS%.*}"
+THIS=$([ -n "${0##*/}" ] && echo "${0##*/}" || echo "tc-server-status")
 CDIR=$([ -n "${0%/*}" ] && cd "${0%/*}" 2>/dev/null; pwd)
 
 # Load the tomcat-tools.rc
@@ -12,9 +11,13 @@ else
   exit 1
 fi
 
+# Command
 command="status/all"
+
+# XML Output
 out_xml="?XML=true"
 
+# Options
 while [ $# -gt 0 ]
 do
   case "$1" in

@@ -109,6 +109,3 @@ LABEL \
  docker.run.options="-d -P -h lamp --privileged" \
  docker.run.confirm-startup=""
 
-# Publish a container's port(s) to the host
-EXPOSE 3306
-

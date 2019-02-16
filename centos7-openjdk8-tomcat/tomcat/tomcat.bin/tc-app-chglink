@@ -1,6 +1,5 @@
 #!/bin/bash
-THIS="${0##*/}"
-BASE="${THIS%.*}"
+THIS=$([ -n "${0##*/}" ] && echo "${0##*/}" || echo "tc-app-chglink")
 CDIR=$([ -n "${0%/*}" ] && cd "${0%/*}" 2>/dev/null; pwd)
 
 # Load the tomcat-tools.rc
@@ -23,6 +22,7 @@ contest_vers=""
 # war file name
 warfile_name=""
 
+# Usage
 usage() {
   cat <<_USAGE_
 Usage: $THIS context-name war-version
@@ -35,7 +35,7 @@ _USAGE_
 while [ $# -gt 0 ]
 do
   case "$1" in
-  -h|--he)
+  -h*|--he*)
     usage
     ;;
   -*)
@@ -75,8 +75,8 @@ else
     exit 3
   }
   warfile_name="${context_name##*/}"
-  context_name=$(echo "$warfile_name"|sed -re 's#^([A-Za-z].*)(-([0-9]+.*))\.war$#\1#g' 2>/dev/null)
-  context_vers=$(echo "$warfile_name"|sed -re 's#^([A-Za-z].*)(-([0-9]+.*))\.war$#\3#g' 2>/dev/null)
+  context_name=$(echo "$warfile_name"|$SED -re 's#^([A-Za-z].*)(-([0-9]+.*))\.war$#\1#g' 2>/dev/null)
+  context_vers=$(echo "$warfile_name"|$SED -re 's#^([A-Za-z].*)(-([0-9]+.*))\.war$#\3#g' 2>/dev/null)
 fi
 
 # context name
@@ -94,6 +94,7 @@ deploy_war="${deploy_dir}/${context_name}.war"
 deploy_war="$(readlink $deploy_war 2>/dev/null)"
 deploy_war="${deploy_war##*/}"
 
+# same war file
 [ "${deploy_war}" = "${warfile_name}" ] && {
   echo "$THIS: context=$context_name link was not changed."
   exit 0
@@ -110,4 +111,5 @@ else
   echo "$THIS: ERROR:  context=$context_name link was not changed. (ret=$RET)"
 fi
 
+# end of script
 exit $RET

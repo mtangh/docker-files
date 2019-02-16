@@ -1,6 +1,5 @@
 #!/bin/bash
-THIS="${0##*/}"
-BASE="${THIS%.*}"
+THIS=$([ -n "${0##*/}" ] && echo "${0##*/}" || echo "tc-app-versions")
 CDIR=$([ -n "${0%/*}" ] && cd "${0%/*}" 2>/dev/null; pwd)
 
 # Load the tomcat-tools.rc
@@ -23,7 +22,8 @@ context_names=""
 latest_only=0
 
 # check context name and version
-while [ $# -gt 0 ] ; do
+while [ $# -gt 0 ]
+do
   case "${1#*/}" in
   -n|--new)
     latest_only=1
@@ -48,7 +48,8 @@ done
 # check context_name
 if [ -z "$context_names" ]
 then
-  for app in $(ls -1 $deploydir/*.war 2>/dev/null) ; do
+  for app in $(ls -1 $deploydir/*.war 2>/dev/null)
+  do
     app="${app##*/}"
     app="${app%.war*}"
     case "$app" in
@@ -62,7 +63,8 @@ then
 fi
 
 # app versions listing
-for app in $context_names ; do
+for app in $context_names
+do
   if [ $latest_only -ne 1 ]
   then
     echo "CONTEXT=/$app"
@@ -72,7 +74,8 @@ for app in $context_names ; do
   deploy_war="$(readlink $deploy_war 2>/dev/null)"
   deploy_war="${deploy_war##*/}"
   # print
-  for war in $(ls -1 $versiondir/${app}-[0-9]*.war 2>/dev/null) ; do
+  for war in $(ls -1 $versiondir/${app}-[0-9]*.war 2>/dev/null)
+  do
     war_file_name="${war##*/}"
     if [ "$war_file_name" == "$deploy_war" ]
     then
@@ -82,13 +85,12 @@ for app in $context_names ; do
       else
         echo "* $war_file_name"
       fi
-    else
-      if [ $latest_only -ne 1 ]
-      then
-        echo "  $war_file_name"
-      fi
+    elif [ $latest_only -ne 1 ]
+    then
+      echo "  $war_file_name"
     fi
   done
 done
 
+# end of script
 exit 0

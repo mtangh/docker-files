@@ -2,6 +2,19 @@
 THIS="${0##*/}"
 CDIR=$([ -n "${0%/*}" ] && cd "${0%/*}" 2>/dev/null; pwd)
 
+# Name
+THIS="${THIS:-catalina-mkinstance.sh}"
+BASE="${THIS%.*}"
+
+# awk
+AWK="${AWK:-$(type -P gawk)}"
+AWK="${AWK:-$(type -P awk)}"
+
+# sed
+SED="${SED:-$(type -P gsed)}"
+SED="${SED:-$(type -P sed)}"
+
+# Vars
 INSTANCENAME="${TC_INSTANCE:-}"
 INSTANCESDIR="${TC_INSTANCES_DIR:-}"
 TEMPLATE_DIR="${TC_INSTANCE_TEMPLATE:-}"
@@ -68,7 +81,7 @@ then
   if [ -r "/etc/sysconfig/tomcat@" ]
   then
     cat "/etc/sysconfig/tomcat@" |
-    sed -e 's%^\(CATALINA_BASE\)=[^ ].*$%\1='"${CATALINA_BASE}"'%g' \
+    $SED -e 's%^(CATALINA_BASE)=[^ ].*$%\1='"${CATALINA_BASE}"'%g' \
         1>"/etc/sysconfig/tomcat@${INSTANCENAME}" 2>/dev/null
     # Load the sysconfig of instance
     . "/etc/sysconfig/tomcat@${INSTANCENAME}" || {
@@ -176,9 +189,10 @@ _EOF_
 
       tmp_setenv_sh="./bin/.setenv.$$"
 
-      cat "./bin/setenv.sh" |
-      sed -e 's/^\(#* *| *\)\(INSTANCENAME\)=[^=].*$/\2='"$INSTANCENAME"'/g' \
-          1>"${tmp_setenv_sh}" 2>/dev/null &&
+      : && {
+        cat "./bin/setenv.sh" |
+        $SED -re 's/^(#* *| *)(INSTANCENAME)=[^=].*$/\2='"$INSTANCENAME"'/g'
+      } 1>"${tmp_setenv_sh}" 2>/dev/null &&
       mv -f "${tmp_setenv_sh}" "./bin/setenv.sh"
 
     }
@@ -192,13 +206,15 @@ _EOF_
       cp -pf ./conf/server.xml{,.ORIG}
     }
 
-    cat ./conf/server.xml.ORIG |
-    sed -e 's%="8005"%="${catalina.port.shutdown}"%g'  \
+    : && {
+      cat ./conf/server.xml.ORIG |
+      $SED -r \
+        -e 's%="8005"%="${catalina.port.shutdown}"%g'  \
         -e 's%="8009"%="${catalina.port.ajp}"%g' \
         -e 's%="8080"%="${catalina.port.http}"%g'  \
         -e 's%="8443"%="${catalina.port.https}"%g' \
-        -e 's%\(appBase\)="webapps"%\1="${catalina.webapps.dir}"%g' \
-        1>./conf/server.xml
+        -e 's%(appBase)="webapps"%\1="${catalina.webapps.dir}"%g'
+    } 1>./conf/server.xml
     [ $? -eq 0 ] && {
       echo "Fixed 'server.xml'."
       diff -u ./conf/server.xml{.ORIG,}
@@ -213,10 +229,8 @@ _EOF_
   } # [ -e "${CDIR}/catalina-init-instance.sh" ]
 
 } 2>/dev/null |
-while read stdoutln
-do
-  echo "$THIS: $stdoutln"
-done
+$AWK '{printf("%s: %s\n","'"${BASE}"'",$0);fflush();};' |
+$SED -r 's/\x1B\[([0-9]{1,2}(;[0-9]{1,2})*)?m//g'
 
 # end of script
 exit 0

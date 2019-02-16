@@ -120,6 +120,3 @@ HEALTHCHECK \
 CMD \
  curl -sL --no-keepalive -o /dev/null "http://localhost/"
 
-# Publish a container's port(s) to the host
-EXPOSE 80 443
-

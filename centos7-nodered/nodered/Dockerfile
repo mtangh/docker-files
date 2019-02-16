@@ -198,6 +198,3 @@ CMD \
  . /etc/sysconfig/node-red && \
  curl -sL -o /dev/null "http://localhost:${NODERED_PORT:-1880}/"
 
-# Publish a container's port(s) to the host
-EXPOSE ${NODERED_PORT:-1880}
-
