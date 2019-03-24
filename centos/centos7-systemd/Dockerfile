@@ -22,6 +22,14 @@ LABEL \
  build-date="" \
  docker.build.options=""
 
+# Shell
+SHELL \
+ ["/bin/bash", "-x", "-c"]
+
+# Set Workdir
+WORKDIR \
+ /root
+
 # Env
 ENV \
  container=docker
@@ -40,7 +48,6 @@ ARG \
 
 # SetUp
 RUN \
- set -x; \
  : "Modify yum-fastestmirror" && { \
   yum_fastmirror_conf="/etc/yum/pluginconf.d/fastestmirror.conf"; \
   [ -e "${yum_fastmirror_conf}" ] && \
@@ -55,7 +62,7 @@ RUN \
  : "Install systemd" && { \
   yum -v -y update && \
   yum -v -y install systemd-sysv sudo && \
-  { rm -rf /var/cache/yum/* && yum -v -y clean all; }; \
+  yum -v -y clean all; rm -rf /var/cache/yum/*; \
  } && \
  : "Delete systemd files" && { \
   etc_systemd_sys_dir="/etc/systemd/system"; \
@@ -107,8 +114,19 @@ RUN \
   do [ -f "$log" ] && cat /dev/null 1>"$log"; done; \
   for log in {,/root,/tmp,/var/tmp}/*.log; \
   do rm -f "$log"; done; \
+  yum -v -y clean all; rm -rf /var/cache/yum/*; \
+  rm -rf /root/*; \
  } 2>/dev/null || :; \
  echo;
+
+# Reset Workdir
+WORKDIR \
+ /
+
+# ONBUILD: Set Workdir
+ONBUILD \
+WORKDIR \
+ /root
 
 # ONBUILD: keymap and timezone
 ONBUILD \
@@ -138,19 +156,16 @@ ONBUILD \
 RUN \
  set -x; \
  : "ONBUILD: keymap: keyboard=$keyboard" && { \
-  . /etc/vconsole.conf && \
-  [ "$KEYMAP" = "$keyboard" ] || { \
-   sed -ri 's/^KEYMAP=.*$/KEYMAP="'$keyboard'"/g' /etc/vconsole.conf; \
-  }; \
+  localectl set-keymap "$keyboard" && \
+  localectl status; \
  }; \
  : "ONBUILD: timezone: timezone=$timezone" && { \
-  [ ! -e "/usr/share/zoneinfo/${timezone}" ] || { \
-   cp -pf /etc/localtime{,.ORIG} && \
-   ln -sf /usr/share/zoneinfo/${timezone} /etc/localtime; \
-  }; \
-  ls -l /etc/localtime; \
+  timedatectl set-timezone "$timezone" && \
+  timedatectl; \
  }; \
- if [ -n "${without_ssh}" -o -a "${without_logrotate}" -o -a "${packages}" ]; \
+ if [ -n "${without_ssh}" \
+   -o -a "${without_logrotate}" \
+   -o -a "${packages}" ]; \
  then yum -v -y update; fi; \
  if [ "${without_ssh}" = "yes" ]; \
  then echo "Without SSHd, skipping this instruction."; \
@@ -228,9 +243,15 @@ RUN \
   do [ -f "$log" ] && cat /dev/null 1>"$log"; done; \
   for log in {,/root,/tmp,/var/tmp}/*.log; \
   do rm -f "$log"; done; \
-  { rm -rf /var/cache/yum/* && yum -v -y clean all; }; \
+  yum -v -y clean all; rm -rf /var/cache/yum/*; \
+  rm -rf /root/*; \
  } 2>/dev/null || :; \
  echo;
+
+# ONBUILD: Reset Workdir
+ONBUILD \
+WORKDIR \
+ /
 
 # Labels for run
 LABEL \

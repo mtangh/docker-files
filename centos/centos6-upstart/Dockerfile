@@ -22,6 +22,14 @@ LABEL \
  build-date="" \
  docker.build.options=""
 
+# Shell
+SHELL \
+ ["/bin/bash", "-x", "-c"]
+
+# Set Workdir
+WORKDIR \
+ /root
+
 # Env
 ENV \
  container=docker
@@ -40,7 +48,6 @@ ARG \
 
 # SetUp
 RUN \
- set -x; \
  : "Modify yum-fastestmirror" && { \
   yum_fastmirror_conf="/etc/yum/pluginconf.d/fastestmirror.conf"; \
   sed -ri 's/^verbose=0$/verbose=1/g' "${yum_fastmirror_conf}" && \
@@ -54,7 +61,7 @@ RUN \
  : "Install packages" && { \
   yum -v -y update && \
   yum -v -y install initscripts MAKEDEV sudo && \
-  { rm -rf /var/cache/yum/* && yum -v -y clean all; }; \
+  yum -v -y clean all; rm -rf /var/cache/yum/*; \
  } && \
  : "Rebuild RPM DB" && { \
   rpm -e --nodeps kernel kernel-firmware redhat-logos; \
@@ -89,8 +96,19 @@ RUN \
   do [ -f "$log" ] && cat /dev/null 1>"$log"; done || :; \
   for log in {,/root,/tmp,/var/tmp}/*.log; \
   do rm -f "$log"; done || :; \
+  yum -v -y clean all; rm -rf /var/cache/yum/*; \
+  rm -rf /root/*; \
  } 2>/dev/null || :; \
  echo;
+
+# Reset Workdir
+WORKDIR \
+ /
+
+# ONBUILD: Set Workdir
+ONBUILD \
+WORKDIR \
+ /root
 
 #  ONBUILD: Keyboard and timezone
 ONBUILD \
@@ -181,9 +199,15 @@ RUN \
   do [ -f "$log" ] && cat /dev/null 1>"$log"; done; \
   for log in {,/root,/tmp,/var/tmp}/*.log; \
   do rm -f "$log"; done; \
-  { rm -rf /var/cache/yum/* && yum -v -y clean all; }; \
+  yum -v -y clean all; rm -rf /var/cache/yum/*; \
+  rm -rf /root/*; \
  } 2>/dev/null || :; \
  echo;
+
+# ONBUILD: Reset Workdir
+ONBUILD \
+WORKDIR \
+ /
 
 # Labels for run
 LABEL \

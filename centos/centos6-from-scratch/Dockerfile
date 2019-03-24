@@ -15,14 +15,15 @@ ENV \
 ENV \
  RPM_GPG_KEY=/etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
 
-# Set Workdir
-WORKDIR \
- /root
-
 # BUILDER:
 # Shell
 SHELL \
  ["/bin/bash", "-x", "-c"]
+
+# BUILDER:
+# Set Workdir
+WORKDIR \
+ /root
 
 # BUILDER:
 # Create a folder for our new root structure
@@ -69,14 +70,21 @@ RUN \
 RUN \
  : && { \
   echo '#!/bin/bash -x'; \
-  echo 'cat <<_EOF_ >/etc/reaolv.conf'; \
+  echo 'cat <<_EOF_ >/etc/reaolv.conf || exit 1'; \
   cat /etc/resolv.conf; \
   echo '_EOF_'; \
-  echo 'yum -v -y install procps-ng iputils'; \
-  echo 'yum clean all'; \
-  echo 'rm -rf /var/cache/yum/*'; \
+  echo 'yum -v -y install procps-ng iputils || exit 2'; \
+  echo ': "Cleanup" && {'; \
+  echo ' for log in $(find /var/log -type f)'; \
+  echo ' do [ -f "$log" ] && cat /dev/null 1>"$log"; done || :'; \
+  echo ' for log in {,/root,/tmp,/var/tmp}/*.log'; \
+  echo ' do rm -f "$log"; done || :'; \
+  echo ' yum -v -y clean all'; \
+  echo ' rm -rf /var/cache/yum/*'; \
+  echo ' rm -rf /root/*'; \
+  echo '} 2>/dev/null || :'; \
   echo 'rm -f /etc/resolv.conf'; \
-  echo 'exit $?'; \
+  echo 'exit 0'; \
  } 1>./setup.sh; \
  chroot "${CENTOS_ROOT}" /bin/bash <./setup.sh && \
  echo;
