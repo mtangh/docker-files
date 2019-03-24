@@ -6,7 +6,8 @@
 #@  DOCKER_BUILDOPTS=""
 #@  DOCKER_BOOT_OPTS=""
 #
-FROM centos:centos7
+#FROM centos:centos7
+FROM centos:centos7-from-scratch
 
 # Maintainer
 MAINTAINER MT
@@ -24,7 +25,7 @@ LABEL \
 
 # Shell
 SHELL \
- ["/bin/bash", "-x", "-c"]
+ [ "/bin/bash", "-x", "-c" ]
 
 # Set Workdir
 WORKDIR \

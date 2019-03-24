@@ -18,7 +18,7 @@ ENV \
 # BUILDER:
 # Shell
 SHELL \
- ["/bin/bash", "-x", "-c"]
+ [ "/bin/bash", "-x", "-c" ]
 
 # BUILDER:
 # Set Workdir
@@ -36,7 +36,7 @@ RUN \
 RUN \
  rpm --root "${CENTOS_ROOT}" --initdb && \
  echo;
- 
+
 # BUILDER:
 # Download and install the centos-release package
 RUN \
@@ -55,7 +55,7 @@ RUN \
   --setopt=tsflags='nodocs' \
   install yum && \
  echo;
- 
+
 # BUILDER:
 # Configure yum to avoid installing of docs and
 # other language files than english generally
@@ -70,9 +70,13 @@ RUN \
 RUN \
  : && { \
   echo '#!/bin/bash -x'; \
-  echo 'cat <<_EOF_ >/etc/reaolv.conf || exit 1'; \
+  echo 'cat <<_EOF_ >/etc/resolv.conf || exit 1'; \
   cat /etc/resolv.conf; \
   echo '_EOF_'; \
+  echo '[ -e "/dev/urandom" ] || {'; \
+  echo ' mknod -m 644 /dev/urandom c 1 9; }'; \
+  echo 'rpm --rebuilddb &&'; \
+  echo 'yum -v -y update &&'; \
   echo 'yum -v -y install procps-ng iputils || exit 2'; \
   echo ': "Cleanup" && {'; \
   echo ' for log in $(find /var/log -type f)'; \
@@ -86,6 +90,8 @@ RUN \
   echo 'rm -f /etc/resolv.conf'; \
   echo 'exit 0'; \
  } 1>./setup.sh; \
+ echo;
+RUN \
  chroot "${CENTOS_ROOT}" /bin/bash <./setup.sh && \
  echo;
 

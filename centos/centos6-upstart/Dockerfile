@@ -24,7 +24,7 @@ LABEL \
 
 # Shell
 SHELL \
- ["/bin/bash", "-x", "-c"]
+ [ "/bin/bash", "-x", "-c" ]
 
 # Set Workdir
 WORKDIR \
