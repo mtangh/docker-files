@@ -1,0 +1,11 @@
+# Systemd unit file for logrotate.service
+
+[Unit]
+Description=logrotate
+
+[Service]
+Type=simple
+
+# Exec Start,Stop,etc...
+ExecStart=/etc/cron.daily/logrotate
+
