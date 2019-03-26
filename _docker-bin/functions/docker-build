@@ -39,7 +39,7 @@ docker-build() {
           [ -z "$_buildfile" ] &&
           _buildfile="${_getopt_V##*/}"
           _build_dir="${_getopt_V%/*}"
-        fi 1>/dev/null 2>&1 
+        fi 1>/dev/null 2>&1
       fi
       ;;
     esac
@@ -53,7 +53,7 @@ docker-build() {
   [ -r "$_buildpath" -a -z "$_cimagetag" ] &&
   _cimagetag=$(docker-container-env DOCKER_IMAGE_TAG "$_buildpath")
   [ -z "$_buildopts" -a -z "$_opts_path" ] &&
-  _opts_path="${DOCKERFILE_OPTS_BUILD}"
+  _opts_path="${DOCKERFILE_OPTS_BUILD:-Dockerfile.opts.build}"
   [ -z "$_buildopts" -a ! -r "$_opts_path" -a -r "$_buildpath" ] &&
   _opts_path=$(docker-container-env DOCKERFILE_OPTS_BUILD "$_buildpath")
   [ -z "$_buildopts" -a -s "${_opts_path}" ] &&

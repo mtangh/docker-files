@@ -6,41 +6,15 @@
 #@  DOCKER_BUILDOPTS=""
 #@  DOCKER_BOOT_OPTS=""
 #
-FROM centos:centos7-systemd
+FROM centos7-java:openjdk
 
 # Maintainer
-MAINTAINER MT
+LABEL \
+ maintainer "MT"
 
 # Labels
 LABEL \
  name="Java-JDK6 on CentOS7 with Systemd"
-
-# Work dir
-ARG \
- WORKDIR=/tmp/workdir
-WORKDIR \
- "${WORKDIR}"
-
-# Install packages
-RUN \
- set -x; \
- yum -y update && \
- yum -y install \
-  java-1.6.0-openjdk java-1.6.0-openjdk-devel && \
- yum -y clean all
-
-# Work dir reset
-WORKDIR /
-
-# Cleanup
-RUN \
- set -x; \
- for log in $(find /var/log -type f 2>/dev/null); \
- do [ -f "$log" ] && cat /dev/null 1>"$log"; done 2>/dev/null || :; \
- for log in {,/root,/tmp,/var/tmp}/*.log; \
- do rm -f "$log"; done 2>/dev/null || :; \
- [ -n "${WORKDIR}" -a -d "${WORKDIR}" ] && { \
- rm -rf "${WORKDIR}"; } || :
 
 # Labels for run
 LABEL \

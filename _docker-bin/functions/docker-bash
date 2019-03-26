@@ -9,7 +9,7 @@ docker-bash() {
   }
   [ -n "$_container" ] || {
     cat <<_USAGE_
-Usage: $_func_name [CONTAINER] [BASH-ARG...]
+Usage: $FUNCNAME [CONTAINER] [BASH-ARG...]
 
 _USAGE_
     return 1

@@ -6,22 +6,11 @@
 #@  DOCKER_BUILDOPTS=""
 #@  DOCKER_BOOT_OPTS=""
 #
-#FROM centos:centos7
-FROM centos:centos7-from-scratch
-
-# Maintainer
-MAINTAINER MT
+FROM centos:centos7 AS build-stage
 
 # Labels
 LABEL \
- name="CentOS7 with Systemd" \
- vendor="UGOOLE.ORG" \
- license=""
-
-# Labels for build
-LABEL \
- build-date="" \
- docker.build.options=""
+ build-stage="true"
 
 # Shell
 SHELL \
@@ -34,18 +23,6 @@ WORKDIR \
 # Env
 ENV \
  container=docker
-
-# root password
-ARG \
- ROOTPASSWD=root
-
-# Default login
-ARG \
- DOCKER_UID=500
-ARG \
- DOCKERUSER=dockeruser
-ARG \
- DOCKERPASS=dockeruser
 
 # SetUp
 RUN \
@@ -94,22 +71,6 @@ RUN \
     done; \
    } &>/dev/null; ); \
  }; \
- : "Reset root password" && { \
-  echo "root:${ROOTPASSWD:-root}" |chpasswd; \
- }; \
- : "SetUp default user" && { \
-  docker_uid="${DOCKER_UID:-500}"; \
-  dockeruser="${DOCKERUSER:-dockeruser}"; \
-  dockerpass="${DOCKERPASS:-dockeruser}"; \
-  groupadd -g "${docker_uid}" "${dockeruser}" && \
-  useradd -u "${docker_uid}" -g "${dockeruser}" -m "${dockeruser}" && \
-  echo "${dockeruser}:${dockerpass}" |chpasswd; \
- }; \
- : "SetUp sudoers" && { \
-  sudoers="/etc/sudoers"; \
-  newline="# For docker user\n${dockeruser}\tALL=(ALL)\tNOPASSWD: ALL"; \
-  sed -ri '/^root[ \t]*ALL.*$/a '"${newline}" "${sudoers}"; \
- }; \
  : "Cleanup" && { \
   for log in $(find /var/log -type f); \
   do [ -f "$log" ] && cat /dev/null 1>"$log"; done; \
@@ -124,10 +85,45 @@ RUN \
 WORKDIR \
  /
 
+# CentOS 7 with systemd
+FROM scratch AS centos7-systemd-stage
+
+# Maintainer
+LABEL \
+ maintainer "MT"
+
+# Labels
+LABEL \
+ name="CentOS 7 with Systemd" \
+ vendor="UGOOLE.ORG" \
+ license=""
+
+# Labels for build
+LABEL \
+ build-date="" \
+ docker.build.options=""
+
+# Set Workdir
+WORKDIR \
+ /root
+
+# COPY from build-stage
+COPY \
+ --from=build-stage / /
+
+# Reset Workdir
+WORKDIR \
+ /
+
 # ONBUILD: Set Workdir
 ONBUILD \
 WORKDIR \
  /root
+
+# ONBUILD: System locale
+ONBUILD \
+ARG \
+ localedef="en_US.UTF-8"
 
 # ONBUILD: keymap and timezone
 ONBUILD \
@@ -136,6 +132,22 @@ ARG \
 ONBUILD \
 ARG \
  timezone="Asia/Tokyo"
+
+# ONBUILD: root password
+ONBUILD \
+ARG \
+ ROOTPASSWD=""
+
+# ONBUILD: Default login
+ONBUILD \
+ARG \
+ DOCKER_UID=500
+ONBUILD \
+ARG \
+ DOCKERUSER=dockeruser
+ONBUILD \
+ARG \
+ DOCKERPASS=""
 
 # ONBUILD: sshd
 ONBUILD \
@@ -156,19 +168,53 @@ ARG \
 ONBUILD \
 RUN \
  set -x; \
+ : "ONBUILD: SetUp system locale: $localedef" && { \
+  lc_cn=$(echo "${localedef}"|cut -d. -f1 2>/dev/null); \
+  lc_lang=$(echo "${localedef}"|cut -d. -f2 2>/dev/null); \
+  [ "${lc_cn:-en_US}" == "en_US" -a "${lc_lang:-UTF-8}" == "UTF-8" ] || { \
+   localedef -v -c -i "${lc_cn:-en_US}" -f "${lc_lang:-UTF-8}" "${lc_cn:-en_US}.${lc_lang:-UTF-8}"; \
+  }; \
+ }; \
  : "ONBUILD: keymap: keyboard=$keyboard" && { \
-  localectl set-keymap "$keyboard" && \
-  localectl status; \
+  . /etc/vconsole.conf && \
+  [ "$KEYMAP" = "$keyboard" ] || { \
+   sed -ri 's/^KEYMAP=.*$/KEYMAP="'$keyboard'"/g' /etc/vconsole.conf; \
+  }; \
  }; \
  : "ONBUILD: timezone: timezone=$timezone" && { \
-  timedatectl set-timezone "$timezone" && \
-  timedatectl; \
+  [ ! -e "/usr/share/zoneinfo/${timezone}" ] || { \
+   cp -pf /etc/localtime{,.ORIG} && \
+   ln -sf /usr/share/zoneinfo/${timezone} /etc/localtime; \
+  }; \
+  ls -l /etc/localtime; \
+ }; \
+ : "ONBUILD: Set root password" && { \
+  [ -z "${ROOTPASSWD}" ] || { \
+   echo "root:${ROOTPASSWD}" |chpasswd; }; \
+ }; \
+ : "ONBUILD: SetUp default user" && { \
+  if [ -n "${DOCKERUSER}" ]; \
+  then \
+   docker_uid="${DOCKER_UID:-500}"; \
+   dockeruser="${DOCKERUSER:-dockeruser}"; \
+   dockerpass="${DOCKERPASS}"; \
+   groupadd -g "${docker_uid}" "${dockeruser}" && \
+   useradd -u "${docker_uid}" -g "${dockeruser}" -m "${dockeruser}" && \
+   if [ -n "${DOCKERPASS}" ]; \
+   then echo "${dockeruser}:${dockerpass}"; \
+   else echo "${dockeruser}:$(dd if=/dev/urandom count=50 2>/dev/null|md5sum)"; \
+   fi |chpasswd; \
+   sudoers="/etc/sudoers"; \
+   newline="# For docker user\n${dockeruser}\tALL=(ALL)\tNOPASSWD: ALL"; \
+   sed -ri '/^root[ \t]*ALL.*$/a '"${newline}" "${sudoers}"; \
+  fi; \
  }; \
  if [ -n "${without_ssh}" \
-   -o -a "${without_logrotate}" \
-   -o -a "${packages}" ]; \
- then yum -v -y update; fi; \
- if [ "${without_ssh}" = "yes" ]; \
+   -o -n "${without_logrotate}" \
+   -o -n "${packages}" ]; \
+ then yum -v -y update; \
+ fi; \
+ if [ -n "${without_ssh}" ]; \
  then echo "Without SSHd, skipping this instruction."; \
  else \
   : "ONBUILD: sshd: Install openssh-server" && { \
@@ -185,7 +231,7 @@ RUN \
    systemctl enable sshd.service || :; \
   }; \
  fi; \
- if [ "${without_logrotate}" = "yes" ]; \
+ if [ -n "${without_logrotate}" ]; \
  then echo "Without logrotate, skipping this instruction."; \
  else \
   : "ONBUILD: logrotate: install logrotate" && { \

@@ -50,7 +50,7 @@ docker-run() {
   [ -r "$_buildpath" -a -z "$_cimagetag" ] &&
   _cimagetag=$(docker-container-env DOCKER_IMAGE_TAG "$_buildpath")
   [ -z "$_drun_opts" -a -z "$_opts_path" ] &&
-  _opts_path="${DOCKERFILE_OPTS_RUN}"
+  _opts_path="${DOCKERFILE_OPTS_RUN:-Dockerfile.opts.run}"
   [ -z "$_drun_opts" -a ! -r "$_opts_path" -a -r "$_buildpath" ] &&
   _opts_path=$(docker-container-env DOCKERFILE_OPTS_RUN "$_buildpath")
   [ -z "$_drun_opts" -a -s "${_opts_path}" ] &&

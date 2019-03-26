@@ -6,21 +6,11 @@
 #@  DOCKER_BUILDOPTS=""
 #@  DOCKER_BOOT_OPTS=""
 #
-FROM centos:centos6
-
-# Maintainer
-MAINTAINER MT
+FROM centos:centos6 AS build-stage
 
 # Labels
 LABEL \
- name="CentOS 6 with Upstart" \
- vendor="UGOOLE.ORG" \
- license=""
-
-# Labels for build
-LABEL \
- build-date="" \
- docker.build.options=""
+ build-stage="true"
 
 # Shell
 SHELL \
@@ -34,22 +24,11 @@ WORKDIR \
 ENV \
  container=docker
 
-# root password
-ARG \
- ROOTPASSWD=root
-
-# Default login
-ARG \
- DOCKER_UID=500
-ARG \
- DOCKERUSER=dockeruser
-ARG \
- DOCKERPASS=dockeruser
-
 # SetUp
 RUN \
  : "Modify yum-fastestmirror" && { \
   yum_fastmirror_conf="/etc/yum/pluginconf.d/fastestmirror.conf"; \
+  [ -e "${yum_fastmirror_conf}" ] && \
   sed -ri 's/^verbose=0$/verbose=1/g' "${yum_fastmirror_conf}" && \
   sed -ri 's/^(#*)include_only=.*$/include_only=.jp,.org/g' "${yum_fastmirror_conf}" && \
   sed -ri '/^include_only=.*$/a prefer=www.ftp.ne.jp' "${yum_fastmirror_conf}" && \
@@ -75,22 +54,6 @@ RUN \
   sed -ri 's/^/#/g' /etc/init/tty.conf && \
   sed -ri 's/wn -r now/wn -h now/g' /etc/init/control-alt-delete.conf || :; \
  } && \
- : "Reset root password" && { \
-  echo "root:${ROOTPASSWD:-root}" |chpasswd; \
- }; \
- : "SetUp default user" && { \
-  docker_uid="${DOCKER_UID:-500}"; \
-  dockeruser="${DOCKERUSER:-dockeruser}"; \
-  dockerpass="${DOCKERPASS:-dockeruser}"; \
-  groupadd -g "${docker_uid}" "${dockeruser}" && \
-  useradd -u "${docker_uid}" -g "${dockeruser}" -m "${dockeruser}" && \
-  echo "${dockeruser}:${dockerpass}" |chpasswd; \
- }; \
- : "SetUp sudoers" && { \
-  sudoers="/etc/sudoers"; \
-  newline="# For docker user\n${dockeruser}\tALL=(ALL)\tNOPASSWD: ALL"; \
-  sed -ri '/^root[ \t]*ALL.*$/a '"${newline}" "${sudoers}"; \
- }; \
  : "Cleanup" && { \
   for log in $(find /var/log -type f); \
   do [ -f "$log" ] && cat /dev/null 1>"$log"; done || :; \
@@ -105,21 +68,72 @@ RUN \
 WORKDIR \
  /
 
+# CentOS 6 with upstart
+FROM scratch AS centos6-upstart-stage
+
+# Maintainer
+LABEL \
+ maintainer "MT"
+
+# Labels
+LABEL \
+ name="CentOS 6 with Upstart" \
+ vendor="UGOOLE.ORG" \
+ license=""
+
+# Labels for build
+LABEL \
+ build-date="" \
+ docker.build.options=""
+
+# Set Workdir
+WORKDIR \
+ /root
+
+# COPY from build-stage
+COPY \
+ --from=build-stage / /
+
+# Reset Workdir
+WORKDIR \
+ /
+
 # ONBUILD: Set Workdir
 ONBUILD \
 WORKDIR \
  /root
 
+# ONBUILD: System locale
+ONBUILD \
+ARG \
+ localedef="en_US.UTF-8"
+
 #  ONBUILD: Keyboard and timezone
 ONBUILD \
 ARG \
- keyboard=jp106
+ keyboard="jp106"
 ONBUILD \
 ARG \
- keylayout=jp
+ keylayout="jp"
 ONBUILD \
 ARG \
- timezone=Asia/Tokyo
+ timezone="Asia/Tokyo"
+
+# root password
+ONBUILD \
+ARG \
+ ROOTPASSWD=""
+
+# Default login
+ONBUILD \
+ARG \
+ DOCKER_UID=500
+ONBUILD \
+ARG \
+ DOCKERUSER=dockeruser
+ONBUILD \
+ARG \
+ DOCKERPASS=""
 
 # ONBUILD: sshd
 ONBUILD \
@@ -140,6 +154,13 @@ ARG \
 ONBUILD \
 RUN \
  set -x; \
+ : "ONBUILD: SetUp system locale: $localedef" && { \
+  lc_cn=$(echo "${localedef}"|cut -d. -f1 2>/dev/null); \
+  lc_lang=$(echo "${localedef}"|cut -d. -f2 2>/dev/null); \
+  [ "${lc_cn:-en_US}" == "en_US" -a "${lc_lang:-UTF-8}" == "UTF-8" ] || { \
+   localedef -v -c -i "${lc_cn:-en_US}" -f "${lc_lang:-UTF-8}" "${lc_cn:-en_US}.${lc_lang:-UTF-8}"; \
+  }; \
+ }; \
  : "ONBUILD: keyboard=$keyboard keylayout=$keylayout" && { \
   syscfg_keyboard="/etc/sysconfig/keyboard"; \
   . "${syscfg_keyboard}" && { \
@@ -161,9 +182,33 @@ RUN \
   }; \
   ls -l /etc/localtime; \
  }; \
- if [ -n "${without_ssh}" -o -a "${without_logrotate}" -o -a "${packages}" ]; \
- then yum -v -y update; fi; \
- if [ "${without_ssh}" = "yes" ]; \
+ : "ONBUILD: Set root password" && { \
+  [ -z "${ROOTPASSWD}" ] || { \
+   echo "root:${ROOTPASSWD}" |chpasswd; }; \
+ }; \
+ : "ONBUILD: SetUp default user" && { \
+  if [ -n "${DOCKERUSER}" ]; \
+  then \
+   docker_uid="${DOCKER_UID:-500}"; \
+   dockeruser="${DOCKERUSER:-dockeruser}"; \
+   dockerpass="${DOCKERPASS}"; \
+   groupadd -g "${docker_uid}" "${dockeruser}" && \
+   useradd -u "${docker_uid}" -g "${dockeruser}" -m "${dockeruser}" && \
+   if [ -n "${DOCKERPASS}" ]; \
+   then echo "${dockeruser}:${dockerpass}"; \
+   else echo "${dockeruser}:$(dd if=/dev/urandom count=50 2>/dev/null|md5sum)"; \
+   fi |chpasswd; \
+   sudoers="/etc/sudoers"; \
+   newline="# For docker user\n${dockeruser}\tALL=(ALL)\tNOPASSWD: ALL"; \
+   sed -ri '/^root[ \t]*ALL.*$/a '"${newline}" "${sudoers}"; \
+  fi; \
+ }; \
+ if [ -n "${without_ssh}" \
+   -o -n "${without_logrotate}" \
+   -o -n "${packages}" ]; \
+ then yum -v -y update; \
+ fi; \
+ if [ -n "${without_ssh}" ]; \
  then echo "Without SSHd, skipping this instruction."; \
  else \
   : "ONBUILD: sshd: Install openssh-server" && { \
@@ -180,7 +225,7 @@ RUN \
    /sbin/chkconfig --levels 2345 sshd on || :; \
   }; \
  fi; \
- if [ "${without_logrotate}" = "yes" ]; \
+ if [ -n "${without_logrotate}" ]; \
  then echo "Without logrotate, skipping this instruction."; \
  else \
   : "ONBUILD: logrotate: install logrotate" && { \
