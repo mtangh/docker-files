@@ -292,23 +292,20 @@ RUN \
    [ -e "${CATALINA_HOME}" ]; \
   }; ); \
  } || exit 106; \
- : "ONBUILD: Configure tomcat instance" && { \
-  for instancename in ${TC_INSTANCES}; \
-  do \
-   syscfg_src="${WORKDIR}/${instancename}.sysconfig"; \
-   syscfg_dst="/etc/sysconfig/tomcat@${instancename}"; \
-   [ -s "${syscfg_src}" ] && { \
-    mv -f "${syscfg_src}" "${syscfg_dst}" && \
-    chown root:root "${syscfg_dst}" && \
-    chmod 0644 "${syscfg_dst}" || exit 107; \
-   }; \
-  done 2>/dev/null; \
- }; \
  : "ONBUILD: Make instance" && { \
   (cd "${_tc_homedir}" || exit 108; \
    for instancename in ${TC_INSTANCES}; \
    do \
     echo "Tomcat instance: $instancename"; \
+    [ "${instancename}" = "tomcat" ] || { \
+     syscfg_src="${WORKDIR}/${instancename}.sysconfig"; \
+     syscfg_dst="/etc/sysconfig/tomcat@${instancename}"; \
+     [ -s "${syscfg_src}" ] && { \
+      mv -f "${syscfg_src}" "${syscfg_dst}" && \
+      chown root:root "${syscfg_dst}" && \
+      chmod 0644 "${syscfg_dst}" || exit 107; \
+     }; \
+    }; \
     ./bin/catalina-make-instance.sh "${instancename}" || { \
      echo "Failed: ./bin/catalina-make-instance.sh ${instancename}"; \
      exit 109; }; \
