@@ -1,20 +1,16 @@
 #
-# centos7-nodejs:nodejs
+# centos7-nodejs:nodejs-build
 #
 #@  DOCKER_CONTAINER=""
-#@  DOCKER_IMAGE_TAG="centos7-nodejs:nodejs"
+#@  DOCKER_IMAGE_TAG="centos7-nodejs:nodejs-build"
 #@  DOCKER_BUILDOPTS=""
 #@  DOCKER_BOOT_OPTS=""
 #
 FROM centos:centos7-systemd
 
-# Maintainer
-LABEL \
- maintainer "MT"
-
 # Labels
 LABEL \
- name="Node.js on CentOS7 with Systemd"
+ build-stage="true"
 
 # Work dir
 ARG \
@@ -38,15 +34,20 @@ ARG \
 ARG \
  DEFAULT_NODE_MODULES="bower grunt-cli gulp"
 
-# SetUp
+# Install RPM packages for nodejs
 RUN \
  set -x; \
- : "Install packages for nodejs" && { \
+ : "Install RPM packages for nodejs" && { \
   yum -v -y update && \
   yum -v -y install gcc-c++ perl && \
   yum -v -y clean all && \
   rm -rf /var/cache/yum/*; \
- } && \
+ }; \
+ echo;
+
+# SetUp Nodebrew
+RUN \
+ set -x; \
  : "SetUp Nodebrew" && { \
   export NODEBREW_ROOT="${NODEBREW_ROOT:-/opt/nodebrew}"; \
   export PATH="$PATH:$NODEBREW_ROOT/current/bin"; \
@@ -85,19 +86,28 @@ RUN \
  : "Print node and npm version" && { \
   node -v && npm -v || :; \
  }; \
- : "Install node packages" && { \
+ echo;
+
+# SetUp Nodebrew
+RUN \
+ set -x; \
+ : "Install default node modules" && { \
   [ -z "${DEFAULT_NODE_MODULES}" ] || { \
    npm -g install ${DEFAULT_NODE_MODULES}; \
    npm -g cache clean; \
   } && \
   rm -rf /tmp/npm* || :; \
  } && \
+
+# Cleanup
+RUN \
  : "Cleanup" && { \
   for log in $(find /var/log -type f); \
   do [ -f "$log" ] && cat /dev/null 1>"$log"; done || :; \
   for log in {,/root,/tmp,/var/tmp}/*.log; \
   do rm -f "$log"; done || :; \
   yum -v -y clean all && rm -rf /var/cache/yum/*; \
+  npm -g cache clean && rm -rf /tmp/npm*; \
   [ -n "${WORKDIR}" -a -d "${WORKDIR}" ] && { \
    cd /; rm -rf "${WORKDIR}"; } || :; \
  } 2>/dev/null; \
@@ -105,67 +115,4 @@ RUN \
 
 # Reset Work dir
 WORKDIR /
-
-#-
-#- Begin ONBUILDs
-#-
-
-# ONBUILD: Work dir
-ONBUILD \
-ARG \
- WORKDIR="/tmp/workdir"
-
-# ONBUILD: Set Workdir
-ONBUILD \
-WORKDIR \
- ${WORKDIR}
-
-# ONBUILD: Additional Node modules
-ONBUILD \
-ARG \
- NODE_MODULES=""
-
-# ONBUILD: Copy contents
-ONBUILD \
-COPY \
- * "${WORKDIR}/"
-
-# ONBUILD: Install node moduless
-ONBUILD \
-RUN \
- set -x; \
- : "ONBUILD: Install additional node modules" && { \
-  [ -z "${NODE_MODULES}" ] || { \
-   npm -g install ${NODE_MODULES} && \
-   npm -g cache clean; \
-  }; \
- }; \
- : "ONBUILD: Execute SetUp Script" && { \
-  [ ! -e "./setup.sh" ] || { \
-   /bin/bash ./setup.sh; \
-  }; \
- }; \
- : "ONBUILD: Cleanup" && { \
-  for log in $(find /var/log -type f); \
-  do [ -f "$log" ] && cat /dev/null 1>"$log"; done || :; \
-  for log in {,/root,/tmp,/var/tmp}/*.log; \
-  do rm -f "$log"; done || :; \
-  yum -v -y clean all && rm -rf /var/cache/yum/*; \
-  [ -n "${WORKDIR}" -a -d "${WORKDIR}" ] && { \
-   cd /; rm -rf "${WORKDIR}"; } || :; \
- } 2>/dev/null; \
- echo;
-
-# ONBUILD: Reset Work dir
-ONBUILD \
-WORKDIR /
-
-#-
-#- End of ONBUILDs
-#-
-
-# Labels for run
-LABEL \
- docker.run.options="-d -P -h nodejs-server --privileged" \
- docker.run.confirm-startup=""
 

@@ -11,7 +11,7 @@
 FROM centos7-tomcat:tomcat AS build-stage
 
 # CentOS7-Tomcat6 from Scratch
-FROM scratch AS centos7-tomcat6-stage
+FROM scratch AS centos7-tomcat6
 
 # Maintainer
 LABEL \

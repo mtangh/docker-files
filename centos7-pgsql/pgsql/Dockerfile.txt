@@ -9,8 +9,7 @@
 FROM centos:centos7-systemd
 
 # Maintainer
-LABEL \
- maintainer "MT"
+MAINTAINER MT
 
 # Labels
 LABEL \
@@ -232,7 +231,7 @@ RUN \
   chmod 2750 "${PGDATA}"; \
   su - "${PGUSER}" -c "LANG= ${PGROOT}/bin/initdb ${PG_INITDB_OPTS} ${PGDATA}"; \
  } && \
- : "ONBUILD: Add to the service" && { \
+ : "ONBUILD: Add to the service" && {
   systemctl enable postgresql.service || :; \
  } && \
  : "ONBUILD: Cleanup" && { \

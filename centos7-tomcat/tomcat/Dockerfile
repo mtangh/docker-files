@@ -22,7 +22,7 @@ ARG \
 
 # Set Workdir
 WORKDIR \
- "${WORKDIR}"
+ ${WORKDIR}
 
 # COPY sysconfig file to /etc/sysconfig
 COPY \
@@ -164,12 +164,12 @@ ARG \
 # Set Workdir
 ONBUILD \
 WORKDIR \
- "${WORKDIR}"
+ ${WORKDIR}
 
 # Copy contents
 ONBUILD \
 COPY \
- * "${WORKDIR}/"
+ * ${WORKDIR}/
 
 # Java package list
 ONBUILD \

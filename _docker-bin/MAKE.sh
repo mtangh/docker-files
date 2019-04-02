@@ -200,11 +200,22 @@ then
 
   # Build
   : && {
+    if [ -s "./${__docker_build_path}.build" ]
+    then
+      cat <<_EOM_
+Found file './${__docker_build_path}.build'.
+Build the file './${__docker_build_path}.build' first.
+_EOM_
+      __echo_start \
+      docker-build -f "./${__docker_build_path}.build" ${_docker_c_buildopts} .
+      docker-build -f "./${__docker_build_path}.build" ${_docker_c_buildopts} .
+      __echo_end $?
+    else :
+    fi &&
     __echo_start \
     docker-build -f "$__docker_build_file" ${_docker_c_buildopts} .
     docker-build -f "$__docker_build_file" ${_docker_c_buildopts} .
     __echo_end $?
-
   } 2>&1 |
   __stdout_with_ts "BUILD"
 
