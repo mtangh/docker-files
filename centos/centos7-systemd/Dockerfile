@@ -6,7 +6,7 @@
 #@  DOCKER_BUILDOPTS=""
 #@  DOCKER_BOOT_OPTS=""
 #
-FROM centos:centos7 AS build-stage
+FROM centos:centos7-minimal AS build-stage
 
 # Labels
 LABEL \
@@ -14,7 +14,7 @@ LABEL \
 
 # Shell
 SHELL \
- [ "/bin/bash", "-x", "-c" ]
+ [ "/bin/bash", "-u", "-x", "-c" ]
 
 # Set Workdir
 WORKDIR \
@@ -65,9 +65,7 @@ RUN \
    } &>/dev/null; ); \
   (cd "${usr_systemd_sys_dir}"/sysinit.target.wants && { \
     for item in *; \
-    do \
-     echo "$item"|egrep '^systemd-tmpfiles-setup.*service' || \
-     rm -f "$item"; \
+    do echo "$item"|egrep '^systemd-tmpfiles-setup.*service' || rm -f "$item"; \
     done; \
    } &>/dev/null; ); \
  }; \
@@ -167,40 +165,40 @@ ARG \
 # ONBUILD: SetUp
 ONBUILD \
 RUN \
- set -x; \
- : "ONBUILD: SetUp system locale: $localedef" && { \
-  lc_cn=$(echo "${localedef}"|cut -d. -f1 2>/dev/null); \
-  lc_lang=$(echo "${localedef}"|cut -d. -f2 2>/dev/null); \
-  [ "${lc_cn:-en_US}" == "en_US" -a "${lc_lang:-UTF-8}" == "UTF-8" ] || { \
-   localedef -v -c -i "${lc_cn:-en_US}" -f "${lc_lang:-UTF-8}" "${lc_cn:-en_US}.${lc_lang:-UTF-8}"; \
+ set -ux ; \
+ : "ONBUILD: SetUp system locale: ${localedef:-en_US.UTF-8}" && { \
+  lc_cntr=$(echo "${localedef:-en_US.UTF-8}"|cut -d. -f1 2>/dev/null); \
+  lc_lang=$(echo "${localedef:-en_US.UTF-8}"|cut -d. -f2 2>/dev/null); \
+  [ "${lc_cntr:-en_US}" == "en_US" -a "${lc_lang:-UTF-8}" == "UTF-8" ] || { \
+   localedef -v -c -i "${lc_cntr:-en_US}" -f "${lc_lang:-UTF-8}" "${lc_cntr:-en_US}.${lc_lang:-UTF-8}"; \
   }; \
  }; \
- : "ONBUILD: keymap: keyboard=$keyboard" && { \
+ : "ONBUILD: keymap: keyboard=${keyboard:-jp106}" && { \
   . /etc/vconsole.conf && \
-  [ "$KEYMAP" = "$keyboard" ] || { \
-   sed -ri 's/^KEYMAP=.*$/KEYMAP="'$keyboard'"/g' /etc/vconsole.conf; \
+  [ "${KEYMAP:-}" = "${keyboard:-jp106}" ] || { \
+   sed -ri 's/^KEYMAP=.*$/KEYMAP="'"${keyboard:-jp106}"'"/g' /etc/vconsole.conf; \
   }; \
  }; \
- : "ONBUILD: timezone: timezone=$timezone" && { \
-  [ ! -e "/usr/share/zoneinfo/${timezone}" ] || { \
+ : "ONBUILD: timezone: timezone=${timezone:-Asia/Tokyo}" && { \
+  [ ! -e "/usr/share/zoneinfo/${timezone:-Asia/Tokyo}" ] || { \
    cp -pf /etc/localtime{,.ORIG} && \
-   ln -sf /usr/share/zoneinfo/${timezone} /etc/localtime; \
+   ln -sf "/usr/share/zoneinfo/${timezone:-Asia/Tokyo}" /etc/localtime; \
   }; \
   ls -l /etc/localtime; \
  }; \
  : "ONBUILD: Set root password" && { \
-  [ -z "${ROOTPASSWD}" ] || { \
+  [ -z "${ROOTPASSWD:-}" ] || { \
    echo "root:${ROOTPASSWD}" |chpasswd; }; \
  }; \
  : "ONBUILD: SetUp default user" && { \
-  if [ -n "${DOCKERUSER}" ]; \
+  if [ -n "${DOCKERUSER:-}" ]; \
   then \
    docker_uid="${DOCKER_UID:-500}"; \
    dockeruser="${DOCKERUSER:-dockeruser}"; \
-   dockerpass="${DOCKERPASS}"; \
+   dockerpass="${DOCKERPASS:-}"; \
    groupadd -g "${docker_uid}" "${dockeruser}" && \
    useradd -u "${docker_uid}" -g "${dockeruser}" -m "${dockeruser}" && \
-   if [ -n "${DOCKERPASS}" ]; \
+   if [ -n "${dockerpass:-}" ]; \
    then echo "${dockeruser}:${dockerpass}"; \
    else echo "${dockeruser}:$(dd if=/dev/urandom count=50 2>/dev/null|md5sum)"; \
    fi |chpasswd; \
@@ -209,12 +207,10 @@ RUN \
    sed -ri '/^root[ \t]*ALL.*$/a '"${newline}" "${sudoers}"; \
   fi; \
  }; \
- if [ -n "${without_ssh}" \
-   -o -n "${without_logrotate}" \
-   -o -n "${packages}" ]; \
+ if [ -n "${without_ssh;-}${without_logrotate:-}${packages:-}" ]; \
  then yum -v -y update; \
  fi; \
- if [ -n "${without_ssh}" ]; \
+ if [ -n "${without_ssh:-}" ]; \
  then echo "Without SSHd, skipping this instruction."; \
  else \
   : "ONBUILD: sshd: Install openssh-server" && { \
@@ -231,7 +227,7 @@ RUN \
    systemctl enable sshd.service || :; \
   }; \
  fi; \
- if [ -n "${without_logrotate}" ]; \
+ if [ -n "${without_logrotate:-}" ]; \
  then echo "Without logrotate, skipping this instruction."; \
  else \
   : "ONBUILD: logrotate: install logrotate" && { \
@@ -278,7 +274,7 @@ RUN \
    systemctl enable logrotate.timer || : ; \
   }; \
  fi; \
- if [ -z "${packages}" ]; \
+ if [ -z "${packages:-}" ]; \
  then echo "No packages, skipping this instruction."; \
  else \
   : "ONBUILD: PKG: install packages are: ${packages}" && { \

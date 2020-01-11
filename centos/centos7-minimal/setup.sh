@@ -1,4 +1,4 @@
-#!/bin/bash -x
+#!/bin/bash -ux
 # Centos7 Minimal
 
 # /dev files
@@ -31,7 +31,8 @@ yum -v -y remove \
   libmnl libnetfilter_conntrack libnfnetlink libselinux-python lzo \
   libunistring os-prober python-decorator python-slip python-slip-dbus \
   snappy sysvinit-tools which linux-firmware GeoIP firewalld-filesystem \
-  qemu-guest-agent
+  qemu-guest-agent ||
+  exit 1
 
 # yum cleanup
 yum -v -y clean all
@@ -61,18 +62,17 @@ rm -rf /boot/*
 rm -rf /etc/firewalld
 rm -rf /root/*
 
+# Make sure login works
+rm -f /var/run/nologin
+
 # Cleanup all log files
-for log in $(find /var/log -type f)
+for log in $(find /var/log -type f; find /root -type f -a -name "*.log")
 do
   [ -f "$log" ] && cat /dev/null 1>"$log";
 done
-for log in {,/root,/tmp,/var/tmp}/*.log
-do
-  rm -f "$log"
-done
 
-# Make sure login works
-rm -f /var/run/nologin
+# Cleanup tmp.
+rm -rf /tmp/* /var/tmp/*
 
 # Generate installtime file record
 /bin/date +%Y%m%d_%H%M > /etc/BUILDTIME

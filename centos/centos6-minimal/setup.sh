@@ -1,4 +1,4 @@
-#!/bin/bash -x
+#!/bin/bash -ux
 # Centos6 Minimal
 
 # /dev files
@@ -22,12 +22,14 @@ rpm -e kernel
 # Remove packages
 yum -v -y remove \
   dhclient dhcp-libs dracut grubby kmod grub2 centos-logos \
-  hwdata os-prober gettext* bind-license freetype kmod-libs dracutinstall
+  hwdata os-prober gettext* bind-license freetype kmod-libs dracutinstall ||
+  exit 1
 yum -v -y remove \
   firewalld dbus-glib dbus-python ebtables \
   gobject-introspection libselinux-python pygobject3-base \
   python-decorator python-slip python-slip-dbus kpartx kernel-firmware \
-  device-mapper* e2fsprogs-libs sysvinit-tools kbd-misc libss upstart
+  device-mapper* e2fsprogs-libs sysvinit-tools kbd-misc libss upstart ||
+  exit 1
 
 # yum cleanup
 yum -v -y clean all
@@ -60,14 +62,13 @@ rm -rf /etc/firewalld
 rm -rf /root/*
 
 # Cleanup all log files
-for log in $(find /var/log -type f)
+for log in $(find /var/log -type f; find /root -type f -a -name "*.log")
 do
   [ -f "$log" ] && cat /dev/null 1>"$log";
 done
-for log in {,/root,/tmp,/var/tmp}/*.log
-do
-  rm -f "$log"
-done
+
+# Cleanup tmp.
+rm -rf /tmp/* /var/tmp/*
 
 # Generate installtime file record
 /bin/date +%Y%m%d_%H%M > /etc/BUILDTIME

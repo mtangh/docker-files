@@ -11,7 +11,7 @@ FROM centos:centos7 AS build-stage
 # BUILDER:
 # Shell
 SHELL \
- [ "/bin/bash", "-x", "-c" ]
+ [ "/bin/bash", "-u", "-x", "-c" ]
 
 # BUILDER:
 # Set Workdir
@@ -43,11 +43,11 @@ COPY \
 #   other language files than english generally
 # - Chroot to the environment and install some additional tools
 RUN \
- mkdir -p "${CENTOS_ROOT}" && \
+ mkdir -p "${CENTOS_ROOT:=/centos-image/rootfs}" && \
  rpm --root "${CENTOS_ROOT}" --initdb && \
  yum -v -y reinstall --downloadonly --downloaddir . centos-release && \
  rpm --root "${CENTOS_ROOT}" --nodeps -ivh centos-release*.rpm && \
- rpm --root "${CENTOS_ROOT}" --import "${CENTOS_ROOT}${RPM_GPG_KEY}" && \
+ rpm --root "${CENTOS_ROOT}" --import "${CENTOS_ROOT}${RPM_GPG_KEY:=/etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7}" && \
  yum -v -y \
   --installroot=${CENTOS_ROOT} \
   --setopt=override_install_langs=en_US.utf8 \
@@ -57,9 +57,9 @@ RUN \
   "/distroverpkg=centos-release/a override_install_langs=en_US.utf8\ntsflags=nodocs" \
   "${CENTOS_ROOT}/etc/yum.conf" && \
  : "Chroot to the environment and install some additional tools." && { \
-  cp -f /etc/resolv.conf ${CENTOS_ROOT}/etc/resolv.conf && \
+  cp -f /etc/resolv.conf "${CENTOS_ROOT}/etc/resolv.conf" && \
   chroot "${CENTOS_ROOT}" /bin/bash <./setup.sh && \
-  rm -f ${CENTOS_ROOT}/etc/resolv.conf; \
+  rm -f "${CENTOS_ROOT}/etc/resolv.conf"; \
  } && \
  echo;
 

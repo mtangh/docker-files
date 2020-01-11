@@ -6,7 +6,7 @@
 #@  DOCKER_BUILDOPTS=""
 #@  DOCKER_BOOT_OPTS=""
 #
-FROM centos:centos6 AS build-stage
+FROM centos:centos6-minimal AS build-stage
 
 # Labels
 LABEL \
@@ -14,7 +14,7 @@ LABEL \
 
 # Shell
 SHELL \
- [ "/bin/bash", "-x", "-c" ]
+ [ "/bin/bash", "-u", "-x", "-c" ]
 
 # Set Workdir
 WORKDIR \
@@ -140,10 +140,15 @@ ONBUILD \
 ARG \
  without_ssh=""
 
-# ONBUILD: logrotate
+# ONBUILD: logging
 ONBUILD \
 ARG \
- without_logrotate=""
+ without_logging=""
+
+# ONBUILD: cron
+ONBUILD \
+ARG \
+ without_cron=""
 
 # ONBUILD: Additional Packages
 ONBUILD \
@@ -153,48 +158,48 @@ ARG \
 # ONBUILD: SetUp
 ONBUILD \
 RUN \
- set -x; \
- : "ONBUILD: SetUp system locale: $localedef" && { \
-  lc_cn=$(echo "${localedef}"|cut -d. -f1 2>/dev/null); \
-  lc_lang=$(echo "${localedef}"|cut -d. -f2 2>/dev/null); \
-  [ "${lc_cn:-en_US}" == "en_US" -a "${lc_lang:-UTF-8}" == "UTF-8" ] || { \
-   localedef -v -c -i "${lc_cn:-en_US}" -f "${lc_lang:-UTF-8}" "${lc_cn:-en_US}.${lc_lang:-UTF-8}"; \
+ set -ux; \
+ : "ONBUILD: SetUp system locale: ${localedef:-en_US.UTF-8}" && { \
+  lc_cntr=$(echo "${localedef:-en_US.UTF-8}"|cut -d. -f1 2>/dev/null); \
+  lc_lang=$(echo "${localedef:-en_US.UTF-8}"|cut -d. -f2 2>/dev/null); \
+  [ "${lc_cntr:-en_US}" == "en_US" -a "${lc_lang:-UTF-8}" == "UTF-8" ] || { \
+   localedef -v -c -i "${lc_cntr:-en_US}" -f "${lc_lang:-UTF-8}" "${lc_cntr:-en_US}.${lc_lang:-UTF-8}"; \
   }; \
  }; \
- : "ONBUILD: keyboard=$keyboard keylayout=$keylayout" && { \
+ : "ONBUILD: keyboard=${keyboard:-jp106} keylayout=${keylayout:-jp}" && { \
   syscfg_keyboard="/etc/sysconfig/keyboard"; \
   . "${syscfg_keyboard}" && { \
-   [ "$KEYTABLE" = "$keyboard" ] || { \
-    sed -ri 's/^(KEYTABLE|MODEL)=.*$/\1="'$keyboard'"/g' "${syscfg_keyboard}"; \
+   [ "${KEYTABLE:-}" = "$keyboard" ] || { \
+    sed -ri 's/^(KEYTABLE|MODEL)=.*$/\1="'"${keyboard:-jp106}"'"/g' "${syscfg_keyboard}"; \
    }; \
-   [ "$LAYOUT" = "$keylayout" ] || { \
-    sed -ri 's/^LAYOUT=.*$/LAYOUT="'$keylayout'"/g' "${syscfg_keyboard}"; \
+   [ "${LAYOUT:-}" = "${keylayout:-jp}" ] || { \
+    sed -ri 's/^LAYOUT=.*$/LAYOUT="'"${keylayout:-jp}"'"/g' "${syscfg_keyboard}"; \
    }; \
   }; \
  } && \
- : "ONBUILD: timezone=$timezone" && { \
+ : "ONBUILD: timezone=${timezone:-Asia/Tokyo}" && { \
   [ ! -e "/etc/sysconfig/clock" ] || { \
-   echo 'ZONE="'$timezone'"' >/etc/sysconfig/clock; \
+   echo 'ZONE="'"${timezone:-Asia/Tokyo}"'"' >/etc/sysconfig/clock; \
   }; \
-  [ ! -e "/usr/share/zoneinfo/${timezone}" ] || { \
+  [ ! -e "/usr/share/zoneinfo/${timezone:-Asia/Tokyo}" ] || { \
    cp -pf /etc/localtime{,.ORIG} && \
-   ln -sf /usr/share/zoneinfo/${timezone} /etc/localtime; \
+   ln -sf "/usr/share/zoneinfo/${timezone:-Asia/Tokyo}" /etc/localtime; \
   }; \
   ls -l /etc/localtime; \
  }; \
  : "ONBUILD: Set root password" && { \
-  [ -z "${ROOTPASSWD}" ] || { \
+  [ -z "${ROOTPASSWD:-}" ] || { \
    echo "root:${ROOTPASSWD}" |chpasswd; }; \
  }; \
  : "ONBUILD: SetUp default user" && { \
-  if [ -n "${DOCKERUSER}" ]; \
+  if [ -n "${DOCKERUSER:-}" ]; \
   then \
    docker_uid="${DOCKER_UID:-500}"; \
    dockeruser="${DOCKERUSER:-dockeruser}"; \
    dockerpass="${DOCKERPASS}"; \
    groupadd -g "${docker_uid}" "${dockeruser}" && \
    useradd -u "${docker_uid}" -g "${dockeruser}" -m "${dockeruser}" && \
-   if [ -n "${DOCKERPASS}" ]; \
+   if [ -n "${dockerpass:-}" ]; \
    then echo "${dockeruser}:${dockerpass}"; \
    else echo "${dockeruser}:$(dd if=/dev/urandom count=50 2>/dev/null|md5sum)"; \
    fi |chpasswd; \
@@ -203,12 +208,10 @@ RUN \
    sed -ri '/^root[ \t]*ALL.*$/a '"${newline}" "${sudoers}"; \
   fi; \
  }; \
- if [ -n "${without_ssh}" \
-   -o -n "${without_logrotate}" \
-   -o -n "${packages}" ]; \
+ if [ -n "${without_ssh;-}${without_logrotate:-}${packages:-}" ]; \
  then yum -v -y update; \
  fi; \
- if [ -n "${without_ssh}" ]; \
+ if [ -n "${without_ssh:-}" ]; \
  then echo "Without SSHd, skipping this instruction."; \
  else \
   : "ONBUILD: sshd: Install openssh-server" && { \
@@ -225,14 +228,21 @@ RUN \
    /sbin/chkconfig --levels 2345 sshd on || :; \
   }; \
  fi; \
- if [ -n "${without_logrotate}" ]; \
- then echo "Without logrotate, skipping this instruction."; \
+ if [ -n "${without_logging:-}" ]; \
+ then echo "Without logging, skipping this instruction."; \
  else \
-  : "ONBUILD: logrotate: install logrotate" && { \
-   yum -v -y install logrotate; \
+  : "ONBUILD: logging: install rsyslog and logrotate" && { \
+   yum -v -y install rsyslog logrotate; \
   }; \
  fi; \
- if [ -z "${packages}" ]; \
+ if [ -n "${without_cron:-}" ]; \
+ then echo "Without cron, skipping this instruction."; \
+ else \
+  : "ONBUILD: cron: install cron" && { \
+   yum -v -y install cronie; \
+  }; \
+ fi; \
+ if [ -z "${packages:-}" ]; \
  then echo "No packages, skipping this instruction."; \
  else \
   : "ONBUILD: PKG: install packages are: ${packages}" && { \
@@ -256,7 +266,7 @@ WORKDIR \
 
 # Labels for run
 LABEL \
- docker.run.options="-d -P -h centos6-upstart" \
+ docker.run.options="-d -P -h centos6-upstart --privileged" \
  docker.run.confirm-startup=""
 
 # STOP SIGNAL
