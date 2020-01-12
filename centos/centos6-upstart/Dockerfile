@@ -71,14 +71,11 @@ WORKDIR \
 # CentOS 6 with upstart
 FROM scratch AS centos6-upstart-stage
 
-# Maintainer
-LABEL \
- maintainer "MT"
-
 # Labels
 LABEL \
  name="CentOS 6 with Upstart" \
  vendor="UGOOLE.ORG" \
+ maintainer="MT" \
  license=""
 
 # Labels for build
@@ -106,23 +103,25 @@ WORKDIR \
 # ONBUILD: System locale
 ONBUILD \
 ARG \
- localedef="en_US.UTF-8"
+ CONTAINER_LANGUAGE="en_US.UTF-8"
 
-#  ONBUILD: Keyboard and timezone
+# ONBUILD: keymap and timezone
 ONBUILD \
 ARG \
- keyboard="jp106"
+ CONTAINER_KEYBOARD="jp106"
 ONBUILD \
 ARG \
- keylayout="jp"
-ONBUILD \
-ARG \
- timezone="Asia/Tokyo"
+ CONTAINER_KBLAYOUT="jp"
 
-# root password
+# ONBUILD: timezone
 ONBUILD \
 ARG \
- ROOTPASSWD=""
+ CONTAINER_TIMEZONE="Asia/Tokyo"
+
+# ONBUILD: root password
+ONBUILD \
+ARG \
+ CONTAINER_ROOTPSWD=""
 
 # Default login
 ONBUILD \
@@ -158,38 +157,54 @@ ARG \
 # ONBUILD: SetUp
 ONBUILD \
 RUN \
- set -ux; \
- : "ONBUILD: SetUp system locale: ${localedef:-en_US.UTF-8}" && { \
-  lc_cntr=$(echo "${localedef:-en_US.UTF-8}"|cut -d. -f1 2>/dev/null); \
-  lc_lang=$(echo "${localedef:-en_US.UTF-8}"|cut -d. -f2 2>/dev/null); \
-  [ "${lc_cntr:-en_US}" == "en_US" -a "${lc_lang:-UTF-8}" == "UTF-8" ] || { \
-   localedef -v -c -i "${lc_cntr:-en_US}" -f "${lc_lang:-UTF-8}" "${lc_cntr:-en_US}.${lc_lang:-UTF-8}"; \
+ set -ux ; \
+ language="${CONTAINER_LANGUAGE:-en_US.UTF-8}"; \
+ keyboard="${CONTAINER_KEYBOARD:-jp106}"; \
+ kblayout="${CONTAINER_KBLAYOUT:-jp}"; \
+ timezone="${CONTAINER_TIMEZONE:-Asia/Tokyo}"; \
+ rootpswd="${CONTAINER_ROOTPSWD:-}"; \
+ : "ONBUILD: SetUp system locale: ${language}" && { \
+  lc_cntr=$(echo "${language}"|cut -d. -f1); lc_cntr="${lc_cntr:-en_US}"; \
+  lc_lang=$(echo "${language}"|cut -d. -f2); lc_lang="${lc_lang:-UTF-8}"; \
+  localedef -v -c -i "${lc_cntr}" -f "${lc_lang}" "${lc_cntr}.${lc_lang}"; \
+  echo "LANG=${locale:-en_US.UTF-8}" 1>/etc/sysconfig/i18n; \
+ }; \
+ : "ONBUILD: keymap: keyboard=${keyboard} layout=${kblayout}" && { \
+  syscfgkb="/etc/sysconfig/keyboard"; \
+  { [ -e "${syscfgkb}" ] || touch "${syscfgkb}" || :; } && \
+  . "${syscfgkb}" && { \
+   if [ -z "${KEYTABLE:-}" ]; \
+   then echo 'KEYTABLE="'"${keyboard}"'"' 1>>"${syscfgkb}" && \. "${syscfgkb}"; \
+   elif [ "${KEYTABLE:-}" = "${keyboard}" ]; \
+   then sed -ri 's/^(KEYTABLE)=.*$/\1="'"${keyboard}"'"/g' "${syscfgkb}"; \
+   fi; \
+   if [ -z "${MODEL:-}" ]; \
+   then echo 'MODEL="'"${keyboard}"'"' 1>>"${syscfgkb}" && . "${syscfgkb}"; \
+   elif [ "${MODEL:-}" = "${keyboard}" ]; \
+   then sed -ri 's/^(MODEL)=.*$/\1="'"${keyboard}"'"/g' "${syscfgkb}"; \
+   fi; \
+   if [ -z "${LAYOUT:-}" ]; \
+   then echo 'LAYOUT="'"${kblayout}"'"' 1>>"${syscfgkb}" && . "${syscfgkb}"; \
+   elif [ "${LAYOUT:-}" = "${kblayout}" ]; \
+   then sed -ri 's/^LAYOUT=.*$/LAYOUT="'"${kblayout}"'"/g' "${syscfgkb}"; \
+   fi; \
   }; \
  }; \
- : "ONBUILD: keyboard=${keyboard:-jp106} keylayout=${keylayout:-jp}" && { \
-  syscfg_keyboard="/etc/sysconfig/keyboard"; \
-  . "${syscfg_keyboard}" && { \
-   [ "${KEYTABLE:-}" = "$keyboard" ] || { \
-    sed -ri 's/^(KEYTABLE|MODEL)=.*$/\1="'"${keyboard:-jp106}"'"/g' "${syscfg_keyboard}"; \
-   }; \
-   [ "${LAYOUT:-}" = "${keylayout:-jp}" ] || { \
-    sed -ri 's/^LAYOUT=.*$/LAYOUT="'"${keylayout:-jp}"'"/g' "${syscfg_keyboard}"; \
-   }; \
-  }; \
- } && \
- : "ONBUILD: timezone=${timezone:-Asia/Tokyo}" && { \
-  [ ! -e "/etc/sysconfig/clock" ] || { \
-   echo 'ZONE="'"${timezone:-Asia/Tokyo}"'"' >/etc/sysconfig/clock; \
-  }; \
-  [ ! -e "/usr/share/zoneinfo/${timezone:-Asia/Tokyo}" ] || { \
-   cp -pf /etc/localtime{,.ORIG} && \
-   ln -sf "/usr/share/zoneinfo/${timezone:-Asia/Tokyo}" /etc/localtime; \
-  }; \
+ : "ONBUILD: timezone: timezone=${timezone}" && { \
+  if [ -e "/etc/sysconfig/clock" ]; \
+  then echo 'ZONE="'"${timezone:-Asia/Tokyo}"'"' >/etc/sysconfig/clock; \
+  fi; \
+  if [ -e "/usr/share/zoneinfo/${timezone}" ]; \
+  then \
+   { [ -e "/etc/localtime" ] && mv -f /etc/localtime{,.ORIG} || :; } && \
+   ln -sf "/usr/share/zoneinfo/${timezone}" /etc/localtime; \
+  fi; \
   ls -l /etc/localtime; \
  }; \
  : "ONBUILD: Set root password" && { \
-  [ -z "${ROOTPASSWD:-}" ] || { \
-   echo "root:${ROOTPASSWD}" |chpasswd; }; \
+  if [ -n "${rootpswd:-}" ]; \
+  then echo "${rootpswd}" |passwd --stdin root; passwd -l root; \
+  fi; \
  }; \
  : "ONBUILD: SetUp default user" && { \
   if [ -n "${DOCKERUSER:-}" ]; \
@@ -208,7 +223,7 @@ RUN \
    sed -ri '/^root[ \t]*ALL.*$/a '"${newline}" "${sudoers}"; \
   fi; \
  }; \
- if [ -n "${without_ssh;-}${without_logrotate:-}${packages:-}" ]; \
+ if [ -n "${without_ssh:-}${without_logrotate:-}${packages:-}" ]; \
  then yum -v -y update; \
  fi; \
  if [ -n "${without_ssh:-}" ]; \

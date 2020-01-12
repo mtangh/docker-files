@@ -20,10 +20,6 @@ SHELL \
 WORKDIR \
  /root
 
-# Env
-ENV \
- container=docker
-
 # SetUp
 RUN \
  : "Modify yum-fastestmirror" && { \
@@ -86,14 +82,11 @@ WORKDIR \
 # CentOS 7 with systemd
 FROM scratch AS centos7-systemd-stage
 
-# Maintainer
-LABEL \
- maintainer "MT"
-
 # Labels
 LABEL \
  name="CentOS 7 with Systemd" \
  vendor="UGOOLE.ORG" \
+ maintainer="MT" \
  license=""
 
 # Labels for build
@@ -121,20 +114,22 @@ WORKDIR \
 # ONBUILD: System locale
 ONBUILD \
 ARG \
- localedef="en_US.UTF-8"
+ CONTAINER_LANGUAGE="en_US.UTF-8"
 
 # ONBUILD: keymap and timezone
 ONBUILD \
 ARG \
- keyboard="jp106"
+ CONTAINER_KEYBOARD="jp106"
+
+# ONBUILD: timezone
 ONBUILD \
 ARG \
- timezone="Asia/Tokyo"
+ CONTAINER_TIMEZONE="Asia/Tokyo"
 
 # ONBUILD: root password
 ONBUILD \
 ARG \
- ROOTPASSWD=""
+ CONTAINER_ROOTPSWD=""
 
 # ONBUILD: Default login
 ONBUILD \
@@ -166,29 +161,37 @@ ARG \
 ONBUILD \
 RUN \
  set -ux ; \
- : "ONBUILD: SetUp system locale: ${localedef:-en_US.UTF-8}" && { \
-  lc_cntr=$(echo "${localedef:-en_US.UTF-8}"|cut -d. -f1 2>/dev/null); \
-  lc_lang=$(echo "${localedef:-en_US.UTF-8}"|cut -d. -f2 2>/dev/null); \
-  [ "${lc_cntr:-en_US}" == "en_US" -a "${lc_lang:-UTF-8}" == "UTF-8" ] || { \
-   localedef -v -c -i "${lc_cntr:-en_US}" -f "${lc_lang:-UTF-8}" "${lc_cntr:-en_US}.${lc_lang:-UTF-8}"; \
-  }; \
+ language="${CONTAINER_LANGUAGE:-en_US.UTF-8}"; \
+ keyboard="${CONTAINER_KEYBOARD:-jp106}"; \
+ timezone="${CONTAINER_TIMEZONE:-Asia/Tokyo}"; \
+ rootpswd="${CONTAINER_ROOTPSWD:-}"; \
+ : "ONBUILD: SetUp system locale: ${language}" && { \
+  lc_cntr=$(echo "${language}"|cut -d. -f1); lc_cntr="${lc_cntr:-en_US}"; \
+  lc_lang=$(echo "${language}"|cut -d. -f2); lc_lang="${lc_lang:-UTF-8}"; \
+  localedef -v -c -i "${lc_cntr}" -f "${lc_lang}" "${lc_cntr}.${lc_lang}"; \
+  localectl set-locale "LANG=${lc_cntr}.${lc_lang}" || \
+  echo "LANG=${lc_cntr}.${lc_lang}" 1>/etc/locale.conf; \
  }; \
- : "ONBUILD: keymap: keyboard=${keyboard:-jp106}" && { \
-  . /etc/vconsole.conf && \
-  [ "${KEYMAP:-}" = "${keyboard:-jp106}" ] || { \
-   sed -ri 's/^KEYMAP=.*$/KEYMAP="'"${keyboard:-jp106}"'"/g' /etc/vconsole.conf; \
-  }; \
+ : "ONBUILD: keymap: keyboard=${keyboard}" && { \
+  if [ -e "/etc/vconsole.conf" ]; \
+  then . /etc/vconsole.conf; fi; \
+  if [ -z "${KEYMAP:-}" ]; \
+  then echo 'KEYMAP='"${keyboard}" 1>>/etc/vconsole.conf && . /etc/vconsole.conf; fi; \
+  if [ "${KEYMAP:-}" != "${keyboard}" ]; \
+  then sed -ri 's/^KEYMAP=.*$/KEYMAP="'"${keyboard}"'"/g' /etc/vconsole.conf; fi; \
  }; \
- : "ONBUILD: timezone: timezone=${timezone:-Asia/Tokyo}" && { \
-  [ ! -e "/usr/share/zoneinfo/${timezone:-Asia/Tokyo}" ] || { \
-   cp -pf /etc/localtime{,.ORIG} && \
-   ln -sf "/usr/share/zoneinfo/${timezone:-Asia/Tokyo}" /etc/localtime; \
-  }; \
+ : "ONBUILD: timezone: timezone=${timezone}" && { \
+  if [ -e "/usr/share/zoneinfo/${timezone}" ]; \
+  then \
+   { [ -e "/etc/localtime" ] && mv -f /etc/localtime{,.ORIG} || :; } && \
+   ln -sf "/usr/share/zoneinfo/${timezone}" /etc/localtime; \
+  fi; \
   ls -l /etc/localtime; \
  }; \
  : "ONBUILD: Set root password" && { \
-  [ -z "${ROOTPASSWD:-}" ] || { \
-   echo "root:${ROOTPASSWD}" |chpasswd; }; \
+  if [ -n "${rootpswd:-}" ]; \
+  then echo "${rootpswd}" |passwd --stdin root; passwd -l root; \
+  fi; \
  }; \
  : "ONBUILD: SetUp default user" && { \
   if [ -n "${DOCKERUSER:-}" ]; \
@@ -207,7 +210,7 @@ RUN \
    sed -ri '/^root[ \t]*ALL.*$/a '"${newline}" "${sudoers}"; \
   fi; \
  }; \
- if [ -n "${without_ssh;-}${without_logrotate:-}${packages:-}" ]; \
+ if [ -n "${without_ssh:-}${without_logrotate:-}${packages:-}" ]; \
  then yum -v -y update; \
  fi; \
  if [ -n "${without_ssh:-}" ]; \
@@ -218,10 +221,10 @@ RUN \
   } && \
   : "ONBUILD: sshd: Configure sshd_config" && { \
    sshd_config="/etc/ssh/sshd_config"; \
-   [ -s "${sshd_config}" ] && \
-   sed -ri 's/^#PermitRootLogin[ ]*yes/PermitRootLogin yes/' "${sshd_config}" && \
-   sed -ri 's/^UsePAM yes/UsePAM no/' "${sshd_config}" && \
-   cat "${sshd_config}"; \
+   [ -s "${sshd_config}" ] && { \
+    sed -ri 's/^#PermitRootLogin[ ]*yes/PermitRootLogin yes/' "${sshd_config}" && \
+    sed -ri 's/^UsePAM yes/UsePAM no/' "${sshd_config}" && \
+    cat "${sshd_config}"; }; \
   } && \
   : "ONBUILD: sshd: Enable sshd.service" && { \
    systemctl enable sshd.service || :; \

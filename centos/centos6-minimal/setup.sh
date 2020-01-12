@@ -43,15 +43,14 @@ dd if=/dev/urandom count=50 2>/dev/null |md5sum |passwd --stdin root
 passwd -l root
 
 # Setup locale properly
-localedef -v -c -i en_US -f UTF-8 en_US.UTF-8
+#localedef -v -c -i en_US -f UTF-8 en_US.UTF-8
 
 # Disable services
 for serv in `/sbin/chkconfig|cut -f1`
-do
-  /sbin/chkconfig "$serv" off
-done
+do /sbin/chkconfig "$serv" off; done
 # udev-post
-mv /etc/rc1.d/S26udev-post /etc/rc1.d/K26udev-post
+[ -e "/etc/rc1.d/S26udev-post" ] && {
+mv /etc/rc1.d/S26udev-post /etc/rc1.d/K26udev-post; }
 
 # Remove some things we don't need
 rm -rf /tmp/ks-script*
@@ -63,9 +62,7 @@ rm -rf /root/*
 
 # Cleanup all log files
 for log in $(find /var/log -type f; find /root -type f -a -name "*.log")
-do
-  [ -f "$log" ] && cat /dev/null 1>"$log";
-done
+do [ -f "$log" ] && cat /dev/null 1>"$log"; done
 
 # Cleanup tmp.
 rm -rf /tmp/* /var/tmp/*

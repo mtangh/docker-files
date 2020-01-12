@@ -8,12 +8,10 @@
 #
 FROM centos7-httpd:apache
 
-# Maintainer
-MAINTAINER MT
-
 # Labels
 LABEL \
- name="PHP of Apache HTTP Server on CentOS7 with Systemd"
+ name="PHP of Apache HTTP Server on CentOS7 with Systemd" \
+ maintainer="MT"
 
 # Work dir
 ARG \
@@ -27,7 +25,7 @@ ARG \
 
 # Install packages for PHP
 RUN \
- set -x; \
+ set -ux; \
  curl -sL -o remi.rpm "${REMI_REPOS_URL}" && \
  rpm -Uvh remi.rpm; \
  yum -v -y update && \
@@ -37,7 +35,7 @@ RUN \
 
 # Change the httpd.conf
 RUN \
- set -x; \
+ set -ux; \
  php_ini="/etc/php.ini"; \
  [ -e "${php_ini}.ORIG" ] || { cp -pf "${php_ini}"{,.ORIG}; }; \
  echo "Update $php_ini" && \
@@ -51,7 +49,7 @@ WORKDIR /
 
 # Cleanup
 RUN \
- set -x; \
+ set -ux; \
  for log in $(find /var/log -type f 2>/dev/null); \
  do [ -f "$log" ] && cat /dev/null 1>"$log"; done 2>/dev/null || :; \
  for log in {,/root,/tmp,/var/tmp}/*.log; \
@@ -79,13 +77,14 @@ COPY \
 # Init
 ONBUILD \
 RUN \
- set -x; \
+ set -ux; \
  { [ ! -e "./etc.tgz" ] || tar -zxvf "./etc.tgz"; } && \
  { [ ! -d "./etc" ] || (cd "./etc/" && tar -cv . |tar -C /etc -xf - ); } && \
  { [ ! -e "./www.tgz" ] || tar -zxvf "./www.tgz"; } && \
  { [ ! -d "./www" ] || (cd "./www/" && tar -cv . |tar -C /var/www -xf - ); } && \
  { [ ! -e "./setup.sh" ] || /bin/bash ./setup.sh; } && \
- /usr/sbin/httpd -t;
+ /usr/sbin/httpd -t && \
+ echo;
 
 # Reset Work dir
 ONBUILD \

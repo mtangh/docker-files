@@ -67,9 +67,7 @@ rm -f /var/run/nologin
 
 # Cleanup all log files
 for log in $(find /var/log -type f; find /root -type f -a -name "*.log")
-do
-  [ -f "$log" ] && cat /dev/null 1>"$log";
-done
+do [ -f "$log" ] && cat /dev/null 1>"$log"; done
 
 # Cleanup tmp.
 rm -rf /tmp/* /var/tmp/*

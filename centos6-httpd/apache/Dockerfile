@@ -1,16 +1,16 @@
 #
-# centos7-httpd:apache
+# centos6-httpd:apache
 #
 #@  DOCKER_CONTAINER=""
-#@  DOCKER_IMAGE_TAG="centos7-httpd:apache"
+#@  DOCKER_IMAGE_TAG="centos6-httpd:apache"
 #@  DOCKER_BUILDOPTS=""
 #@  DOCKER_BOOT_OPTS=""
 #
-FROM centos:centos7-systemd
+FROM centos:centos6-upstart
 
 # Labels
 LABEL \
- name="Apache HTTP Server on CentOS7 with Systemd" \
+ name="HTTP Server on CentOS 6 with Upstart" \
  maintainer="MT"
 
 # Work dir
@@ -19,7 +19,7 @@ ARG \
 WORKDIR \
  "${WORKDIR}"
 
-# Install packages for Apache
+# Install packages for Apache (and PHP)
 RUN \
  set -ux; \
  yum -v -y update && \
@@ -35,7 +35,8 @@ RUN \
  } && \
  /usr/sbin/httpd -t && \
  : "Enable httpd service." && { \
-   systemctl enable httpd; \
+  /sbin/chkconfig --add httpd 1>/dev/null 2>&1 || :; \
+  /sbin/chkconfig --levels 2345 httpd on 1>/dev/null 2>&1 || :; \
  } && \
  : "Cleanup" && { \
   for log in $(find /var/log -type f); \
@@ -44,7 +45,7 @@ RUN \
   do rm -f "$log"; done || :; \
   [ -n "${WORKDIR}" -a -d "${WORKDIR}" ] && { \
    cd /; rm -rf "${WORKDIR}"; } || :; \
- } 2>/dev/null || :; \
+ } || :; \
  echo;
 
 # Reset Work dir

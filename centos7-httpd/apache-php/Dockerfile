@@ -8,12 +8,10 @@
 #
 FROM centos7-httpd:apache
 
-# Maintainer
-MAINTAINER MT
-
 # Labels
 LABEL \
- name="PHP of Apache HTTP Server on CentOS7 with Systemd"
+ name="PHP of Apache HTTP Server on CentOS7 with Systemd" \
+ maintainer="MT"
 
 # Work dir
 ARG \
@@ -23,28 +21,31 @@ WORKDIR \
 
 # Install packages for PHP
 RUN \
- set -x; \
+ set -ux; \
  yum -v -y update && \
  yum -v -y install php php-devel php-pear php-mbstring php-gd && \
  yum -v -y clean all
 
 # Change the php.ini
 RUN \
- set -x; \
+ set -ux; \
  php_ini="/etc/php.ini"; \
  [ -e "${php_ini}.ORIG" ] || { cp -pf "${php_ini}"{,.ORIG}; }; \
- echo "Update $php_ini" && \
- sed -ri \
-  's#^(;|)[ ]*mbstring\.(internal_encoding|http_output)[ ]*=[ ]*.*$#mbstring.\2 = UTF-8#g' \
-  "${php_ini}" && \
- /usr/sbin/httpd -t
+ echo "Update $php_ini" && { \
+  sed -ri \
+   's#^(;|)[ ]*mbstring\.(internal_encoding|http_output)[ ]*=[ ]*.*$#mbstring.\2 = UTF-8#g' \
+   "${php_ini}" && \
+  echo; \
+ } && \
+ /usr/sbin/httpd -t && \
+ echo;
 
 # Reset Work dir
 WORKDIR /
 
 # Cleanup
 RUN \
- set -x; \
+ set -ux; \
  for log in $(find /var/log -type f 2>/dev/null); \
  do [ -f "$log" ] && cat /dev/null 1>"$log"; done 2>/dev/null || :; \
  for log in {,/root,/tmp,/var/tmp}/*.log; \
@@ -72,13 +73,14 @@ COPY \
 # Init
 ONBUILD \
 RUN \
- set -x; \
+ set -ux; \
  { [ ! -e "./etc.tgz" ] || tar -zxvf "./etc.tgz"; } && \
  { [ ! -d "./etc" ] || (cd "./etc/" && tar -cv . |tar -C /etc -xf - ); } && \
  { [ ! -e "./www.tgz" ] || tar -zxvf "./www.tgz"; } && \
  { [ ! -d "./www" ] || (cd "./www/" && tar -cv . |tar -C /var/www -xf - ); } && \
  { [ ! -e "./setup.sh" ] || /bin/bash ./setup.sh; } && \
- /usr/sbin/httpd -t;
+ /usr/sbin/httpd -t && \
+ echo;
 
 # Reset Work dir
 ONBUILD \
