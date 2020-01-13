@@ -10,30 +10,56 @@ FROM centos:centos7-systemd
 
 # Labels
 LABEL \
- name="Apache HTTP Server on CentOS7 with Systemd" \
+ name="Base image for Apache HTTP Server on CentOS7 with Systemd" \
  maintainer="MT"
 
 # Work dir
+ONBUILD \
 ARG \
  WORKDIR=/tmp/workdir
+ONBUILD \
 WORKDIR \
  "${WORKDIR}"
 
+# Copy contents
+ONBUILD \
+COPY \
+ * "${WORKDIR}/"
+
 # Install packages for Apache
+ONBUILD \
+ARG \
+ APACHE_PKG_LIST="./packages.txt"
+ONBUILD \
 RUN \
  set -ux; \
- yum -v -y update && \
- yum -v -y install httpd mod-ssl && \
- yum -v -y clean all && \
- httpd_conf="/etc/httpd/conf/httpd.conf"; \
- { [ -e "${httpd_conf}.ORIG" ] || cp -pf "${httpd_conf}"{,.ORIG}; }; \
- echo "Update $httpd_conf" && { \
-  sed -ri 's#^(ServerAdmin)[ ][ ]*.*$#\1 admin@localhost#g' "${httpd_conf}" && \
-  sed -ri 's#^(ServerTokens)[ ][ ]*.*$#\1 Prod#g' "${httpd_conf}" && \
-  sed -ri 's#^(ServerSignature)[ ][ ]*.*$#\1 Off#g' "${httpd_conf}" && \
+ if [ -n "${APACHE_PKG_LIST:-}" -a -s "${APACHE_PKG_LIST:-}" ]; \
+ then \
+  packages=$(echo $(cat "${APACHE_PKG_LIST}")); \
+ else \
+  packages="httpd mod_ssl"; \
+  echo "The Apache Package List is empty, using default: '${packages}''." 1>&2; \
+ fi; \
+ : "ONUILD: Install Apache Packages" && { \
+  yum -v -y update && \
+  yum -v -y install ${packages} && \
+  yum -v -y clean all && \
   echo; \
  } && \
- /usr/sbin/httpd -t && \
+ httpdcnf="/etc/httpd/conf/httpd.conf"; \
+ : "ONUILD: Update ${httpdcnf}" && { \
+  { [ -e "${httpdcnf}.ORIG" ] || cp -pf "${httpdcnf}"{,.ORIG}; }; \
+  if [ -e "./httpd.conf" -a -s "./httpd.conf" ]; \
+  then \
+   cat "./httpd.conf" 1>"${httpdcnf}"; \
+  else \
+   sed -ri 's#^(ServerAdmin)[ ][ ]*.*$#\1 admin@localhost#g' "${httpdcnf}" && \
+   sed -ri 's#^(ServerTokens)[ ][ ]*.*$#\1 Prod#g' "${httpdcnf}" && \
+   sed -ri 's#^(ServerSignature)[ ][ ]*.*$#\1 Off#g' "${httpdcnf}" && \
+   echo; \
+  fi && \
+  /usr/sbin/httpd -t; \
+ } && \
  : "Enable httpd service." && { \
    systemctl enable httpd; \
  } && \
@@ -48,64 +74,6 @@ RUN \
  echo;
 
 # Reset Work dir
-WORKDIR /
-
-#-
-#- Begin ONBUILDs
-#-
-
-# Work dir
-ONBUILD \
-ARG \
- WORKDIR="/tmp/workdir"
-ONBUILD \
-WORKDIR \
- ${WORKDIR}
-
-# Copy contents
-ONBUILD \
-COPY \
- * "${WORKDIR}/"
-
-# Init
-ONBUILD \
-RUN \
- set -ux; \
- : "ONBUILD: Setup" && { \
-  { [ ! -e "./etc.tgz" ] || tar -zxvf "./etc.tgz"; } && \
-  { [ ! -d "./etc" ] || (cd "./etc/" && tar -cv . |tar -C /etc -xf - ); } && \
-  { [ ! -e "./www.tgz" ] || tar -zxvf "./www.tgz"; } && \
-  { [ ! -d "./www" ] || (cd "./www/" && tar -cv . |tar -C /var/www -xf - ); } && \
-  { [ ! -e "./setup.sh" ] || /bin/bash -ux ./setup.sh; } && \
-  /usr/sbin/httpd -t && \
-  echo; \
- }; \
- : "ONBUILD: Cleanup" && { \
-  for log in $(find /var/log -type f); \
-  do [ -f "$log" ] && cat /dev/null 1>"$log"; done || :; \
-  for log in {,/root,/tmp,/var/tmp}/*.log; \
-  do rm -f "$log"; done || :; \
-  [ -n "${WORKDIR}" -a -d "${WORKDIR}" ] && { \
-   cd /; rm -rf "${WORKDIR}"; } || :; \
- } 2>/dev/null || :; \
- echo;
-
-# Reset Work dir
 ONBUILD \
 WORKDIR /
-
-#-
-#- End of ONBUILDs
-#-
-
-# Labels for run
-LABEL \
- docker.run.options="-d -P -h apache-httpd-server --privileged" \
- docker.run.confirm-startup=""
-
-# Health check
-HEALTHCHECK \
---interval=60s --timeout=15s --retries=3 \
-CMD \
- curl -sL --no-keepalive -o /dev/null "http://localhost/"
 

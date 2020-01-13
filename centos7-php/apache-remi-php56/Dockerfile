@@ -1,20 +1,21 @@
 #
-# centos6-upstart:sshd
+# centos7-php:apache-remi-php56
 #
 #@  DOCKER_CONTAINER=""
-#@  DOCKER_IMAGE_TAG="centos6-upstart:sshd"
+#@  DOCKER_IMAGE_TAG="centos7-php:apache-remi-php56"
 #@  DOCKER_BUILDOPTS=""
 #@  DOCKER_BOOT_OPTS=""
 #
-FROM centos:centos6-upstart
+FROM centos7-php:apache-php
 
 # Labels
 LABEL \
- name="SSHd on CentOS6 with upstart" \
+ name="PHP56 enabled Apache HTTP Server on CentOS7 with Systemd" \
  maintainer="MT"
 
-# Reset Work dir
-WORKDIR /
+# Reset Workdir
+WORKDIR \
+ /
 
 #-
 #- Begin ONBUILDs
@@ -33,14 +34,21 @@ ONBUILD \
 COPY \
  * "${WORKDIR}/"
 
+# Reset Work dir
+WORKDIR /
+
 # Setup
 ONBUILD \
 RUN \
  set -ux; \
  : "ONBUILD: Setup" && { \
-  { [ ! -e "./setup.tgz" ] || tar -zxvf "./setup.tgz"; } && \
+  { [ ! -e "./etc.tgz" ] || tar -zxvf "./etc.tgz"; } && \
+  { [ ! -d "./etc" ] || (cd "./etc/" && tar -cv . |tar -C /etc -xf - ); } && \
+  { [ ! -e "./www.tgz" ] || tar -zxvf "./www.tgz"; } && \
+  { [ ! -d "./www" ] || (cd "./www/" && tar -cv . |tar -C /var/www -xf - ); } && \
   { [ ! -e "./setup.sh" ] || /bin/bash -ux ./setup.sh; } && \
-  echo "OK"; \
+  /usr/sbin/httpd -t && \
+  echo; \
  }; \
  : "ONBUILD: Cleanup" && { \
   for log in $(find /var/log -type f); \
@@ -62,6 +70,12 @@ WORKDIR /
 
 # Labels for run
 LABEL \
- docker.run.options="-d -P -h c6-sshd-server --privileged" \
+ docker.run.options="-d -P -h cos7-apache-remi-php56 --privileged" \
  docker.run.confirm-startup=""
+
+# Health check
+HEALTHCHECK \
+--interval=60s --timeout=15s --retries=3 \
+CMD \
+ curl -sL --no-keepalive -o /dev/null "http://localhost/"
 

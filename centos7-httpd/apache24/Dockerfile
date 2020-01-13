@@ -1,16 +1,16 @@
 #
-# centos7-systemd:sshd
+# centos7-httpd:apache24
 #
 #@  DOCKER_CONTAINER=""
-#@  DOCKER_IMAGE_TAG="centos7-systemd:sshd"
+#@  DOCKER_IMAGE_TAG="centos7-httpd:apache24"
 #@  DOCKER_BUILDOPTS=""
 #@  DOCKER_BOOT_OPTS=""
 #
-FROM centos:centos7-systemd
+FROM centos7-httpd:apache
 
 # Labels
 LABEL \
- name="SSHd on CentOS7 with Systemd" \
+ name="Apache HTTP Server on CentOS7 with Systemd" \
  maintainer="MT"
 
 # Reset Work dir
@@ -38,8 +38,12 @@ ONBUILD \
 RUN \
  set -ux; \
  : "ONBUILD: Setup" && { \
-  { [ ! -e "./setup.tgz" ] || tar -zxvf "./setup.tgz"; } && \
+  { [ ! -e "./etc.tgz" ] || tar -zxvf "./etc.tgz"; } && \
+  { [ ! -d "./etc" ] || (cd "./etc/" && tar -cv . |tar -C /etc -xf - ); } && \
+  { [ ! -e "./www.tgz" ] || tar -zxvf "./www.tgz"; } && \
+  { [ ! -d "./www" ] || (cd "./www/" && tar -cv . |tar -C /var/www -xf - ); } && \
   { [ ! -e "./setup.sh" ] || /bin/bash -ux ./setup.sh; } && \
+  /usr/sbin/httpd -t && \
   echo; \
  }; \
  : "ONBUILD: Cleanup" && { \
@@ -62,6 +66,12 @@ WORKDIR /
 
 # Labels for run
 LABEL \
- docker.run.options="-d -P -h c7-sshd-server --privileged" \
+ docker.run.options="-d -P -h cos7-apache-server --privileged" \
  docker.run.confirm-startup=""
+
+# Health check
+HEALTHCHECK \
+--interval=60s --timeout=15s --retries=3 \
+CMD \
+ curl -sL --no-keepalive -o /dev/null "http://localhost/"
 

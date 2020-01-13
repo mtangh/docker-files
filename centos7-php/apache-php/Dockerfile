@@ -1,28 +1,17 @@
 #
-# centos7-lamp:lamp
+# centos7-php:apache-php
 #
 #@  DOCKER_CONTAINER=""
-#@  DOCKER_IMAGE_TAG="centos7-lamp:lamp"
+#@  DOCKER_IMAGE_TAG="centos7-php:apache-php"
 #@  DOCKER_BUILDOPTS=""
 #@  DOCKER_BOOT_OPTS=""
 #
-FROM centos7-httpd:apache AS build-stage
+FROM centos7-httpd:apache
 
 # Labels
 LABEL \
- build-stage="true"
-
-# LAMP Environment (CentOS7)
-FROM centos:centos7-systemd AS centos7-lamp-stage
-
-# Labels
-LABEL \
- name="Base image for LAMP Environment on CentOS7 with Systemd" \
+ name="Base image for PHP enabled Apache HTTP Server on CentOS7 with Systemd" \
  maintainer="MT"
-
-# COPY from build-stage
-COPY \
- --from=build-stage / /
 
 # Reset Workdir
 WORKDIR \
@@ -45,19 +34,17 @@ COPY \
 ONBUILD \
 RUN \
  set -ux; \
- : "ONUILD: Install LAMP Packages" && { \
+ : "ONBUILD: Install PHP Packages" && { \
   if [ -e "./install.sh" ]; \
   then bash ./install.sh; \
   else \
    yum -v -y update && \
    yum -v -y install php php-devel php-pear && \
    yum -v -y install php-mbstring php-pdo php-gd php-xml php-json php-mcrypt php-pecl-zip && \
-   yum -v -y install mariadb mariadb-server php-mysqlnd && \
    yum -v -y clean all && \
-   systemctl enable mariadb.service && \
    echo; \
   fi && \
-  php_ini_file="/etc/php.ini" && \
+  php_ini_file="/etc/php.ini"; \
   : "Update ${php_ini_file}" && { \
    { [ -e "${php_ini_file}.ORIG" ] || cp -pf "${php_ini_file}"{,.ORIG}; }; \
    if [ -e "./php.ini" -a -s "./php.ini" ]; \
@@ -71,21 +58,16 @@ RUN \
    fi && \
    /usr/sbin/httpd -t && \
    echo; \
-  } && \
-  mysqlcnffile="/etc/my.cnf" && \
-  : "Update ${mysqlcnffile}" && { \
-   { [ -e "${mysqlcnffile}.ORIG" ] || cp -pf "${mysqlcnffile}"{,.ORIG}; }; \
-   if [ -e "./my.cnf" -a -s "./my.cnf" ]; \
-   then \
-    cat "./my.cnf" 1>"${mysqlcnffile}"; \
-   else \
-    sed -ri '/^socket=/a character-set-server=utf8' "${mysqlcnffile}" && \
-    echo; \
-   fi && \
-   echo; \
-  } && \
-  echo; \
+  }; \
  } && \
+ : "ONBUILD: Cleanup" && { \
+  for log in $(find /var/log -type f); \
+  do [ -f "$log" ] && cat /dev/null 1>"$log"; done || :; \
+  for log in {,/root,/tmp,/var/tmp}/*.log; \
+  do rm -f "$log"; done || :; \
+  [ -n "${WORKDIR}" -a -d "${WORKDIR}" ] && { \
+   cd /; rm -rf "${WORKDIR}"; } || :; \
+ } 2>/dev/null || :; \
  echo;
 
 # Reset Work dir
