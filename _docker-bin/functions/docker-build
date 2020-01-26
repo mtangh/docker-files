@@ -51,15 +51,15 @@ docker-build() {
   [ -z "$_buildpath" ] &&
   _buildpath="$_build_dir/$_buildfile"
   [ -r "$_buildpath" -a -z "$_cimagetag" ] &&
-  _cimagetag=$(docker-container-env DOCKER_IMAGE_TAG "$_buildpath")
+  _cimagetag=$(dockerfile-env-get DOCKER_IMAGE_TAG "$_buildpath")
   [ -z "$_buildopts" -a -z "$_opts_path" ] &&
   _opts_path="${DOCKERFILE_OPTS_BUILD:-Dockerfile.opts.build}"
   [ -z "$_buildopts" -a ! -r "$_opts_path" -a -r "$_buildpath" ] &&
-  _opts_path=$(docker-container-env DOCKERFILE_OPTS_BUILD "$_buildpath")
+  _opts_path=$(dockerfile-env-get DOCKERFILE_OPTS_BUILD "$_buildpath")
   [ -z "$_buildopts" -a -s "${_opts_path}" ] &&
-  _buildopts=$(cat "${_opts_path}" 2>/dev/null|awk '{printf(" %s",$0);}')
+  _buildopts=$(cat "${_opts_path}" 2>/dev/null|${AWK} '{printf(" %s",$0);}')
   [ -r "$_buildpath" -a -z "$_buildopts" ] &&
-  _buildopts=$(docker-container-env DOCKER_BUILDOPTS "$_buildpath")
+  _buildopts=$(dockerfile-env-get DOCKER_BUILDOPTS "$_buildpath")
   if [ -n "${_cimagetag}" ]
   then
     _labelopts="${_labelopts:+$_labelopts }--label build-date=\"$(date +'%Y%m%dT%H:%M%z')\""

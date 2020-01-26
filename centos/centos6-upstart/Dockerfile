@@ -97,8 +97,11 @@ WORKDIR \
 
 # ONBUILD: Set Workdir
 ONBUILD \
+ARG \
+ DOCKER_BUILD_DIR=docker-build
+ONBUILD \
 WORKDIR \
- /root
+ /root/${DOCKER_BUILD_DIR}
 
 # ONBUILD: System locale
 ONBUILD \
@@ -270,7 +273,7 @@ RUN \
   for log in {,/root,/tmp,/var/tmp}/*.log; \
   do rm -f "$log"; done; \
   yum -v -y clean all; rm -rf /var/cache/yum/*; \
-  rm -rf /root/*; \
+  cd; rm -rf /root/*; \
  } 2>/dev/null || :; \
  echo;
 

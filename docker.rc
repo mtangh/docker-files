@@ -3,21 +3,20 @@ DOCKER_RC_FILE="${BASH_SOURCE##*/}"
 DOCKERFILESDIR=$([ -n "${BASH_SOURCE%/*}" ] && cd "${BASH_SOURCE%/*}" 2>/dev/null; pwd)
 DOCKER_BIN_DIR="${DOCKERFILESDIR}/_docker-bin"
 
-if [ -d "$DOCKER_BIN_DIR" ]
+# Paths
+if [ -d "${DOCKER_BIN_DIR}" ]
 then
   echo "$PATH" |
-  grep -E '^(.+:|)'"${DOCKERFILESDIR}/_docker-bin"'(:.+|)$' || {
-    PATH="${PATH}:${DOCKERFILESDIR}/_docker-bin"
+  grep -E '^(.+:|)'"${DOCKER_BIN_DIR}"'(:.+|)$' || {
+    PATH="${PATH}:${DOCKER_BIN_DIR}"
     export PATH
   }
 fi 1>/dev/null 2>&1
 
 # Functions
-for function in "${DOCKER_BIN_DIR}"/functions/*
-do
-  . "${function}"
-done 1>/dev/null 2>&1
-unset function
+[ -f "${DOCKER_BIN_DIR}/functions.sh" ] && {
+  . "${DOCKER_BIN_DIR}/functions.sh"
+} || return 1
 
 # DOCKER Host
 for dockerhostfile in \

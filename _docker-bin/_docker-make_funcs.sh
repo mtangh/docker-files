@@ -1,23 +1,11 @@
-# _docker-functions.sh
-DOCKERFUNC_SRC="${BASH_SOURCE##*/}"
-DOCKERFUNC_DIR=$([ -n "${BASH_SOURCE%/*}" ] && cd "${BASH_SOURCE%/*}"; pwd)
+# _docker-make-functions.sh
+DOCKERMAKEFUNC_SRC="${BASH_SOURCE##*/}"
+DOCKERMAKEFUNC_DIR=$([ -n "${BASH_SOURCE%/*}" ] && cd "${BASH_SOURCE%/*}"; pwd)
 
-# awk
-AWK="${AWK:-$(type -P gawk)}"
-AWK="${AWK:-$(type -P awk)}"
-
-# sed
-SED="${SED:-$(type -P gsed)}"
-SED="${SED:-$(type -P sed)}"
-
-# Load the functins
-if [ -n "${DOCKERFUNC_DIR}" -a -d "${DOCKERFUNC_DIR}/functions" ]
-then
-  for func in "${DOCKERFUNC_DIR}"/functions/*
-  do
-    . "${func}"
-  done 2>/dev/null
-fi
+# Functions
+[ -f "${DOCKERMAKEFUNC_DIR}/functions.sh" ] && {
+  . "${DOCKERMAKEFUNC_DIR}/functions.sh"
+} || exit 1
 
 # echo start
 __echo_start() {
@@ -50,7 +38,7 @@ __section() {
 # Stdout with TS
 __stdout_with_ts() {
   _tag="${1}"
-  $AWK '{
+  ${AWK} '{
   printf("%s: %s: %s%s\n",
   "'"${BASE:-MAKE}"'",strftime("%Y%m%dT%H%M%S",systime()),"'"${_tag:+$_tag: }"'",$0);
   fflush();};' |

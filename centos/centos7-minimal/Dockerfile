@@ -14,11 +14,6 @@ SHELL \
  [ "/bin/bash", "-u", "-x", "-c" ]
 
 # BUILDER:
-# Set Workdir
-WORKDIR \
- /root
-
-# BUILDER:
 # CentOS Image Root
 ENV \
  CENTOS_ROOT=/centos-image/rootfs
@@ -27,6 +22,11 @@ ENV \
 # RPM GPG Key
 ENV \
  RPM_GPG_KEY=/etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7
+
+# BUILDER:
+# Set Workdir
+WORKDIR \
+ /root
 
 # BUILDER:
 # COPY setup.sh
@@ -43,11 +43,13 @@ COPY \
 #   other language files than english generally
 # - Chroot to the environment and install some additional tools
 RUN \
- mkdir -p "${CENTOS_ROOT:=/centos-image/rootfs}" && \
+ echo "CENTOS_ROOT=${CENTOS_ROOT:=/centos-image/rootfs}"; \
+ echo "RPM_GPG_KEY=${RPM_GPG_KEY:=/etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7}"; \
+ mkdir -p "${CENTOS_ROOT}" && \
  rpm --root "${CENTOS_ROOT}" --initdb && \
  yum -v -y reinstall --downloadonly --downloaddir . centos-release && \
  rpm --root "${CENTOS_ROOT}" --nodeps -ivh centos-release*.rpm && \
- rpm --root "${CENTOS_ROOT}" --import "${CENTOS_ROOT}${RPM_GPG_KEY:=/etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7}" && \
+ rpm --root "${CENTOS_ROOT}" --import "${CENTOS_ROOT}${RPM_GPG_KEY}" && \
  yum -v -y \
   --installroot=${CENTOS_ROOT} \
   --setopt=override_install_langs=en_US.utf8 \
@@ -106,14 +108,32 @@ ONBUILD \
 ARG \
  CONTAINER_ROOTPSWD=""
 
+# ONBUILD: Set Workdir
+ONBUILD \
+ARG \
+ BUILDDIR=/root/docker-container-build
+ONBUILD \
+WORKDIR \
+ ${BUILDDIR}
+
+# ONBUILD: Build script
+ONBUILD \
+COPY \
+ onbuild.* ${BUILDDIR}/
+
 # ONBUILD: SetUp
 ONBUILD \
 RUN \
  set -ux ; \
- language="${CONTAINER_LANGUAGE:-en_US.UTF-8}"; \
- keyboard="${CONTAINER_KEYBOARD:-jp106}"; \
- timezone="${CONTAINER_TIMEZONE:-Asia/Tokyo}"; \
- rootpswd="${CONTAINER_ROOTPSWD:-}"; \
+ : "ONBUILD: Init" && { \
+  language="${CONTAINER_LANGUAGE:-en_US.UTF-8}"; \
+  keyboard="${CONTAINER_KEYBOARD:-jp106}"; \
+  timezone="${CONTAINER_TIMEZONE:-Asia/Tokyo}"; \
+  rootpswd="${CONTAINER_ROOTPSWD:-}"; \
+  if [ -e "./onbuild.rc" ]; \
+  then . "./onbuild.rc" || exit 1; \
+  fi || :; \
+ }; \
  : "ONBUILD: SetUp system locale: ${language}" && { \
   lc_cntr=$(echo "${language}"|cut -d. -f1); lc_cntr="${lc_cntr:-en_US}"; \
   lc_lang=$(echo "${language}"|cut -d. -f2); lc_lang="${lc_lang:-UTF-8}"; \
@@ -142,5 +162,27 @@ RUN \
   then echo "${rootpswd}" |passwd --stdin root; passwd -l root; \
   fi; \
  }; \
+ if [ -s "./onbuild.sh" ]; \
+ then echo "Not found 'onbuild.sh', skipping this instruction."; \
+ else \
+  : "ONBUILD: BUILD-SCRIPTS: Execute './onbuild.sh'" && { \
+   bash -ux "./onbuild.sh" || exit 1; \
+  }; \
+ fi; \
+ : "ONBUILD: Cleanup" && { \
+  cd && { ; \
+   for log in $(find /var/log -type f); \
+   do [ -f "$log" ] && cat /dev/null 1>"$log"; done; \
+   for log in {,/var}/tmp/*.log; do rm -f "$log"; done; \
+   yum -v -y clean all; rm -rf /var/cache/yum/*; \
+   [ -d "${BUILDDIR:--}" ] && rm -rf "${BUILDDIR}" || :; \
+   rm -rf /root/*; \
+  }; \
+ } || :; \
  echo;
+
+# ONBUILD: Reset Workdir
+ONBUILD \
+WORKDIR \
+ /
 

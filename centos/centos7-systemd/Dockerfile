@@ -16,65 +16,6 @@ LABEL \
 SHELL \
  [ "/bin/bash", "-u", "-x", "-c" ]
 
-# Set Workdir
-WORKDIR \
- /root
-
-# SetUp
-RUN \
- : "Modify yum-fastestmirror" && { \
-  yum_fastmirror_conf="/etc/yum/pluginconf.d/fastestmirror.conf"; \
-  [ -e "${yum_fastmirror_conf}" ] && \
-  sed -ri 's/^verbose=0$/verbose=1/g' "${yum_fastmirror_conf}" && \
-  sed -ri 's/^(#*)include_only=.*$/include_only=.jp,.org/g' "${yum_fastmirror_conf}" && \
-  sed -ri '/^include_only=.*$/a prefer=www.ftp.ne.jp' "${yum_fastmirror_conf}" && \
-  cat "${yum_fastmirror_conf}"; \
- } && \
- : "Install EPEL" && { \
-  yum -v -y install epel-release; \
- } && \
- : "Install systemd" && { \
-  yum -v -y update && \
-  yum -v -y install systemd-sysv sudo && \
-  yum -v -y clean all; rm -rf /var/cache/yum/*; \
- } && \
- : "Delete systemd files" && { \
-  etc_systemd_sys_dir="/etc/systemd/system"; \
-  usr_systemd_sys_dir="/usr/lib/systemd/system"; \
-  rm -f "${etc_systemd_sys_dir}"/*.wants/*; \
-  (cd "${usr_systemd_sys_dir}" && { \
-    for item in \
-    ./multi-user.target.wants/dbus.service \
-    ./multi-user.target.wants/getty.target \
-    ./multi-user.target.wants/systemd-ask-password-wall.path \
-    ./multi-user.target.wants/systemd-update-utmp-runlevel.service \
-    ./sockets.target.wants/dbus.socket \
-    ./sockets.target.wants/systemd-initctl.socket \
-    ./sockets.target.wants/systemd-udevd-control.socket \
-    ./sockets.target.wants/systemd-udevd-kernel.socket \
-    ./sysinit.target.wants/systemd-ask-password-console.path \
-    ./sysinit.target.wants/systemd-udevd.service \
-    ./sysinit.target.wants/systemd-udev-trigger.service \
-    ./sysinit.target.wants/systemd-vconsole-setup.service \
-    ./local-fs.target.wants/systemd-remount-fs.service ; \
-    do rm -f "$item"; done; \
-   } &>/dev/null; ); \
-  (cd "${usr_systemd_sys_dir}"/sysinit.target.wants && { \
-    for item in *; \
-    do echo "$item"|egrep '^systemd-tmpfiles-setup.*service' || rm -f "$item"; \
-    done; \
-   } &>/dev/null; ); \
- }; \
- : "Cleanup" && { \
-  for log in $(find /var/log -type f); \
-  do [ -f "$log" ] && cat /dev/null 1>"$log"; done; \
-  for log in {,/root,/tmp,/var/tmp}/*.log; \
-  do rm -f "$log"; done; \
-  yum -v -y clean all; rm -rf /var/cache/yum/*; \
-  rm -rf /root/*; \
- } 2>/dev/null || :; \
- echo;
-
 # Reset Workdir
 WORKDIR \
  /
@@ -94,22 +35,13 @@ LABEL \
  build-date="" \
  docker.build.options=""
 
-# Set Workdir
-WORKDIR \
- /root
-
-# COPY from build-stage
-COPY \
- --from=build-stage / /
-
 # Reset Workdir
 WORKDIR \
  /
 
-# ONBUILD: Set Workdir
-ONBUILD \
-WORKDIR \
- /root
+# COPY from build-stage
+COPY \
+ --from=build-stage / /
 
 # ONBUILD: System locale
 ONBUILD \
@@ -145,26 +77,39 @@ ARG \
 # ONBUILD: sshd
 ONBUILD \
 ARG \
- without_ssh=""
+ WITHOUT_SSHD_LOGIN=""
 
 # ONBUILD: logrotate
 ONBUILD \
 ARG \
- without_logrotate=""
+ WITHOUT_LOG_ROTATE=""
 
-# ONBUILD: Additional Packages
+# ONBUILD: Set Workdir
 ONBUILD \
 ARG \
- packages=""
+ BUILDDIR=/root/docker-container-build
+ONBUILD \
+WORKDIR \
+ ${BUILDDIR}
+
+# ONBUILD: Build script
+ONBUILD \
+COPY \
+ onbuild.* ${BUILDDIR}/
 
 # ONBUILD: SetUp
 ONBUILD \
 RUN \
  set -ux ; \
- language="${CONTAINER_LANGUAGE:-en_US.UTF-8}"; \
- keyboard="${CONTAINER_KEYBOARD:-jp106}"; \
- timezone="${CONTAINER_TIMEZONE:-Asia/Tokyo}"; \
- rootpswd="${CONTAINER_ROOTPSWD:-}"; \
+ : "ONBUILD: Init" && { \
+  language="${CONTAINER_LANGUAGE:-en_US.UTF-8}"; \
+  keyboard="${CONTAINER_KEYBOARD:-jp106}"; \
+  timezone="${CONTAINER_TIMEZONE:-Asia/Tokyo}"; \
+  rootpswd="${CONTAINER_ROOTPSWD:-}"; \
+  if [ -e "./onbuild.rc" ]; \
+  then . "./onbuild.rc" || exit 1; \
+  fi || :; \
+ }; \
  : "ONBUILD: SetUp system locale: ${language}" && { \
   lc_cntr=$(echo "${language}"|cut -d. -f1); lc_cntr="${lc_cntr:-en_US}"; \
   lc_lang=$(echo "${language}"|cut -d. -f2); lc_lang="${lc_lang:-UTF-8}"; \
@@ -210,10 +155,10 @@ RUN \
    sed -ri '/^root[ \t]*ALL.*$/a '"${newline}" "${sudoers}"; \
   fi; \
  }; \
- if [ -n "${without_ssh:-}${without_logrotate:-}${packages:-}" ]; \
+ if [ -n "${WITHOUT_SSHD_LOGIN:-}${WITHOUT_LOG_ROTATE:-}" ]; \
  then yum -v -y update; \
  fi; \
- if [ -n "${without_ssh:-}" ]; \
+ if [ -n "${WITHOUT_SSHD_LOGIN:-}" ]; \
  then echo "Without SSHd, skipping this instruction."; \
  else \
   : "ONBUILD: sshd: Install openssh-server" && { \
@@ -230,7 +175,7 @@ RUN \
    systemctl enable sshd.service || :; \
   }; \
  fi; \
- if [ -n "${without_logrotate:-}" ]; \
+ if [ -n "${WITHOUT_LOG_ROTATE:-}" ]; \
  then echo "Without logrotate, skipping this instruction."; \
  else \
   : "ONBUILD: logrotate: install logrotate" && { \
@@ -277,20 +222,22 @@ RUN \
    systemctl enable logrotate.timer || : ; \
   }; \
  fi; \
- if [ -z "${packages:-}" ]; \
- then echo "No packages, skipping this instruction."; \
+ if [ -s "./onbuild.sh" ]; \
+ then echo "Not found 'onbuild.sh', skipping this instruction."; \
  else \
-  : "ONBUILD: PKG: install packages are: ${packages}" && { \
-   yum -v -y install ${packages}; \
+  : "ONBUILD: BUILD-SCRIPTS: Execute './onbuild.sh'" && { \
+   bash -ux "./onbuild.sh" || exit 1; \
   }; \
  fi; \
  : "ONBUILD: Cleanup" && { \
-  for log in $(find /var/log -type f); \
-  do [ -f "$log" ] && cat /dev/null 1>"$log"; done; \
-  for log in {,/root,/tmp,/var/tmp}/*.log; \
-  do rm -f "$log"; done; \
-  yum -v -y clean all; rm -rf /var/cache/yum/*; \
-  rm -rf /root/*; \
+  cd && { ; \
+   for log in $(find /var/log -type f); \
+   do [ -f "$log" ] && cat /dev/null 1>"$log"; done; \
+   for log in {,/var}/tmp/*.log; do rm -f "$log"; done; \
+   yum -v -y clean all; rm -rf /var/cache/yum/*; \
+   [ -d "${BUILDDIR:--}" ] && rm -rf "${BUILDDIR}" || :; \
+   rm -rf /root/*; \
+  }; \
  } 2>/dev/null || :; \
  echo;
 

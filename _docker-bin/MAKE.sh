@@ -10,7 +10,7 @@ DOCKER_HOST="${DOCKER_HOST:-tcp://127.0.0.1:4243}"
 export DOCKER_HOST
 
 # docker-bin functions
-. ${CDIR}/_docker-functions.sh 1>/dev/null 2>&1 ||
+. ${CDIR}/_docker-make_funcs.sh 1>/dev/null 2>&1 ||
   exit 127
 
 # docker container name
@@ -295,7 +295,7 @@ fi
     echo "ID '$_docker_containerid' was started."
     # Print portmap
     docker port "$_docker_containerid" |
-    awk '{printf("portmap - %s\n",$0);}'
+    ${AWK} '{printf("portmap - %s\n",$0);}'
     # End
     __echo_end $?
   } 2>&1 |

@@ -1,0 +1,209 @@
+# docker-dockerfile
+
+# Docker file get
+dockerfile-get-path() {
+  local _dockerfile="${1:-}"; shift
+  [ -z "${_dockerfile}" ] &&
+   _dockerfile="$(pwd)/Dockerfile" || :
+  [ -d "${_dockerfile}" ] &&
+   _dockerfile="${_dockerfile}/Dockerfile" || :
+  [ "${_dockerfile}" = "${_dockerfile##*/}" ] &&
+   _dockerfile="$(pwd)/${_dockerfile}" || :
+  [ -n "${_dockerfile}" ] && echo "${_dockerfile}"
+  return $?
+}
+
+# number of stage
+dockerfile-num-of-stage() {
+  local _dockerfile=$(dockerfile-get-path "${1:-}" 2>/dev/null); shift
+  local _stagecount=$(dockerfile-stage-list "${_dockerfile}"|wc -l 2>/dev/null)
+  echo ${_stagecount:-0}
+  return 0
+}
+
+# multi-stage dockerfile
+dockerfile-multi-stage() {
+  local _stagecount=$(dockerfile-num-of-stage "${1:-}" 2>/dev/null)
+  [ ${_stagecount:-0} -gt 1 ]
+  return $?
+}
+
+# list stage
+dockerfile-stage-list() {
+  local _dockerfile=""
+  local _prt_format=0
+  while [ $# -gt 0 ]
+  do
+    case "${1:-}" in
+    -f|--format*)
+      _prt_format=1
+      ;;
+    -*)
+      echo "${FUNCNAME}: ERROR: Illegal options '${1:-}'". 1>&2
+      return 2
+      ;;
+    *)
+      [ -z "${_dockerfile}" ] && {
+        _dockerfile="${1:-}"
+      } || :
+      ;;
+    esac
+    shift
+  done
+  _dockerfile="$(dockerfile-get-path ${_dockerfile} 2>/dev/null)"
+  [ -f "${_dockerfile}" -a -r "${_dockerfile}" ] && {
+    [ ${_prt_format} -eq 0 ] || {
+      printf "%3s %-24s%s" "IDX" "From" "As"; echo
+    }
+    egrep -i '^[[:space:]]*FROM[[:space:]]+' "${_dockerfile}" |
+    if [ ${_prt_format} -eq 0 ]
+    then ${AWK} '{print(NR-1,$2,$4);}'
+    else ${AWK} '{print(sprintf("%3d %-24s%s",NR-1,$2,$4));}'
+    fi 2>/dev/null
+  }
+  return $?
+}
+
+# Get stage name by index
+dockerfile-stage-get-name() {
+  local _stageindex="${1:-}"; shift
+  local _dockerfile=$(dockerfile-get-path "${1:-}" 2>/dev/null); shift
+  [ -n "${_stageindex}" ] && {
+    _stageindex="${_stageindex##*#}"
+    dockerfile-stage-list "${_dockerfile}" |
+    ${AWK} '$1=="'"${_stageindex}"'" {print($3);}'
+  }
+  return $?
+}
+
+# Get stage index by name
+dockerfile-stage-get-index() {
+  local _stage_name="${1:-}"; shift
+  local _dockerfile=$(dockerfile-get-path "${1:-}" 2>/dev/null); shift
+  [ -n "${_stage_name}" ] && {
+    _stage_name="${_stage_name##*@}"
+    dockerfile-stage-list "${_dockerfile}" |
+    ${AWK} '$3=="'"${_stage_name}"'" {print($1);}'
+  }
+  return $?
+}
+
+# Exists stage index
+dockerfile-stage-has-index() {
+  local _stageindex="${1:-}"; shift
+  local _dockerfile=$(dockerfile-get-path "${1:-}" 2>/dev/null); shift
+  [ -n "${_stageindex}" ] && {
+    _stageindex="${_stageindex##*#}"
+    _stageindex=$(
+      dockerfile-stage-list "${_dockerfile}" |
+      ${AWK} '$1=="'"${_stageindex}"'" {print($1);}' 2>/dev/null; )
+    [ -n "${_stageindex}" ]
+  }
+  return $?
+}
+
+# Get stage name by index
+dockerfile-imagetag-get() {
+  local _stageindex=""
+  local _stage_name=""
+  local _cimgtagsuf=""
+  local _stage_spec="${1:-}"; shift
+  local _dockerfile=$(dockerfile-get-path "${1:-}" 2>/dev/null); shift
+  dockerfile-multi-stage "${_dockerfile}" 1>/dev/null 2>&1
+  if [ $? -eq 0 ]
+  then
+    case "${_stage_spec}" in
+    \#[0-9]*|[0-9]*)
+      _stageindex="${_stage_spec##*#}"
+      dockerfile-stage-has-index "${_stageindex}" "${_dockerfile}" 1>/dev/null 2>&1 && {
+        _stage_name=$(
+          dockerfile-stage-get-name "${_stageindex}" "${_dockerfile}" 2>/dev/null)
+      } || return 2
+      ;;
+    @[0-9A-Za-z]*|[A-Za-z]*)
+      _stage_name="${_stage_spec##*@}"
+      _stageindex=$(
+        dockerfile-stage-get-index "${_stage_name}" "${_dockerfile}" 2>/dev/null)
+      ;;
+    *)
+      ;;
+    esac
+  fi
+  _cimage_tag=$(
+    dockerfile-env-get DOCKER_IMAGE_TAG "${_dockerfile}" 2>/dev/null)
+  case "${_cimage_tag}" in
+  [0-9A-Za-z]*:*)
+    if [ -n "${_stage_name}" ]
+    then _cimage_tag="${_cimage_tag}${_stage_name:+@${_stage_name}}"
+    else _cimage_tag="${_cimage_tag}${_stageindex:+#${_stageindex}}"
+    fi
+    ;;
+  [0-9A-Za-z]*)
+    if [ -n "${_stage_name}" ]
+    then _cimage_tag="${_cimage_tag}${_stage_name:+:${_stage_name}}"
+    else _cimage_tag="${_cimage_tag}${_stageindex:+:#${_stageindex}}"
+    fi
+    ;;
+  *)
+    ;;
+  esac
+  [ -n "${_cimage_tag}" ] && echo "${_cimage_tag}"
+  return $?
+}
+
+# dockerfile get env
+dockerfile-env-get() {
+  local _cattribute="${1:-}"; shift
+  local _dockerfile=$(dockerfile-get-path "${1:-}"); shift
+  local _cattrvalue=""
+  [ -f "${_dockerfile}" -a -r "${_dockerfile}" ] && {
+    if [ -z "${_cattribute}" ]
+    then dockerfile-attributes-get "${_dockerfile}"
+    else
+      _cattrvalue=$(eval $(
+        dockerfile-attributes-get "${_dockerfile}" |
+        egrep '^'"${_cattribute}"'=.*' 2>/dev/null &&
+        echo 'echo $'"${_cattribute}") )
+      [ -n "${_cattrvalue}" ] && {
+        echo "${_cattrvalue}"
+      }
+    fi #2>/dev/null
+  }
+  return $?
+}
+
+# docker attributes get
+dockerfile-attributes-get() {
+  local _dockerfile=""
+  local _exportvars=""
+  local _d_variable=""
+  while [ $# -gt 0 ]
+  do
+    case "$1" in
+    -E|--export)
+      _exportvars="export "
+      ;;
+    -*)
+      ;;
+    *)
+      [ -z "${_dockerfile}" ] && {
+        _dockerfile="${1:-}"
+      } || :
+      ;;
+    esac
+    shift
+  done
+  _dockerfile=$(dockerfile-get-path "${_dockerfile}")
+  [ -r "${_dockerfile}" ] && {
+    cat "${_dockerfile}" |
+    ${SED} -ne 's;^#@[ ]*\([_A-Za-z][_0-9A-Za-z]*\)[ ]*=[ ]*\(.*\)[ ]*$;\1=\2;gp' |
+    while read _d_variable
+    do
+      [ -n "$_d_variable" ] &&
+      echo $_exportvars"${_d_variable};"
+    done
+  } #2>/dev/null
+  return $?
+}
+
+# vim: set ff=unix ts=2 sw=2 sts=2 et : This line is VIM modeline

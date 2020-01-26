@@ -31,8 +31,8 @@ get-container-id() {
   [ -r "$_buildpath" -a -z "$_find_keys" ] && {
     _find_file=1
     _find_keys=$(echo \
-      $(docker-container-env DOCKER_CONTAINER "$_buildpath") \
-      $(docker-container-env DOCKER_IMAGE_TAG "$_buildpath") \
+      $(dockerfile-env-get DOCKER_CONTAINER "$_buildpath") \
+      $(dockerfile-env-get DOCKER_IMAGE_TAG "$_buildpath") \
       "" )
   }
   [ $_ps_allids -ne 0 ] &&
@@ -49,7 +49,7 @@ get-container-id() {
       _container=$(
         docker ps $_cmnd_opts --format='{{ .CreatedAt }};{{.ID}};{{.Image}};{{.Names}}' |
         egrep '(^|[;])'"${_searchval}"'([;].*|$)' |
-        sort -r |awk -F ';' '{print($2)}')
+        sort -r |${AWK} -F ';' '{print($2)}')
     }
     [ -n "$_container" ] && {
       echo "$_container"
