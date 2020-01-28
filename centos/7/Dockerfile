@@ -7,11 +7,11 @@
 #@  DOCKER_BOOT_OPTS=""
 #
 
-# CentOS rootfs Image
-ARG CENTOSROOT=/centos-image/rootfs
+# CentOS Version
+ARG CENTOS_VER="7"
 
-# RPM GPG Key
-ARG RPM_GPGKEY=/etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7
+# CentOS rootfs Image Dir
+ARG CENTOS_DIR="/centos-image/rootfs"
 
 # default System locale
 ARG LANGUAGE="en_US.UTF-8"
@@ -30,13 +30,13 @@ ARG ROOTPSWD=""
 
 
 # CentOS rootfs
-FROM centos:centos7 AS rootfs
+FROM centos:centos${CENTOS_VER} AS rootfs
 
 # CentOS rootfs Image
-ARG CENTOSROOT="${CENTOSROOT:-/centos-image/rootfs}"
+ARG CENTOSROOT="${CENTOS_DIR:-/centos-image/rootfs}"
 
 # RPM GPG Key
-ARG RPM_GPGKEY="${RPM_GPGKEY:-/etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7}"
+ARG RPM_GPGKEY="/etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-${CENTOS_VER}"
 
 # Set Workdir
 WORKDIR /root
@@ -69,7 +69,7 @@ LABEL \
 FROM scratch AS minimal
 
 # CentOS rootfs Image
-ARG CENTOSROOT="${CENTOSROOT:-/centos-image/rootfs}"
+ARG CENTOSROOT="${CENTOS_DIR:-/centos-image/rootfs}"
 
 # Env
 ENV container=docker
@@ -82,7 +82,7 @@ WORKDIR /
 
 # Labels
 LABEL \
- name="CentOS 7 Minimal" \
+ name="CentOS ${CENTOS_VER} Minimal" \
  vendor="UGOOLE.ORG" \
  maintainer="MT" \
  license="" \
@@ -165,7 +165,7 @@ WORKDIR /
 
 # Labels
 LABEL \
- name="CentOS 7 with Systemd" \
+ name="CentOS ${CENTOS_VER} with Systemd" \
  vendor="UGOOLE.ORG" \
  maintainer="MT" \
  license="" \
@@ -231,7 +231,7 @@ WORKDIR /
 
 # Labels
 LABEL \
- name="CentOS 7 Minimal (onbuild)" \
+ name="CentOS ${CENTOS_VER} Minimal (onbuild)" \
  vendor="UGOOLE.ORG" \
  maintainer="MT" \
  license="" \
@@ -305,12 +305,12 @@ WORKDIR /
 
 # Labels
 LABEL \
- name="CentOS 7 with Systemd (onbuild)" \
+ name="CentOS ${CENTOS_VER} with Systemd (onbuild)" \
  vendor="UGOOLE.ORG" \
  maintainer="MT" \
  license="" \
  build-date="" \
  docker.build.options="" \
- docker.run.options="-d -P -h centos7-systemd --privileged" \
+ docker.run.options="-d -P -h centos${CENTOS_VER}-systemd --privileged" \
  docker.run.confirm-startup=""
 
