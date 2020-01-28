@@ -150,14 +150,14 @@ dockerfile-imagetag-get() {
     case "${_cimagetag}" in
     [0-9A-Za-z]*:*)
       if [ -n "${_stagename}" ]
-      then echo "${_cimagetag}${_stagename:+@${_stagename}}"
-      else echo "${_cimagetag}${_stage_ind:+#${_stage_ind}}"
+      then echo "${_cimagetag}${_stagename:+_${_stagename}}"
+      else echo "${_cimagetag}${_stage_ind:+_${_stage_ind}}"
       fi
       ;;
     [0-9A-Za-z]*)
       if [ -n "${_stagename}" ]
       then echo "${_cimagetag}${_stagename:+:${_stagename}}"
-      else echo "${_cimagetag}${_stage_ind:+:#${_stage_ind}}"
+      else echo "${_cimagetag}${_stage_ind:+:${_stage_ind}}"
       fi
       ;;
     *)

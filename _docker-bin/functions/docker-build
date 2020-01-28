@@ -9,12 +9,13 @@ docker-build() {
   local _buildfile=""
   local _build_dir=""
   local _buildopts=""
+  local _build_all=0
   local _opts_path=""
   local _labelopts=""
   local _dockerret=0
-  eval $(getoptions "f|file:=_buildpath t|tag:=_cimagetag" "$@")
-  if [ -n "${_buildpath}" ] &&
-     [ "${_buildpath}" != "${_buildpath##*/}" ]
+  eval $(getoptions \
+    "f|file:=_buildpath |full-build=_build_all t|tag:=_cimagetag" "$@")
+  if [ -n "${_buildpath}" -a "${_buildpath}" != "${_buildpath##*/}" ]
   then
     _buildfile="${_buildpath##*/}"
     _build_dir="${_buildpath%/*}"
@@ -63,14 +64,32 @@ docker-build() {
   fi 2>/dev/null
   _build_dir="${_buildpath%/*}"
   _buildfile="${_buildpath##*/}"
-  [ -r "${_buildpath}" -a -z "${_cimagetag}" ] && {
-    [ -z "${_stage_ind}${_stagename}" ] &&
+  if [ -r "${_buildpath}" -a -z "${_cimagetag}" ]
+  then
+    [ -z "${_stage_ind}${_stagename}" -a ${_build_all} -eq 0 ] &&
     dockerfile-multi-stage "${_buildpath}" 1>/dev/null 2>&1 && {
+      echo "Choose a stage to build. Or try the '--full-build' option."
+      echo
       dockerfile-stage-list --format "${_buildpath}" 2>/dev/null
+      echo
       return 1
     } || :
-    _cimagetag=$(dockerfile-env-get DOCKER_IMAGE_TAG "${_buildpath}")
-  }
+    if [ -n "${_stagename}" ]
+    then _stage_ind=$(dockerfile-stage-get-index "${_stagename}" "${_buildpath}")
+    elif [ -n "${_stage_ind}" ]
+    then _stagename=$(dockerfile-stage-get-name "${_stage_ind}" "${_buildpath}")
+    fi
+    if [ -n "${_stage_ind}${_stagename}" ]
+    then
+      _cimagetag=$(
+        dockerfile-imagetag-get "+${_stage_ind}" "${_buildpath}")
+    fi
+    if [ -z "${_cimagetag}" ]
+    then
+      _cimagetag=$(
+        dockerfile-env-get DOCKER_IMAGE_TAG "${_buildpath}")
+    fi
+  fi
   [ -z "${_buildopts}" -a -z "${_opts_path}" ] &&
   _opts_path="${DOCKERFILE_OPTS_BUILD:-Dockerfile.opts.build}"
   [ -z "${_buildopts}" -a ! -r "${_opts_path}" -a -r "${_buildpath}" ] &&
@@ -81,18 +100,24 @@ docker-build() {
   _buildopts=$(dockerfile-env-get DOCKER_BUILDOPTS "${_buildpath}")
   if [ -n "${_cimagetag}" ]
   then
-    _labelopts="${_labelopts:+$_labelopts }--label build-date="'"'$(date +'%Y%m%dT%H:%M%z')'"'
-    _labelopts="${_labelopts:+$_labelopts }--label docker.build.options="'"'"${_buildopts}"'"'
-    echo docker build ${_buildopts} $_{labelopts} \
-      ${_cimagetag:+-t ${_cimagetag}} ${_buildpath:+-f ${_buildpath}} "${_build_dir:-.}" &&
+    _labelopts="${_labelopts:+${_labelopts} }--label build-date="'"'$(date +'%Y%m%dT%H:%M%z')'"'
+    _labelopts="${_labelopts:+${_labelopts} }--label docker.build.options="'"'"${_buildopts}"'"'
+    echo docker build ${_buildopts} ${_labelopts} \
+      ${_cimagetag:+-t ${_cimagetag}} ${_stagename:+--target=${_stagename}} \
+      ${_buildpath:+-f ${_buildpath}} "${_build_dir:-.}" &&
     eval $(echo \
-      docker build $_buildopts $_labelopts \
-      ${_cimagetag:+-t ${_cimagetag}} ${_buildpath:+-f ${_buildpath}} "${_build_dir:-.}")
+      docker build ${_buildopts} ${_labelopts} \
+      ${_cimagetag:+-t ${_cimagetag}} ${_stagename:+--target=${_stagename}} \
+      ${_buildpath:+-f ${_buildpath}} "${_build_dir:-.}")
     _dockerret=$?
   else
     docker build --help; echo; _dockerret=1
   fi
   return ${_dockerret}
+}
+
+docker-build-all-stage() {
+
 }
 
 # vim: set ff=unix ts=2 sw=2 sts=2 et : This line is VIM modeline

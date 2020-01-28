@@ -57,7 +57,7 @@ docker-run() {
   [[ "${_drun_opts}" =~ ^((..*)[\ ]+|[\ ]*)([^\ -][^\ ]*)$ ]] && {
     _drun_opts="${BASH_REMATCH[2]}"
     [ -n "${BASH_REMATCH[3]}" ] && {
-      _cimagetag=$(container-image-get-tag "${BASH_REMATCH[2]}" 2>/dev/null)
+      _cimagetag=$(container-image-get-tag "${BASH_REMATCH[3]}" 2>/dev/null)
     }
   }
   [ -r "${_buildpath}" -a -z "${_cimagetag}" ] && {

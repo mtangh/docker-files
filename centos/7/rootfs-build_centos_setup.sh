@@ -1,5 +1,5 @@
 #!/bin/bash -ux
-# CentOS7 rootfs build
+# CentOS 7 rootfs build (setup)
 
 # /dev files
 [ -e "/dev/null" ] || mknod -m 666 /dev/null c 1 3

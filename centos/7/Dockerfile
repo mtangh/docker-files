@@ -14,7 +14,7 @@ ARG CENTOSROOT=/centos-image/rootfs
 ARG RPM_GPGKEY=/etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7
 
 # default System locale
-ARG OSLOCALE="en_US.UTF-8"
+ARG LANGUAGE="en_US.UTF-8"
 
 # default keyboard laayout
 ARG KBD_TYPE="jp"
@@ -32,55 +32,26 @@ ARG ROOTPSWD=""
 # CentOS rootfs
 FROM centos:centos7 AS rootfs
 
+# CentOS rootfs Image
+ARG CENTOSROOT="${CENTOSROOT:-/centos-image/rootfs}"
+
+# RPM GPG Key
+ARG RPM_GPGKEY="${RPM_GPGKEY:-/etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7}"
+
 # Set Workdir
 WORKDIR /root
 
 # COPY rootfs-build.sh to ./rootfs-build.sh
-COPY rootfs-build_centos7.sh ./rootfs-build.sh
+COPY rootfs-build_centos*.sh ./
 
-#
-# - Create a folder for our new root structure
-# - Initialize RPM database
-# - Download and install the centos-release package
-# - Install yum without docs and install only the
-#   english language files during the process
-# - Configure yum to avoid installing of docs and
-#   other language files than english generally
-# - Chroot to the environment and install some additional tools
-#
 RUN \
  set -ux; \
- [ -n "${CENTOSROOT:-}" ] || { \
-  exit 1; }; \
- [ -n "${RPM_GPGKEY:-}" ] || { \
-  exit 1; }; \
- [ -n "${OSLOCALE:-}" ] || { \
-  exit 1; }; \
- mkdir -p "${CENTOSROOT}" && \
- rpm --root "${CENTOSROOT}" --initdb && \
- yum -v -y reinstall --downloadonly --downloaddir . centos-release && \
- rpm --root "${CENTOSROOT}" --nodeps -ivh centos-release*.rpm && \
- rpm --root "${CENTOSROOT}" --import "${CENTOSROOT}${RPM_GPGKEY}" && \
- yum -v -y \
-  --installroot=${CENTOSROOT} \
-  --setopt=override_install_langs=${OSLOCALE} \
-  --setopt=tsflags='nodocs' \
-  install yum && \
- sed -ri \
-  "/distroverpkg=centos-release/a override_install_langs=${OSLOCALE}\ntsflags=nodocs" \
-  "${CENTOSROOT}/etc/yum.conf" && \
- : "Chroot to the environment and install some additional tools." && { \
-  cp -pf "/etc/resolv.conf" "${CENTOSROOT}/etc/resolv.conf" && \
-  chroot "${CENTOSROOT}" /bin/bash <./rootfs-build.sh && { \
-   rm -f "${CENTOSROOT}/etc/resolv.conf" || :; \
- } && \
- ( : "Cleanup" && { \
-  cd /; \
-  for e in /var/log/*; \
-  do [ -f "$e" ] && cat /dev/null 1>"$e"; done; \
-  rm -f {,/var}/tmp/* /root/*; \
-  yum -v -y clean all; rm -rf /var/cache/yum/*; \
- } 2>/dev/null || :; ) && \
+ fsbuild_sh=./rootfs-build_centos.sh; \
+ fsbuildret=0; \
+ : "Execute script." && { \
+  . "${fsbuild_sh}" || fsbuildret=$?; \
+ }; \
+ [ ${fsbuildret} -eq 0 ] && \
  echo;
 
 # Labels
@@ -97,11 +68,14 @@ LABEL \
 # CentOS minimal
 FROM scratch AS minimal
 
+# CentOS rootfs Image
+ARG CENTOSROOT="${CENTOSROOT:-/centos-image/rootfs}"
+
 # Env
 ENV container=docker
 
 # COPY From root-image
-COPY --from=rootfs "${CENTOSROOT}" /
+COPY --from=rootfs "${CENTOSROOT}"/ /
 
 # Reset Workdir
 WORKDIR /
@@ -211,7 +185,7 @@ CMD [ "/sbin/init" ]
 
 
 # CentOS7 minimal (onbuild)
-FROM minimal AS minimal_onbuild
+FROM minimal AS minimal-onbuild
 
 # Reset Workdir
 WORKDIR /
@@ -221,19 +195,19 @@ COPY onbuild-i18n.sh /
 
 # ONBUILD: OS locale
 ONBUILD \
-ARG CONTAINER_OSLOCALE="${OSLOCALE}"
+ARG CONTAINER_LANGUAGE="${LANGUAGE:-en_US.UTF-8}"
 
 # ONBUILD: keymap
 ONBUILD \
-ARG CONTAINER_KMAPTYPE="${KMAPTYPE}"
+ARG CONTAINER_KMAPTYPE="${KMAPTYPE:-jp106}"
 
 # ONBUILD: timezone
 ONBUILD \
-ARG CONTAINER_TIMEZONE="${TIMEZONE}"
+ARG CONTAINER_TIMEZONE="${TIMEZONE:-Asia/Tokyo}"
 
 # ONBUILD: root password
 ONBUILD \
-ARG CONTAINER_ROOTPSWD="${ROOTPSWD}"
+ARG CONTAINER_ROOTPSWD="${ROOTPSWD:-}"
 
 # ONBUILD: Set Workdir
 ONBUILD \
@@ -268,7 +242,7 @@ LABEL \
 
 
 # CentOS 7 with systemd (onbuild)
-FROM systemd AS systemd_onbuild
+FROM systemd AS systemd-onbuild
 
 # Reset Workdir
 WORKDIR /
@@ -278,19 +252,19 @@ COPY onbuild-*.sh /
 
 # ONBUILD: OS locale
 ONBUILD \
-ARG CONTAINER_OSLOCALE="${OSLOCALE}"
+ARG CONTAINER_LANGUAGE="${LANGUAGE:-en_US.UTF-8}"
 
 # ONBUILD: keymap
 ONBUILD \
-ARG CONTAINER_KMAPTYPE="${KMAPTYPE}"
+ARG CONTAINER_KMAPTYPE="${KMAPTYPE:-jp106}"
 
 # ONBUILD: timezone
 ONBUILD \
-ARG CONTAINER_TIMEZONE="${TIMEZONE}"
+ARG CONTAINER_TIMEZONE="${TIMEZONE:-Asia/Tokyo}"
 
 # ONBUILD: root password
 ONBUILD \
-ARG CONTAINER_ROOTPSWD="${ROOTPSWD}"
+ARG CONTAINER_ROOTPSWD="${ROOTPSWD:-}"
 
 # ONBUILD: Default login
 ONBUILD \
