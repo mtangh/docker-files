@@ -13,6 +13,14 @@ then
   }
 fi 1>/dev/null 2>&1
 
+# Template
+if [ -d "${DOCKER_BIN_DIR}/templates" ]
+then
+  DOCKER_TMPLDIR="${DOCKER_BIN_DIR}/templates"
+else
+  DOCKER_TMPLDIR=""
+fi
+
 # Functions
 [ -f "${DOCKER_BIN_DIR}/functions.sh" ] && {
   . "${DOCKER_BIN_DIR}/functions.sh"

@@ -1,6 +1,7 @@
 # getoptions
+
 getoptions() {
-  local template="$(echo $1)"; shift
+  local template="$(echo ${1:-})"; shift
   local _opt_end=0
   local _a_value=""
   local _o_found=0
@@ -15,38 +16,38 @@ getoptions() {
   echo 'local _getopt_ARGV="" _getopt_ARGC=0 _getopt_V="";'
   while [ $# -gt 0 ]
   do
-    _a_value="${_a_value:-$1}"
+    _a_value="${_a_value:-${1}}"
     _o_found=0
     _opttmpl=""
     _optkeyS=""
     _optkeyL=""
     _has_arg=""
     _varname=""
-    case "$_a_value" in
+    case "${_a_value}" in
     -*)
-      [ "$_a_value" = "--" ] &&
+      [ "${_a_value}" = "--" ] &&
         _opt_end=1
-      [ $_opt_end -eq 0 ] &&
-      for _opttmpl in $template
+      [ ${_opt_end} -eq 0 ] &&
+      for _opttmpl in ${template}
       do
-        eval $(__parse_opt_template "$_opttmpl") ||
+        eval $(__parse_opt_template "${_opttmpl}") ||
           continue
-        [[ "$_a_value" =~ ^-((${_optkeyS})|-(${_optkeyL})) ]] ||
+        [[ "${_a_value}" =~ ^-((${_optkeyS})|-(${_optkeyL})) ]] ||
           continue
-        if [ -n "$_has_arg" ]
+        if [ -n "${_has_arg}" ]
         then
-          if [[ "$_a_value" =~ ^-${_optkeyS}..* ]]
-          then echo "$_varname"'=$(echo $'$_varname' "'${_a_value#*-$_optkeyS}'");'
-          elif [[ "$_a_value" =~ ^--${_optkeyL}= ]]
-          then echo "$_varname"'=$(echo $'$_varname' "'${_a_value#*=}'");'
+          if [[ "${_a_value}" =~ ^-${_optkeyS}..* ]]
+          then echo "${_varname}"'=$(echo $'${_varname}' "'${_a_value#*-$_optkeyS}'");'
+          elif [[ "${_a_value}" =~ ^--${_optkeyL}= ]]
+          then echo "${_varname}"'=$(echo $'${_varname}' "'${_a_value#*=}'");'
           elif [ -n "$2" ]
-          then echo "$_varname"'=$(echo $'$_varname' "'$2'");'; shift
-          else echo "$_varname"'=$(echo $'$_varname' "");'; shift
+          then echo "${_varname}"'=$(echo $'${_varname}' "'$2'");'; shift
+          else echo "${_varname}"'=$(echo $'${_varname}' "");'; shift
           fi
           _a_value=""
         else
-          echo "$_varname"'=$(( ${'$_varname':-0} + 1 ));'
-          if [[ "$_a_value" =~ ^-${_optkeyS}.* ]] &&
+          echo "${_varname}"'=$(( ${'${_varname}':-0} + 1 ));'
+          if [[ "${_a_value}" =~ ^-${_optkeyS}.* ]] &&
              [ -a ${#_a_value} -gt 2  ]
           then _a_value="-${_a_value:2}"
           else _a_value=""
@@ -55,25 +56,25 @@ getoptions() {
         _o_found=1
         break
       done 2>/dev/null
-      if [ $_o_found -eq 0 ]
+      if [ ${_o_found} -eq 0 ]
       then
-        _getopt_ARGV=$(echo $_getopt_ARGV "$_a_value")
-        _getopt_ARGC=$(( $_getopt_ARGC + 1 ))
+        _getopt_ARGV="${_getopt_ARGV:+${_getopt_ARGV} }${_a_value}"
+        _getopt_ARGC=$(( ${_getopt_ARGC} + 1 ))
         _a_value=""
       fi
       ;;
     *)
-      _getopt_ARGV=$(echo $_getopt_ARGV "$1")
-      _getopt_ARGC=$(( $_getopt_ARGC + 1 ))
+      _getopt_ARGV="${_getopt_ARGV:+${_getopt_ARGV} }${1}"
+      _getopt_ARGC=$(( ${_getopt_ARGC} + 1 ))
       _a_value=""
       ;;
     esac
-    [ -n "$_a_value" ] ||
+    [ -n "${_a_value}" ] ||
     shift
   done
-  [ -n "$_getopt_ARGV" ] && {
-    echo "_getopt_ARGV=\"$_getopt_ARGV\";"
-    echo "_getopt_ARGC=$_getopt_ARGC;"
+  [ -n "${_getopt_ARGV}" ] && {
+    echo "_getopt_ARGV=\"${_getopt_ARGV}\";"
+    echo "_getopt_ARGC=${_getopt_ARGC};"
   }
   return $?
 }
@@ -102,14 +103,14 @@ getoptions_shift() {
 }
 
 __parse_opt_template() {
-  local _opttmpl="$1"; shift
+  local _opttmpl="${1:-}"; shift
   local _opt_key=""
   local _optkeyS=""
   local _optkeyL=""
   local _has_arg=""
   local _varname=""
   local _r_value=0
-  [ -n "$_opttmpl" ] && {
+  [ -n "${_opttmpl}" ] && {
     if [[ "${_opttmpl};" =~ ^([^;:=][^;:=]*)((:|[ ]*)(=([^;:=]*);|;)|;) ]]
     then
       _opt_key="${BASH_REMATCH[1]}"
@@ -118,8 +119,8 @@ __parse_opt_template() {
     else
       _opt_key="${_opttmpl}"
     fi
-    if [ -n "$_opt_key" ] &&
-       [[ "$_opt_key" =~ ^([^|]*)(\|([^|]*)|[ ]*)$ ]]
+    if [ -n "${_opt_key}" ] &&
+       [[ "${_opt_key}" =~ ^([^|]*)(\|([^|]*)|[ ]*)$ ]]
     then
       _optkeyS="${BASH_REMATCH[1]}"
       _optkeyL="${BASH_REMATCH[3]}"
@@ -127,14 +128,14 @@ __parse_opt_template() {
     _optkeyS="${_optkeyS:-----}"
     _optkeyL="${_optkeyL:-----}"
     _varname="${_varname:-_getopt_$_opt_key}" &&
-    _varname=$(echo "$_varname" |tr -- '-|' '__')
+    _varname=$(echo "${_varname}" |tr -- '-|' '__')
   } #2>/dev/null
   _r_value=$?
-  echo "_optkeyS=\"$_optkeyS\";"
-  echo "_optkeyL=\"$_optkeyL\";"
-  echo "_has_arg=\"$_has_arg\";"
-  echo "_varname=\"$_varname\";"
-  return $_r_value
+  echo "_optkeyS=\"${_optkeyS}\";"
+  echo "_optkeyL=\"${_optkeyL}\";"
+  echo "_has_arg=\"${_has_arg}\";"
+  echo "_varname=\"${_varname}\";"
+  return ${_r_value}
 }
 
 return 0

@@ -8,14 +8,14 @@ dot-dockerignore() {
     docker_dir="${dockerfile%/*}"
     echo "$FUNCNAME: $docker_dir" && {
 
-      cat "${DOCKER_BIN_DIR}/templates/dot.dockerignore"
+      cat "${DOCKER_TMPLDIR}/dot.dockerignore"
 
       for dign_extra in "${docker_dir}"/.dockerignore.*
       do
-        [ -s "$dign_extra" ] && {
+        [ -s "${dign_extra}" ] && {
           echo
           echo "# ${dign_extra##*/}"
-          cat "$dign_extra" 2>/dev/null
+          cat "${dign_extra}" 2>/dev/null
           echo "# End of ${dign_extra##*/}"
         } || :
       done

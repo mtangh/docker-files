@@ -8,29 +8,31 @@ docker-container-commit() {
   local _cmit_opts=""
   local _toggleflg=0
   local _dockerret=0
-  while [ $# -gt 0 ]
+  eval $(getoptions "" "$@")
+  while getoptions_has_next
   do
-    case "${1}" in
+    eval $(getoptions_shift)
+    case "${_getopt_V:=}" in
     -*)
-      _cmit_opts="${_cmit_opts:+$_cmit_opts }${1}"
+      _cmit_opts="${_cmit_opts:+$_cmit_opts }${_getopt_V}"
       _toggleflg=1
       ;;
     *)
-      if [ $_toggleflg -eq 0 ]
+      if [ ${_toggleflg} -eq 0 ]
       then
-        if [ -z "$_container" ]
-        then _container="$(get-container-id-all ${1} |head -n 1)"
-        elif [ -z "$_imagename" ]
-        then _imagename="${1}"
+        if [ -z "${_container}" ]
+        then _container="$(get-container-id-all ${_getopt_V} |head -n 1)"
+        elif [ -z "${_imagename}" ]
+        then _imagename="${_getopt_V}"
         fi
       else
-        _cmit_opts="${_cmit_opts:+$_cmit_opts }\"${1}\""
+        _cmit_opts="${_cmit_opts:+${_cmit_opts} }\"${_getopt_V}\""
         _toggleflg=0
       fi
       ;;
     esac
-    shift
   done
+  eval $(getoptions_end)
   [ -n "${_container}" ] || {
     _container=$(get-container-id-all |head -n1)
   }
@@ -38,7 +40,7 @@ docker-container-commit() {
     docker commit --help
     return 1
   }
-  docker commit $_cmit_opts $_container $_imagename
+  docker commit ${_cmit_opts} ${_container} ${_imagename}
   return $?
 }
 

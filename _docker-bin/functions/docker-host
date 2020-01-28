@@ -2,7 +2,7 @@
 
 # docker host url
 docker-host() {
-  : && {
+  : "Docker host" && {
     [ -z "${DOCKER_HOST}" ] &&
     [ -w "/var/run/docker.sock" ] &&
     DOCKER_HOST="unix:///var/run/docker.sock"
@@ -18,14 +18,14 @@ docker-host() {
 # docker host addr
 docker-host-addr() {
   local _dhostaddr="$(docker-host)"
-  if [[ "$_dhostaddr" =~ ^unix:// ]]
+  if [[ "${_dhostaddr}" =~ ^unix:// ]]
   then
     echo 127.0.0.1
-  elif [ -n "$_dhostaddr" ]
+  elif [ -n "${_dhostaddr}" ]
   then
     _dhostaddr="${_dhostaddr##*//}"
     _dhostaddr="${_dhostaddr%%:*}"
-    echo "$_dhostaddr"
+    echo "${_dhostaddr}"
   fi
   return $?;
 }
@@ -33,9 +33,9 @@ docker-host-addr() {
 # docker host port
 docker-host-port() {
   local _dhost_url="$(docker-host)"
-  [[ "$_dhost_url" =~ ^tcp:// ]] &&
-  [ -n "$_dhost_url" -a "$_dhost_url" != "${_dhost_url##*:}" ] &&
-  echo "$_dhost_url"
+  [[ "${_dhost_url}" =~ ^tcp:// ]] &&
+  [ -n "${_dhost_url}" -a "${_dhost_url}" != "${_dhost_url##*:}" ] &&
+  echo "${_dhost_url}"
   return $?;
 }
 
@@ -43,17 +43,15 @@ docker-host-port() {
 docker-host-is-active() {
   local _dhost_url="$(docker-host)"
   local _dhost_cnt=0
-  if [[ "$_dhost_url" =~ unix:// ]]
+  if [[ "${_dhost_url}" =~ unix:// ]]
   then
     _dhost_cnt=$([ -e "${_dhost_url#*unix://}" ] && echo "1")
   elif [ -x "$(type -P docker-machine)" ]
-  then
-    _dhost_cnt=$(docker-machine ls -q -t 3 --filter 'state=running'| wc -l)
-  else
-    _dhost_cnt=$(ping -c1 -t3 "${DOCKER_HOST}" && echo "1")
+  then _dhost_cnt=$(docker-machine ls -q -t 3 --filter 'state=running'| wc -l)
+  else _dhost_cnt=$(ping -c1 -t3 "${DOCKER_HOST}" && echo "1")
   fi 1>/dev/null 2>&1
-  [ $_dhost_cnt -gt 0 ]
-  return;
+  [ ${_dhost_cnt} -gt 0 ]
+  return $?;
 }
 
 # docker-machine-env

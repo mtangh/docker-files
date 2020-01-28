@@ -1,32 +1,74 @@
 # docker image saver
 docker-images-save() {
+  local _cimg_keys=""
+  local _cimagekey=""
   local _cimage_id=""
   local _cimagetag=""
+  local _buildpath=""
   local _store_dir=""
-  eval $(getoptions "d|:=_store_dir" "$@")
+  local _stage_key=""
+  local _savedfile=""
+  local _file_pref=""
+  local _dockerret=0
+  eval $(getoptions "d|:=_store_dir f|:=_buildpath" "$@")
   while getoptions_has_next
   do
     eval $(getoptions_shift)
-    case "$_getopt_V" in
+    case "${_getopt_V:=}" in
     -*)
       ;;
     *)
-      _cimage_id=$(get-image-id "$_getopt_V") &&
-      _cimagetag=$(get-image-tag "$_cimage_id") &&
-      break
+      _cimage_id=$(container-image-get-id "${_getopt_V}") && {
+        _cimg_keys="${_cimg_keys:+${_cimg_keys} }${_cimage_id}"
+      }
+      _cimage_id=""
       ;;
     esac
   done
-  [ -r "$(pwd)/Dockerfile" -a -z "${_cimage_id}" ] && {
-    _cimage_id=$(get-image-id)
-    _cimagetag=$(get-image-tag)
-  }
-  [ -n "$_cimage_id" ] &&
-  [ -n "$_cimagetag" ] && {
-    docker save "$_cimage_id" |
-    gzip -c 1>"${_store_dir:-.}/${_cimagetag/\//_}".tar.gz 2>/dev/null &&
-    echo "$FUNCNAME: Saved image: $_cimagetag($_cimage_id)."
-  }
+  eval $(getoptions_end)
+  [ -z "${_cimg_keys}" ] && {
+    _buildpath=$(dockerfile-get-path "${_buildpath}") || :
+    [ -r "${_buildpath}" ] && {
+      for _cimagetag in $(dockerfile-imagetag-get - "${_buildpath}")
+      do
+        [ -n "${_cimagetag}" ] && {
+          _cimg_keys="${_cimg_keys:+${_cimg_keys} }${_cimagetag}"
+        } || break
+      done
+    }
+    _cimage_id=""
+    _cimagetag=""
+  } || :
+  [ -n "${_cimg_keys}" ] &&
+  for _cimagekey in ${_cimg_keys}
+  do
+    _cimage_id=""
+    _cimagetag=""
+    [ -n "${_cimagekey}" ] && {
+      _cimage_id=$(container-image-get-id "${_cimagekey}")
+      _cimagetag=$(container-image-get-tag "${_cimagekey}")
+    } 2>/dev/null
+    [  -n "${_cimage_id}" -a -n "${_cimagetag}" ] && {
+      case "${_cimagetag}" in
+      *:*)
+        _file_pref="${_cimagetag%%:*}"
+        _savedfile="${_file_pref/\//_}=${_cimagetag#*:}.tgz"
+        ;;
+      *)
+        _savedfile="${_cimagetag/\//_}.tgz"
+        ;;
+      esac
+      docker save "${_cimage_id}" |
+      gzip -c 1>"${_store_dir:-.}/${_savedfile}.tgz" 2>/dev/null
+    } ||
+    _dockerret=$?
+    if [ ${_dockerret} -eq 0 ]
+    then echo "$FUNCNAME: Saved image: '${_cimagetag:-${_cimagekey}}${_cimage_id:+(${_cimage_id})}' to '${_savedfile}'."
+    else echo "$FUNCNAME: Failed to save image: '${_cimagetag:-${_cimagekey}}${_cimage_id:+(${_cimage_id})}'."
+    fi
+    _savedfile=""
+  done &&
+  [ ${_dockerret} -eq 0 ]
   return $?
 }
 

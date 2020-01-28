@@ -16,48 +16,46 @@ get-container-id() {
   while getoptions_has_next
   do
     eval $(getoptions_shift)
-    case "$_getopt_V" in
+    case "${_getopt_V:=}" in
     -*)
       ;;
     *)
-      _find_keys=$(echo $_find_keys "$_getopt_V")
+      _find_keys="${_find_keys:+${_find_keys} }${_getopt_V}"
       ;;
     esac
   done
   eval $(getoptions_end)
-  [ -z "$_buildpath" ] && {
-    _buildpath="$(pwd)/Dockerfile"
-  }
-  [ -r "$_buildpath" -a -z "$_find_keys" ] && {
+  _buildpath=$(dockerfile-get-path "${_buildpath:-}")
+  [ -r "${_buildpath}" -a -z "${_find_keys}" ] && {
     _find_file=1
     _find_keys=$(echo \
-      $(dockerfile-env-get DOCKER_CONTAINER "$_buildpath") \
-      $(dockerfile-env-get DOCKER_IMAGE_TAG "$_buildpath") \
+      $(dockerfile-env-get DOCKER_CONTAINER "${_buildpath}") \
+      $(dockerfile-env-get DOCKER_IMAGE_TAG "${_buildpath}") \
       "" )
   }
-  [ $_ps_allids -ne 0 ] &&
-  _cmnd_opts="${_cmnd_opts:+$_cmnd_opts }--all"
-  [ $_ps_latest -ne 0 ] &&
-  _cmnd_opts="${_cmnd_opts:+$_cmnd_opts }--latest"
-  [ -n "$_ps_last_n" ] &&
-  expr "$_ps_last_n" + 0 1>/dev/null 2>&1 &&
-  _cmnd_opts="${_cmnd_opts:+$_cmnd_opts }-n$_ps_last_n"
-  for _searchval in $_find_keys
+  [ ${_ps_allids} -ne 0 ] &&
+  _cmnd_opts="${_cmnd_opts:+${_cmnd_opts} }--all"
+  [ ${_ps_latest} -ne 0 ] &&
+  _cmnd_opts="${_cmnd_opts:+${_cmnd_opts} }--latest"
+  [ -n "${_ps_last_n}" ] &&
+  expr "${_ps_last_n}" + 0 1>/dev/null 2>&1 &&
+  _cmnd_opts="${_cmnd_opts:+${_cmnd_opts} }-n${_ps_last_n}"
+  for _searchval in ${_find_keys}
   do
     _container=""
-    [ -n "$_searchval" ] && {
+    [ -n "${_searchval}" ] && {
       _container=$(
-        docker ps $_cmnd_opts --format='{{ .CreatedAt }};{{.ID}};{{.Image}};{{.Names}}' |
+        docker ps ${_cmnd_opts} --format='{{ .CreatedAt }};{{.ID}};{{.Image}};{{.Names}}' |
         egrep '(^|[;])'"${_searchval}"'([;].*|$)' |
         sort -r |${AWK} -F ';' '{print($2)}')
     }
-    [ -n "$_container" ] && {
-      echo "$_container"
-      _found_cnt=$(( $_found_cnt + 1 ))
-      [ $_find_file -ne 0 ] && break
+    [ -n "${_container}" ] && {
+      echo "${_container}"
+      _found_cnt=$(( ${_found_cnt} + 1 ))
+      [ ${_find_file} -ne 0 ] && break
     }
-  done
-  [ $_found_cnt -gt 0 ]
+  done &&
+  [ ${_found_cnt} -gt 0 ]
   return $?
 }
 
@@ -82,9 +80,9 @@ get-container-id-last() {
 # container running
 container-is-running() {
   local _container=$(get-container-id-last $@)
-  [ -n "$_container" ] && {
+  [ -n "${_container}" ] && {
     docker ps -a --format="{{ .ID }}" --filter "status=running" |
-    egrep '^'"$_container"'$'
+    egrep '^'"${_container}"'$'
   } 1>/dev/null 2>&1
   return $?
 }
@@ -99,29 +97,29 @@ get-container-port() {
   while getoptions_has_next
   do
     eval $(getoptions_shift)
-    case "$_getopt_V" in
+    case "${_getopt_V:=}" in
     -*)
-      _cont_opts=$(echo $_cont_opts "$_getopt_V")
+      _cont_opts="${_cont_opts:+${_cont_opts} }${_getopt_V}"
       ;;
     *)
-      echo "$_getopt_V" |
+      echo "${_getopt_V}" |
       egrep '^[1-9][0-9]*$' 1>/dev/null 2>&1
       if [ $? -eq 0 ]
-      then _find_port=$(echo $_find_port "$_getopt_V")
-      else _cont_opts=$(echo $_cont_opts "$_getopt_V")
+      then _find_port="${_find_port:+${_find_port} }${_getopt_V}"
+      else _cont_opts="${_cont_opts:+${_cont_opts} }${_getopt_V}"
       fi
       ;;
     esac
   done
   eval $(getoptions_end)
-  _container=$(get-container-id $_cont_opts)
+  _container=$(get-container-id ${_cont_opts})
   [ -n "${_container}" ] && {
-    docker port "${_container}" $_find_port 2>/dev/null |
+    docker port "${_container}" ${_find_port} 2>/dev/null |
     while read _portmapln
     do
-      [ -n "$_find_port" ] &&
+      [ -n "${_find_port}" ] &&
       echo "${_portmapln##*:}"
-      [ -n "$_find_port" ] ||
+      [ -n "${_find_port}" ] ||
       echo "${_portmapln##*:}" ${_portmapln%->*}
     done |sort -u
   }

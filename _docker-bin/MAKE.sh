@@ -71,7 +71,7 @@ while getoptions_has_next
 do
   eval $(getoptions_shift)
   [ $_in_docker_ext_opts -eq 0 ] &&
-  case "$_getopt_V" in
+  case "${_getopt_V:=}" in
   -X[Bb])
     _in_docker_ext_opts=1
     ;;
@@ -89,7 +89,7 @@ do
     ;;
   esac
   [ $_in_docker_ext_opts -eq 0 ] ||
-  case "$_getopt_V" in
+  case "${_getopt_V:=}" in
   -X[Ee])
     _in_docker_ext_opts=0
     ;;

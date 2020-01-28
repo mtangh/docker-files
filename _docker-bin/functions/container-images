@@ -1,78 +1,114 @@
 # container-image
 
 # container image id
-get-image-id() {
-  _get-image id "$@"
+container-image-get-id() {
+  container-image-get id "$@"
   return $?
 }
 
 # container image tag
-get-image-tag() {
-  _get-image tag "$@"
+container-image-get-tag() {
+  container-image-get tag "$@"
   return $?
 }
 
 # get container image id or tag
-_get-image() {
-  local _images_out_type="${1:-}"; shift
-  local _images_find_cnt=0
-  local _images_find_key=""
-  local _images_keyfound=""
-  local _images_fmt_spec=""
-  local DOCKER_CONTAINER=""
-  local DOCKER_IMAGE_TAG=""
-  local DOCKER_BUILDOPTS=""
-  if [ $# -le 0 ]
-  then
-    if dockerfile-multi-stage 1>/dev/null 2>&1
-    then
-      : && {
-        dockerfile-stage-list --format 2>/dev/null
-      } 1>&2
-    else
-      eval $(dockerfile-env-get)
-      [ -n "${DOCKER_IMAGE_TAG:-}" ] && {
-        case "${_images_out_type}" in
-        id)  _images_fmt_spec="{{ .ID }}" ;;
-        tag) _images_fmt_spec="{{ .Repository }}:{{ .Tag }}" ;;
-        esac
-        docker images --format="${_images_fmt_spec}" "${DOCKER_IMAGE_TAG}" &&
-        _images_find_cnt=$(( ${_images_find_cnt} + 1 ))
-      }
-    fi
-  else
-    case "${_images_out_type}" in
-    id)  _images_fmt_spec='{print($1);}' ;;
-    tag) _images_fmt_spec='{print($2);}' ;;
+container-image-get() {
+  local _cimg_type="${1:-}"; shift
+  local _cimg_fcls=""
+  local _cimg_keys=""
+  local _cimagekey=""
+  local _found_cnt=0
+  local _found_val=""
+  local _buildpath=""
+  case "${_cimg_type}" in
+  id)  _cimg_fcls='{print($1);}' ;;
+  tag) _cimg_fcls='{print($2);}' ;;
+  *)
+    echo "Usage: $FUNCNAME {tag|id} [-f dockerfile-path] [IMAGE ...]" 1>&2
+    return 2
+    ;;
+  esac
+  eval $(getoptions "f|:=_buildpath" "$@")
+  while getoptions_has_next
+  do
+    eval $(getoptions_shift)
+    case "${_getopt_V:=}" in
+    -*)
+      ;;
+    *)
+      _cimg_keys="${_cimg_keys+${_cimg_keys} }${_getopt_V}"
+      ;;
     esac
-    for _images_find_key in $@
-    do
-      [ -n "${_images_find_key}" ] &&
-      case "${_images_find_key}" in
-      -*)
-        ;;
-      *)
-        _images_keyfound=$(
-          docker images --format='{{ .ID}} {{ .Repository }}:{{ .Tag }}' |
-          egrep '(^'"${_images_find_key}"'[ ]|[ ]'"${_images_find_key}"'$)' |
-          ${AWK} ${_images_fmt_spec}; 2>/dev/null )
-        [ -n "${_images_keyfound}" ] && {
-          echo ${_images_keyfound}
-          _images_find_cnt=$(( ${_images_find_cnt} + 1 ))
+  done
+  eval $(getoptions_end)
+  if [ -z "${_cimg_keys}" ]
+  then
+    _buildpath=$(dockerfile-get-path "${_buildpath:-}") &&
+    [ -r "${_buildpath}" ] && {
+      for _cimagekey in $(dockerfile-imagetag-get - "${_buildpath}")
+      do
+        [ -n "${_cimagekey}" ] && {
+          _cimg_keys="${_cimg_keys:+${_cimg_keys} }${_cimagekey}"
         }
-        ;;
-      esac
-    done
-  fi 2>/dev/null
-  [ ${_images_find_cnt} -gt 0 ]
+      done
+      _cimagekey=""
+    }
+  fi 2>/dev/null || :
+  [ -n "${_cimg_fcls}" ] &&
+  for _cimagekey in ${_cimg_keys}
+  do
+    _found_val=""
+    [ -n "${_cimagekey}" ] &&
+    case "${_cimagekey}" in
+    -*)
+      ;;
+    *)
+      _found_val=$(
+        docker images --format='{{ .ID}} {{ .Repository }}:{{ .Tag }}' |
+        egrep '(^'"${_found_val}"'[ ]|[ ]'"${_found_val}"'$)' |
+        ${AWK} ${_cimg_fcls}; 2>/dev/null )
+      [ -n "${_found_val}" ] && {
+        echo ${_found_val}
+        _found_cnt=$(( ${_found_cnt} + 1 ))
+      }
+      ;;
+    esac
+  done &&
+  [ ${_found_cnt} -gt 0 ]
   return $?
 }
 
-get-image-property() {
-  local _prop_name="${1:-}"; shift
-  local _dimagetag=$(get-image-tag "${1:-}"); shift
-  [ -n "${_prop_name}" ] &&
-  [ -n "${_dimagetag}" ] && {
+container-image-get-property() {
+  local _prop_name=""
+  local _dimagetag=""
+  eval $(getoptions "f|:=_buildpath" "$@")
+  while getoptions_has_next
+  do
+    eval $(getoptions_shift)
+    case "${_getopt_V:=}" in
+    -*)
+      ;;
+    *)
+      if [ -z "${_prop_name}" ]
+      then _prop_name="${_getopt_V}"
+      elif [ -z "${_dimagetag}" ]
+      then _dimagetag="${_getopt_V}"
+      fi
+      ;;
+    esac
+  done
+  if [ -n "${_dimagetag}" ]
+  then
+    _dimagetag=$(
+      container-image-get-tag \
+      ${_buildpath:+-f ${_buildpath}} "{_dimagetag}")
+  else
+    _dimagetag=$(
+      dockerfile-imagetag-get - "${_buildpath:-}"|
+      tail -f -n 1)
+  fi
+  [ -n "${_prop_name}" -a -n "${_dimagetag}" ] && {
     docker inspect \
       --type image \
       --format='{{ index .Config.Labels "'"${_prop_name}"'" }}' \

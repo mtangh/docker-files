@@ -8,28 +8,28 @@ docker-cleanup() {
   local _ps_filter="--filter status=created --filter status=dead"
   local _removecnt=0
   eval $(getoptions "a|all |force" "$@")
-  [ -n "$_getopt_a_all" ] && {
-    _ps_filter="$_ps_filter --filter status=exited"
-  }
-  [ -n "$_getopt__force" ] && {
+  [ -n "${_getopt_a_all:=}" ] && {
+    _ps_filter="${_ps_filter} --filter status=exited"
+  } || :
+  [ -n "${_getopt__force:=}" ] && {
     _rmoptions="--force"
-  }
+  } || :
   eval $(getoptions_end)
-  : && {
-    _cinst_ids=$(docker ps -a --format '{{ .ID }}' $_ps_filter)
-    [ -n "$_cinst_ids" ] &&
-    _removecnt=$(docker rm $_rmoptions ${_cinst_ids} |wc -l)
-    [ -n "$_cinst_ids" ] ||
+  : "Container" && {
+    _cinst_ids=$(docker ps -a --format '{{ .ID }}' ${_ps_filter})
+    [ -n "${_cinst_ids}" ] &&
+    _removecnt=$(docker rm ${_rmoptions} ${_cinst_ids} |wc -l)
+    [ -n "${_cinst_ids}" ] ||
     _removecnt=0
-    printf "$FUNCNAME: container ... %3d deleted.\n" "$_removecnt"
+    printf "$FUNCNAME: container ... %3d deleted.\n" "${_removecnt}"
   } 2>/dev/null
-  : && {
+  : "Image" && {
     _cimageids=$(docker images -a --format="{{ .ID }}" --filter="dangling=true")
-    [ -n "$_cimageids" ] &&
-    _removecnt=$(docker rmi $_rmoptions ${_cimageids} |wc -l)
-    [ -n "$_cimageids" ] ||
+    [ -n "${_cimageids}" ] &&
+    _removecnt=$(docker rmi ${_rmoptions} ${_cimageids} |wc -l)
+    [ -n "${_cimageids}" ] ||
     _removecnt=0
-    printf "$FUNCNAME: image     ... %3d deleted.\n" "$_removecnt"
+    printf "$FUNCNAME: image     ... %3d deleted.\n" "${_removecnt}"
   } 2>/dev/null
   return 0
 }

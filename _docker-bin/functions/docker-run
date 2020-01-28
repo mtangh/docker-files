@@ -3,22 +3,25 @@
 # docker run
 docker-run() {
   local _cimagetag=""
+  local _stage_key=""
   local _buildpath=""
   local _opts_path=""
   local _drun_opts=""
   local _cmnd_opts=""
   local _endofopts=0
   local _dockerret=0
-  [ -n "${1:-}" ] && {
+  if [ -n "${1:-}" ]
+  then
     [[ "${1:-}" =~ ^- ]] || {
-      _cimagetag=$(get-image-tag "${1:-}" 2>/dev/null) && shift || :
+      _cimagetag=$(container-image-get-tag "${1:-}" 2>/dev/null) &&
+      shift
     }
-  } || :
+  fi
   eval $(getoptions "|image:=_cimagetag f|file:=_buildpath" "$@")
   while getoptions_has_next
   do
     eval $(getoptions_shift 2>/dev/null)
-    case "${_getopt_V:-}" in
+    case "${_getopt_V:=}" in
     --)
       if [ ${_endofopts} -ne 0 ]
       then _endofopts=0
@@ -34,12 +37,9 @@ docker-run() {
     *)
       if [ ${_endofopts} -eq 0 ]
       then
-        case "${_getopt_V:-}" in
-        \#[0-9]*|[0-9]*)
-          _cimagetag=$(dockerfile-imagetag-get "${_getopt_V}" "${_buildpath}")
-          ;;
-        @[0-9A-Za-z]*|[A-Za-z]*)
-          _cimagetag=$(dockerfile-imagetag-get "${_getopt_V}" "${_buildpath}")
+        case "${_getopt_V:=}" in
+        +[0-9]*|@[0-9A-Za-z]*)
+          _stage_key="${_getopt_V}"
           ;;
         *)
           _drun_opts="${_drun_opts:+${_drun_opts:-} }${_getopt_V}" || :
@@ -51,21 +51,26 @@ docker-run() {
       ;;
     esac
   done
-  [ -n "${_drun_opts}" ] &&
-  [[ "${_drun_opts}" =~ ^((..*)[\ ]|[ ]*)([^\ -][^\ ]*)$ ]] && {
-    _drun_opts="${BASH_REMATCH[2]}"
-    [ -n "${BASH_REMATCH[3]}" ] && {
-      _cimagetag=$(get-image-tag "${BASH_REMATCH[2]}" 2>/dev/null)
-    }
-  }
   _buildpath=$(
     dockerfile-get-path "${_buildpath:-}" 2>/dev/null )
+  [ -n "${_drun_opts}" ] &&
+  [[ "${_drun_opts}" =~ ^((..*)[\ ]+|[\ ]*)([^\ -][^\ ]*)$ ]] && {
+    _drun_opts="${BASH_REMATCH[2]}"
+    [ -n "${BASH_REMATCH[3]}" ] && {
+      _cimagetag=$(container-image-get-tag "${BASH_REMATCH[2]}" 2>/dev/null)
+    }
+  }
   [ -r "${_buildpath}" -a -z "${_cimagetag}" ] && {
+    [ -z "${_stage_key}" ] &&
     dockerfile-multi-stage "${_buildpath}" 1>/dev/null 2>&1 && {
       dockerfile-stage-list --format "${_buildpath}" 2>/dev/null
       return 1
     } || :
-    _cimagetag=$(dockerfile-env-get DOCKER_IMAGE_TAG "${_buildpath}")
+    _cimagetag=$(
+      if [ -n "${_stage_key}" ]
+      then dockerfile-imagetag-get "${_stage_key}" "${_buildpath}"
+      else dockerfile-env-get DOCKER_IMAGE_TAG "${_buildpath}"
+      fi 2>/dev/null; )
   } || :
   [ -z "${_drun_opts}" -a -z "${_opts_path}" ] &&
   _opts_path="${DOCKERFILE_OPTS_RUN:-Dockerfile.opts.run}" || :

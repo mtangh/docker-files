@@ -6,9 +6,11 @@ docker-images() {
   local _header_id=$(printf "%-8s" ID)
   local _headerstr=$(printf "\t%-36s\t%-30s\t%s" REPOSITORY:TAG CREATED SIZE)
   local _formatopt="--format='"'{{ .ID }}\t{{ .Tag |printf "%s:%s" .Repository |printf "%-36s" }}\t{{ .CreatedAt }}\t{{ .Size }}'"'"
-  while [ $# -gt 0 ]
+  eval $(getoptions "" "$@")
+  while getoptions_has_next
   do
-    case "$1" in
+    eval $(getoptions_shift)
+    case "${_getopt_V:=}" in
     --default)
       _header_id=""
       _headerstr=""
@@ -17,42 +19,53 @@ docker-images() {
     --id)
       _header_id=$(printf "%-70s" ID)
       _headerstr=""
-      _formatopt="--format='"'{{ .ID }}'"'"
+      _formatopt=""
+      _formatopt="${_formatopt}"'{{ .ID }}'
+      _formatopt="--format='${_formatopt}'"
       ;;
     --tag*)
       _header_id=""
       _headerstr=$(printf "%s" REPOSITORY:TAG)
-      _formatopt="--format='"'{{ .Tag |printf "%s:%s" .Repository |printf "%-36s" }}'"'"
+      _formatopt=""
+      _formatopt="${_formatopt}"'{{ .Tag |printf "%s:%s" .Repository |printf "%-36s" }}'
+      _formatopt="--format='${_formatopt}'"
       ;;
     --no-header)
       _header_id=""
       _headerstr=""
       ;;
     --format*|--help)
-      _dimageopt=$(echo $_dimageopt "$1")
+      _dimageopt="${_dimageopt:+${_dimageopt} }${_getopt_V}"
       _header_id=""
       _headerstr=""
       _formatopt=""
       ;;
     --no-trunc)
-      _dimageopt=$(echo $_dimageopt "$1")
+      _dimageopt="${_dimageopt:+${_dimageopt} }${_getopt_V}"
       _header_id=$(printf "%-70s" ID)
       ;;
     --digests)
-      _dimageopt=$(echo $_dimageopt "$1")
+      _dimageopt="${_dimageopt:+${_dimageopt} }${_getopt_V}"
       _headerstr=$(printf "\t%-36s\t%-30s\t%-12s\t%s" REPOSITORY:TAG CREATED SIZE DIGEST)
-      _formatopt="--format='"'{{ .ID }}\t{{ .Tag |printf "%s:%s" .Repository |printf "%-36s" }}\t{{ .CreatedAt }}\t{{ .Size |printf "%-12s" }}\t{{ .Digest }}'"'"
+      _formatopt=""
+      _formatopt="${_formatopt}"'{{ .ID }}\t'
+      _formatopt="${_formatopt}"'\t'
+      _formatopt="${_formatopt}"'{{ .Tag |printf "%s:%s" .Repository |printf "%-36s" }}'
+      _formatopt="${_formatopt}"'\t'
+      _formatopt="${_formatopt}"'{{ .CreatedAt }}\t{{ .Size |printf "%-12s" }}'
+      _formatopt="${_formatopt}"'\t'
+      _formatopt="${_formatopt}"'{{ .Digest }}'
+      _formatopt="--format='${_formatopt}'"
       ;;
     *)
-      _dimageopt=$(echo $_dimageopt "$1")
+      _dimageopt="${_dimageopt:+${_dimageopt} }${_getopt_V}"
       ;;
     esac
-    shift
   done
-  [ -n "$_header_id$_headerstr" ] && {
-    echo "$_header_id$_headerstr"
-  }
-  eval $(echo docker images $_formatopt $_dimageopt)
+  eval $(getoptions_end)
+  [ -n "${_header_id}${_headerstr}" ] &&
+  echo "${_header_id}${_headerstr}" || :
+  eval $(echo docker images ${_formatopt} ${_dimageopt})
   return $?
 }
 
