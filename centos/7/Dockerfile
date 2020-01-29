@@ -11,7 +11,7 @@
 ARG CENTOS_VER="7"
 
 # CentOS rootfs Image Dir
-ARG CENTOS_DIR="/centos-image/rootfs"
+ARG CENTOSROOT="/centos-image/rootfs"
 
 # default System locale
 ARG LANGUAGE="en_US.UTF-8"
@@ -32,14 +32,17 @@ ARG ROOTPSWD=""
 # CentOS rootfs
 FROM centos:centos${CENTOS_VER} AS rootfs
 
+# Set Workdir
+WORKDIR /root
+
+# CentOS Version
+ARG CENTOS_VER
+
 # CentOS rootfs Image
-ARG CENTOSROOT="${CENTOS_DIR:-/centos-image/rootfs}"
+ARG CENTOSROOT
 
 # RPM GPG Key
 ARG RPM_GPGKEY="/etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-${CENTOS_VER}"
-
-# Set Workdir
-WORKDIR /root
 
 # COPY rootfs-build.sh to ./rootfs-build.sh
 COPY rootfs-build_centos*.sh ./
@@ -56,7 +59,7 @@ RUN \
 
 # Labels
 LABEL \
- name="CentOS 7 rootfs" \
+ name="CentOS ${CENTOS_VER} rootfs" \
  vendor="UGOOLE.ORG" \
  maintainer="MT" \
  license="" \
@@ -68,17 +71,20 @@ LABEL \
 # CentOS minimal
 FROM scratch AS minimal
 
-# CentOS rootfs Image
-ARG CENTOSROOT="${CENTOS_DIR:-/centos-image/rootfs}"
-
 # Env
 ENV container=docker
 
-# COPY From root-image
-COPY --from=rootfs "${CENTOSROOT}"/ /
-
 # Reset Workdir
 WORKDIR /
+
+# CentOS Version
+ARG CENTOS_VER
+
+# CentOS rootfs Image
+ARG CENTOSROOT
+
+# COPY From root-image
+COPY --from=rootfs "${CENTOSROOT}"/ /
 
 # Labels
 LABEL \
@@ -93,8 +99,14 @@ LABEL \
 # CentOS 7 with systemd
 FROM minimal AS systemd
 
+# Env
+ENV container=docker
+
 # Set Workdir
 WORKDIR /root
+
+# CentOS Version
+ARG CENTOS_VER
 
 # SetUp
 RUN \
@@ -190,9 +202,38 @@ FROM minimal AS minimal-onbuild
 # Reset Workdir
 WORKDIR /
 
+# CentOS Version
+ARG CENTOS_VER
+
+# default System locale
+ARG LANGUAGE
+
+# default keyboard laayout
+ARG KBD_TYPE
+
+# default keymap
+ARG KMAPTYPE
+
+# default timezone
+ARG TIMEZONE
+
+# root password
+ARG ROOTPSWD
+
 # Copy onbuild-i18n.sh to image root
 COPY onbuild-i18n.sh /
 
+# Labels
+LABEL \
+ name="CentOS ${CENTOS_VER} Minimal (onbuild)" \
+ vendor="UGOOLE.ORG" \
+ maintainer="MT" \
+ license="" \
+ build-date="" \
+ docker.build.options="" \
+ docker.run.options="" \
+ docker.run.confirm-startup=""
+    
 # ONBUILD: OS locale
 ONBUILD \
 ARG CONTAINER_LANGUAGE="${LANGUAGE:-en_US.UTF-8}"
@@ -229,17 +270,6 @@ RUN \
 ONBUILD \
 WORKDIR /
 
-# Labels
-LABEL \
- name="CentOS ${CENTOS_VER} Minimal (onbuild)" \
- vendor="UGOOLE.ORG" \
- maintainer="MT" \
- license="" \
- build-date="" \
- docker.build.options="" \
- docker.run.options="" \
- docker.run.confirm-startup=""
-
 
 # CentOS 7 with systemd (onbuild)
 FROM systemd AS systemd-onbuild
@@ -247,8 +277,37 @@ FROM systemd AS systemd-onbuild
 # Reset Workdir
 WORKDIR /
 
+# CentOS Version
+ARG CENTOS_VER
+
+# default System locale
+ARG LANGUAGE
+
+# default keyboard laayout
+ARG KBD_TYPE
+
+# default keymap
+ARG KMAPTYPE
+
+# default timezone
+ARG TIMEZONE
+
+# root password
+ARG ROOTPSWD
+
 # Copy onbuild-*.sh to image root
 COPY onbuild-*.sh /
+
+# Labels
+LABEL \
+ name="CentOS ${CENTOS_VER} with Systemd (onbuild)" \
+ vendor="UGOOLE.ORG" \
+ maintainer="MT" \
+ license="" \
+ build-date="" \
+ docker.build.options="" \
+ docker.run.options="-d -P -h centos${CENTOS_VER}-systemd --privileged" \
+ docker.run.confirm-startup=""
 
 # ONBUILD: OS locale
 ONBUILD \
@@ -302,15 +361,4 @@ RUN \
 # ONBUILD: Reset Workdir
 ONBUILD \
 WORKDIR /
-
-# Labels
-LABEL \
- name="CentOS ${CENTOS_VER} with Systemd (onbuild)" \
- vendor="UGOOLE.ORG" \
- maintainer="MT" \
- license="" \
- build-date="" \
- docker.build.options="" \
- docker.run.options="-d -P -h centos${CENTOS_VER}-systemd --privileged" \
- docker.run.confirm-startup=""
 
