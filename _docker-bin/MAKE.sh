@@ -1,17 +1,16 @@
-#!/bin/bash
-THIS="${0##*/}"
-CDIR=$([ -n "${0%/*}" ] && cd "${0%/*}" 2>/dev/null; pwd)
-
-# Name
+#!/bin/bash -u
+THIS="${BASH_SOURCE##*/}"
 BASE="${THIS%.*}"
+CDIR=$([ -n "${BASH_SOURCE%/*}" ] && cd "${BASH_SOURCE%/*}" 2>/dev/null; pwd)
 
 # Docker HOST
 DOCKER_HOST="${DOCKER_HOST:-tcp://127.0.0.1:4243}"
 export DOCKER_HOST
 
 # docker-bin functions
-. ${CDIR}/_docker-make_funcs.sh 1>/dev/null 2>&1 ||
+. "${CDIR}/_docker-make_funcs.sh" 1>/dev/null 2>&1 || {
   exit 127
+}
 
 # docker container name
 DOCKER_CONTAINER=""
@@ -65,12 +64,12 @@ c|command:=_confirm_start_cmnd
 p|proc:=_confirm_start_cmnd
 "
 # Parsing an options
-eval $(getoptions "$_get_options_params" $@)
+eval $(getoptions "${_get_options_params}" $@)
 # Get options
 while getoptions_has_next
 do
   eval $(getoptions_shift)
-  [ $_in_docker_ext_opts -eq 0 ] &&
+  [ ${_in_docker_ext_opts} -eq 0 ] &&
   case "${_getopt_V:=}" in
   -X[Bb])
     _in_docker_ext_opts=1
@@ -81,44 +80,39 @@ do
   -*)
     ;;
   *)
-    if [ -z "$_docker_img_tagname" ]
-    then _docker_img_tagname="$_getopt_V"
-    elif [ -z "$_docker_img_cntname" ]
-    then _docker_img_cntname="$_getopt_V"
+    if [ -z "${_docker_img_tagname}" ]
+    then _docker_img_tagname="${_getopt_V}"
+    elif [ -z "${_docker_img_cntname}" ]
+    then _docker_img_cntname="${_getopt_V}"
     fi
     ;;
   esac
-  [ $_in_docker_ext_opts -eq 0 ] ||
+  [ ${_in_docker_ext_opts} -eq 0 ] ||
   case "${_getopt_V:=}" in
   -X[Ee])
     _in_docker_ext_opts=0
     ;;
   *)
-    [ $_in_docker_ext_opts -eq 1 ] &&
-    _docker_c_buildopts="${_docker_c_buildopts:+_docker_c_buildopts }$_getopt_V"
-    [ $_in_docker_ext_opts -eq 2 ] &&
-    _docker_c_boot_opts="${_docker_c_boot_opts:+_docker_c_boot_opts }$_getopt_V"
+    if [ ${_in_docker_ext_opts} -eq 1 ]
+    then
+      _docker_c_buildopts="${_docker_c_buildopts:+${_docker_c_buildopts} }"
+      _docker_c_buildopts="${_docker_c_buildopts:-}${_getopt_V}"
+    elif [ ${_in_docker_ext_opts} -eq 2 ]
+    then
+      _docker_c_boot_opts="${_docker_c_boot_opts:+${_docker_c_boot_opts} }"
+      _docker_c_boot_opts="${_docker_c_boot_opts:-}${_getopt_V}"
+    fi
     ;;
   esac
 done
+eval $(getoptions_end)
 
 # Dockerfile
-[ -z "$__docker_build_path" ] &&
-__docker_build_path="$(pwd)/Dockerfile"
-[ "${__docker_build_path}" = "${__docker_build_path##*/}" ] &&
-__docker_build_path="$(pwd)/$__docker_build_path"
+__docker_build_path=$(dockerfile-get-path "${__docker_build_path}")
 [ -n "${__docker_build_path}" ] &&
 __docker_build_file="${__docker_build_path##*/}"
 [ -n "${__docker_build_path}" ] &&
 __docker_build_wdir="${__docker_build_path%/*}"
-
-# Work dir
-__docker_build_wdir=$(
-  [ -n "$__docker_build_wdir" ] && cd "$__docker_build_wdir" 2>/dev/null;
-  pwd)
-
-# Docker file path
-__docker_build_path="$__docker_build_wdir/$__docker_build_file"
 
 # Verify DOCKER_HOST
 [ -n "${DOCKER_HOST}" ] || {
@@ -128,14 +122,14 @@ __docker_build_path="$__docker_build_wdir/$__docker_build_file"
 
 # Verify Dockerfile
 [ -r "${__docker_build_path}" ] || {
-  echo "$THIS: ERROR: Dockerfile '$__docker_build_path' no such file or directory." 1>&2
+  echo "$THIS: ERROR: Dockerfile '${__docker_build_path}' no such file or directory." 1>&2
   exit 129
 }
 
 # FIND CONTAINER ID BY Dockerfile
 [ -r "${__docker_build_path}" ] &&
 [ -z "${_docker_containerid}" ] &&
-_docker_containerid=$(get-container-id -f "$__docker_build_path")
+_docker_containerid=$(get-container-id -f "${__docker_build_path}")
 
 # Print build file
 : && {
@@ -144,7 +138,7 @@ _docker_containerid=$(get-container-id -f "$__docker_build_path")
 #* Context-Dir: ${__docker_build_wdir}.
 #* Build-File : ${__docker_build_file}.
 _EOM_
-  if [ -n "$_docker_containerid" ]
+  if [ -n "${_docker_containerid}" ]
   then echo "#* Container ... Found - ID='${_docker_containerid}'."
   else echo "#* Container ... Not found."
   fi
@@ -155,15 +149,15 @@ __stdout_with_ts ""
 EXIT_STATE=0
 
 # Cleanup ?
-if [ -n "$_docker_containerid" ] &&
-   [ $_docker_rebuild_obj -ne 0 -o $_docker_cleanuponly -ne 0 ]
+if [ -n "${_docker_containerid}" ] &&
+   [ ${_docker_rebuild_obj} -ne 0 -o ${_docker_cleanuponly} -ne 0 ]
 then
 
   # Separator
   __section
 
   # rebuild
-  ( cd "$__docker_build_wdir" && {
+  ( cd "${__docker_build_wdir}" && {
     echo "docker stop and rm: ID='${_docker_containerid}'."
     docker-stop "${_docker_containerid}" 1>/dev/null 2>&1 &&
     echo "docker container ID='${_docker_containerid}' was stoped."
@@ -176,8 +170,8 @@ then
   EXIT_STATE=${PIPESTATUS[0]}
 
   # Cleanup only ?
-  [ $_docker_cleanuponly -eq 0 ] || {
-    exit $EXIT_STATE
+  [ ${_docker_cleanuponly} -eq 0 ] || {
+    exit ${EXIT_STATE}
   }
 
   # Reset container ID
@@ -186,35 +180,35 @@ then
   # Reset status
   EXIT_STATE=0
 
-fi # if [ -n "$_docker_containerid" ] && ...
+fi # if [ -n "${_docker_containerid}" ] && ...
 
 # Build and run
-if [ -z "$_docker_containerid" ]
+if [ -z "${_docker_containerid}" ]
 then
 
   # Push dir
-  pushd "$__docker_build_wdir" 1>/dev/null 2>&1 || :
+  pushd "${__docker_build_wdir}" 1>/dev/null 2>&1 || :
 
   # Separator
   __section
 
   # Build
   : && {
-    if [ -s "./${__docker_build_path}.build" ]
+    if [ -s "./${__docker_build_file}.build" ]
     then
       cat <<_EOM_
 Found file './${__docker_build_path}.build'.
 Build the file './${__docker_build_path}.build' first.
 _EOM_
       __echo_start \
-      docker-build -f "./${__docker_build_path}.build" ${_docker_c_buildopts} .
-      docker-build -f "./${__docker_build_path}.build" ${_docker_c_buildopts} .
+      docker-build --stage-all -f "./${__docker_build_file}.build" ${_docker_c_buildopts} .
+      docker-build --stage-all -f "./${__docker_build_file}.build" ${_docker_c_buildopts} .
       __echo_end $?
     else :
     fi &&
     __echo_start \
-    docker-build -f "$__docker_build_file" ${_docker_c_buildopts} .
-    docker-build -f "$__docker_build_file" ${_docker_c_buildopts} .
+    docker-build --stage-all -f "${__docker_build_file}" ${_docker_c_buildopts} .
+    docker-build --stage-all -f "${__docker_build_file}" ${_docker_c_buildopts} .
     __echo_end $?
   } 2>&1 |
   __stdout_with_ts "BUILD"
@@ -223,18 +217,18 @@ _EOM_
   EXIT_STATE=${PIPESTATUS[0]}
 
   # Has error ?
-  [ $EXIT_STATE -eq 0 ] || {
-    exit $EXIT_STATE
+  [ ${EXIT_STATE} -eq 0 ] || {
+    exit ${EXIT_STATE}
   }
 
   # Pop dir
   popd 1>/dev/null 2>&1 || :
 
   # Run
-  [ $_docker_not_running -ne 0 ] || {
+  [ ${_docker_not_running} -ne 0 ] || {
 
     # Push dir
-    pushd "$__docker_build_wdir" 1>/dev/null 2>&1 || :
+    pushd "${__docker_build_wdir}" 1>/dev/null 2>&1 || :
 
     # Separator
     __section
@@ -242,8 +236,8 @@ _EOM_
     # Run
     : && {
       __echo_start \
-      docker-run -f "$__docker_build_path" ${_docker_c_boot_opts}
-      docker-run -f "$__docker_build_path" ${_docker_c_boot_opts}
+      docker-run -f "${__docker_build_path}" ${_docker_c_boot_opts}
+      docker-run -f "${__docker_build_path}" ${_docker_c_boot_opts}
       __echo_end $?
     } 2>&1 |
     __stdout_with_ts "RUN"
@@ -252,37 +246,37 @@ _EOM_
     EXIT_STATE=${PIPESTATUS[0]}
 
     # Has error ?
-    [ $EXIT_STATE -eq 0 ] || {
-      exit $EXIT_STATE
+    [ ${EXIT_STATE} -eq 0 ] || {
+      exit ${EXIT_STATE}
     }
 
     # Pop dir
     popd 1>/dev/null 2>&1 || :
 
-  } # [ $_docker_not_running -ne 0 ] || {
+  } # [ ${_docker_not_running} -ne 0 ] || {
 
   # Reset status
   EXIT_STATUS=0
 
-fi # if [ -z "$_docker_containerid" ]
+fi # if [ -z "${_docker_containerid}" ]
 
 # Checking exit status
-if [ $EXIT_STATE -eq 0 ]
+if [ ${EXIT_STATE} -eq 0 ]
 then
   [ -r "${__docker_build_path}" ] &&
   [ -z "${_docker_containerid}" ] &&
-  _docker_containerid=$(get-container-id -f "$__docker_build_path")
+  _docker_containerid=$(get-container-id -f "${__docker_build_path}")
 else
   _docker_containerid=""
 fi
 
 # Checking build only mode
-[ $_docker_not_running -ne 0 ] && {
+[ ${_docker_not_running} -ne 0 ] && {
   _docker_containerid=""
 }
 
 # Portmap
-[ -n "$_docker_containerid" ] && {
+[ -n "${_docker_containerid}" ] && {
 
   # Separator
   __section
@@ -292,20 +286,20 @@ fi
     # Start
     __echo_start
     # Print
-    echo "ID '$_docker_containerid' was started."
+    echo "ID '${_docker_containerid}' was started."
     # Print portmap
-    docker port "$_docker_containerid" |
+    docker port "${_docker_containerid}" |
     ${AWK} '{printf("portmap - %s\n",$0);}'
     # End
     __echo_end $?
   } 2>&1 |
   __stdout_with_ts "${_docker_containerid}"
 
-} # [ -n "$_docker_containerid" ]
+} # [ -n "${_docker_containerid}" ]
 
 # Check running process
-[ -n "$_docker_containerid" ] &&
-[ -n "$_confirm_start_cmnd" ] && {
+[ -n "${_docker_containerid}" ] &&
+[ -n "${_confirm_start_cmnd}" ] && {
 
   _retrymax=5
   _wait_for=3
@@ -325,29 +319,29 @@ fi
     # Start
     __echo_start
     # Print
-    echo "Check the status of the command '$_confirm_start_cmnd'."
+    echo "Check the status of the command '${_confirm_start_cmnd}'."
     # Check
-    while [ $retry_cnt -le $_retrymax ]
+    while [ ${retry_cnt} -le ${_retrymax} ]
     do
       eval $(
-      echo docker exec -it "$_docker_containerid" $_confirm_start_cmnd
+      echo docker exec -it "${_docker_containerid}" ${_confirm_start_cmnd}
       ) 1>/dev/null 2>&1
       # Status of docker exec
       dexec_ret=$?
       # Check the status of docker-exec
-      [ $dexec_ret -eq 0 ] && {
-        echo "SUCCESS; command=[$_confirm_start_cmnd]"
+      [ ${dexec_ret} -eq 0 ] && {
+        echo "SUCCESS; command=[${_confirm_start_cmnd}]"
         retryover=0
         break
       }
       # Decrement retry counter
-      retry_cnt=$(expr $retry_cnt + 1 2>/dev/null)
+      retry_cnt=$(expr ${retry_cnt} + 1 2>/dev/null)
       # Print
-      echo "FAILED($retry_cnt/$_retrymax); command=[$_confirm_start_cmnd], ret=[$dexec_ret]"
+      echo "FAILED(${retry_cnt}/${_retrymax}); command=[${_confirm_start_cmnd}], ret=[${dexec_ret}]"
       # Retry count over ?
-      if [ $retryover -ne 0 ]
-      then echo "GIVE-UP; command=[$_confirm_start_cmnd]"
-      else sleep $_wait_for
+      if [ ${retryover} -ne 0 ]
+      then echo "GIVE-UP; command=[${_confirm_start_cmnd}]"
+      else sleep ${_wait_for}
       fi
     done
     # End
@@ -355,8 +349,8 @@ fi
   } 2>&1 |
   __stdout_with_ts "${_docker_containerid}"
 
-} # [ -n "$_docker_containerid" ] && ...
+} # [ -n "${_docker_containerid}" ] && ...
 
 # end
-exit $EXIT_STATE
+exit ${EXIT_STATE}
 # vim: set ff=unix ts=2 sw=2 sts=2 et : This line is VIM modeline
