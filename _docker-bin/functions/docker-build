@@ -12,6 +12,10 @@ docker-build() {
   local _build_all=0
   local _targetlst=""
   local _targetind=""
+<<<<<<< HEAD
+=======
+  local _opts_path=""
+>>>>>>> f51d4b6fd44a0bba976eb3a32e0e15459906a0a7
   local _labelopts=""
   local _dockerret=0
   eval $(
