@@ -2,9 +2,9 @@
 
 # docker bash
 docker-bash() {
-  local _container="$(get-container-id)"
+  local _container="$(container-get-id)"
   [ -n "${_container}" ] || {
-    _container="$(get-container-id ${1:-})" &&
+    _container="$(container-get-id ${1:-})" &&
     shift
   }
   [ -n "${_container}" ] || {

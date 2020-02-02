@@ -56,7 +56,7 @@ docker-ssh() {
   _buildpath=$(
     dockerfile-get-path "${_buildpath:-}" 2>/dev/null )
   [ -r "${_buildpath}" -a -z "${_cinstance}" ] &&
-  _cinstance=$(dockerfile-env-get DOCKER_CONTAINER "${_buildpath}") || :
+  _cinstance=$(dockerfile-env_CONTAINER "${_buildpath}") || :
   [ -r "${_buildpath}" -a -z "${_cimagetag}" ] && {
     [ -z "${_stage_key}" ] &&
     dockerfile-multi-stage "${_buildpath}" 1>/dev/null 2>&1 && {
@@ -66,18 +66,18 @@ docker-ssh() {
     _cimagetag=$(
       if [ -n "${_stage_key}" ]
       then dockerfile-imagetag-get "${_stage_key}" "${_buildpath}"
-      else dockerfile-env-get DOCKER_IMAGE_TAG "${_buildpath}"
+      else dockerfile-env_IMAGENAME "${_buildpath}"
       fi 2>/dev/null; )
   } || :
   [ -z "${c_ssh_port}" ] && {
     _container=$(
-      get-container-id-all "${_cinstance}" ||
-      get-container-id-all "${_cimagetag}" ||
+      container-get-id-all "${_cinstance}" ||
+      container-get-id-all "${_cimagetag}" ||
       echo "")
   } || :
   [ -z "${c_ssh_port}" ] &&
   [ -n "${_container}" ] &&
-  c_ssh_port=$(get-container-port "${_container}" 22)
+  c_ssh_port=$(container-get-port "${_container}" 22)
   [ -n "${c_ssh_port}" ] &&
   ssh ${c_ssh_opts} -p "${c_ssh_port}" -l "${c_ssh_user}" "${c_ssh_host}" ${c_cmndopts}
   return $?

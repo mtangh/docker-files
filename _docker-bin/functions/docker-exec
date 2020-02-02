@@ -20,7 +20,7 @@ docker-exec() {
       _endofopts=1
       ;;
     -*)
-      if [ $_endofopts -eq 0 ]
+      if [ ${_endofopts} -eq 0 ]
       then _exec_opts="${_exec_opts:+${_exec_opts} }${1}"
       else _cmnd_args="${_cmnd_args:+${_cmnd_args} }${1}"
       fi
@@ -29,7 +29,7 @@ docker-exec() {
       if [ ${_endofopts} -eq 0 ]
       then
         if [ -z "${_container}" ]
-        then _container="$(get-container-id-all ${1} 2>/dev/null)"
+        then _container="$(container-get-id-all ${1} 2>/dev/null)"
         else _exec_opts="${_exec_opts:+${_exec_opts} }\"${1}\""
         fi
       else
@@ -40,7 +40,7 @@ docker-exec() {
     shift
   done
   [ -n "${_container}" ] || {
-    _container="$(get-container-id-all |head -n 1)"
+    _container="$(container-get-id-all |head -n 1)"
   }
   [ -n "${_container}" -a -n "${_cmnd_args}" ] || {
     docker exec --help

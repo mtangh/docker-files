@@ -51,8 +51,7 @@ docker-run() {
       ;;
     esac
   done
-  _buildpath=$(
-    dockerfile-get-path "${_buildpath:-}" 2>/dev/null )
+  _buildpath=$(dockerfile-get-path "${_buildpath:-}" 2>/dev/null )
   [ -n "${_drun_opts}" ] &&
   [[ "${_drun_opts}" =~ ^((..*)[\ ]+|[\ ]*)([^\ -][^\ ]*)$ ]] && {
     _drun_opts="${BASH_REMATCH[2]}"
@@ -63,23 +62,20 @@ docker-run() {
   [ -r "${_buildpath}" -a -z "${_cimagetag}" ] && {
     [ -z "${_stage_key}" ] &&
     dockerfile-multi-stage "${_buildpath}" 1>/dev/null 2>&1 && {
+      echo "Choose a stage to run."
+      echo
       dockerfile-stage-list --format "${_buildpath}" 2>/dev/null
+      echo
       return 1
     } || :
     _cimagetag=$(
       if [ -n "${_stage_key}" ]
       then dockerfile-imagetag-get "${_stage_key}" "${_buildpath}"
-      else dockerfile-env-get DOCKER_IMAGE_TAG "${_buildpath}"
+      else dockerfile-env_IMAGENAME "${_buildpath}"
       fi 2>/dev/null; )
   } || :
-  [ -z "${_drun_opts}" -a -z "${_opts_path}" ] &&
-  _opts_path="${DOCKERFILE_OPTS_RUN:-Dockerfile.opts.run}" || :
-  [ -r "${_buildpath}" -a -z "${_drun_opts}" -a ! -r "${_opts_path}" ] &&
-  _opts_path=$(dockerfile-env-get DOCKERFILE_OPTS_RUN "${_buildpath}") || :
-  [ -z "${_drun_opts}" -a -s "${_opts_path}" ] &&
-  _drun_opts=$(cat "${_opts_path}" 2>/dev/null|${AWK} '{printf(" %s",$0);}') || :
-  [ -r "${_buildpath}" -a -z "${_drun_opts}" ] &&
-  _drun_opts=$(dockerfile-env-get DOCKER_BOOT_OPTS "${_buildpath}") || :
+  [ -z "${_drun_opts}" ] &&
+  _drun_opts=$(dockerfile-env_BOOT_OPTS "${_buildpath}")
   [ -n "${_cimagetag}" -a -z "${_drun_opts}" ] &&
   _drun_opts=$(get-image-property "docker.run.options" "${_cimagetag}") || :
   if [ -n "${_cimagetag}" ]

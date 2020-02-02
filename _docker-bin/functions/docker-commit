@@ -21,12 +21,12 @@ docker-container-commit() {
       if [ ${_toggleflg} -eq 0 ]
       then
         if [ -z "${_container}" ]
-        then _container="$(get-container-id-all ${_getopt_V} |head -n 1)"
+        then _container="$(container-get-id-all ${_getopt_V} |head -n 1)"
         elif [ -z "${_imagename}" ]
         then _imagename="${_getopt_V}"
         fi
       else
-        _cmit_opts="${_cmit_opts:+${_cmit_opts} }\"${_getopt_V}\""
+        _cmit_opts="${_cmit_opts:+${_cmit_opts} }"'"'"${_getopt_V}"'"'
         _toggleflg=0
       fi
       ;;
@@ -34,7 +34,7 @@ docker-container-commit() {
   done
   eval $(getoptions_end)
   [ -n "${_container}" ] || {
-    _container=$(get-container-id-all |head -n1)
+    _container=$(container-get-id-all |head -n1)
   }
   [ -n "${_container}" ] || {
     docker commit --help
