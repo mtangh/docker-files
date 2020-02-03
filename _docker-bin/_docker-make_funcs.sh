@@ -42,7 +42,7 @@ __stdout_with_ts() {
   printf("%s: %s: %s%s\n",
   "'"${BASE:-MAKE}"'",strftime("%Y%m%dT%H%M%S",systime()),"'"${_tag:+$_tag: }"'",$0);
   fflush();};' |
-  $SED -r 's/\x1B\[([0-9]{1,2}(;[0-9]{1,2})*)?m//g'
+  ${SED} -r 's/\x1B\[([0-9]{1,2}(;[0-9]{1,2})*)?m//g'
   return 0
 }
 

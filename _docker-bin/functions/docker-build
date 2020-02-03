@@ -12,10 +12,6 @@ docker-build() {
   local _build_all=0
   local _targetlst=""
   local _targetind=""
-<<<<<<< HEAD
-=======
-  local _opts_path=""
->>>>>>> f51d4b6fd44a0bba976eb3a32e0e15459906a0a7
   local _labelopts=""
   local _dockerret=0
   eval $(
@@ -74,11 +70,6 @@ t|tag:=_cimagetag
   fi 2>/dev/null
   _build_dir="${_buildpath%/*}"
   _buildfile="${_buildpath##*/}"
-  if [ -r "${_buildpath}" -a -n "${_targetind}" ]
-  then
-    _stage_ind=$(dockerfile-stage-get-index "${_targetind}" "${_buildpath}")
-    _stagename=$(dockerfile-stage-get-name "${_targetind}" "${_buildpath}")
-  fi
   if [ -r "${_buildpath}" ]
   then
     if [ -n "${_targetind}" ]
@@ -120,27 +111,32 @@ t|tag:=_cimagetag
   _buildopts=$(dockerfile-env_BUILDOPTS "${_buildpath}")
   for _targetind in ${_targetlst}
   do
-    if [ "${_targetind--}" = "-" ]
+    _cimagetag=""
+    _stagename=""
+    if [ "${_targetind:--}" = "-" ]
     then
       _targetind=""
     fi
-    if [ -z "${_cimagetag}" -n "${_targetind}" ]
+    if [ -n "${_targetind}" ]
     then
-      _cimagetag=$(
-        dockerfile-imagetag-get "+${_targetind}" "${_buildpath}")
+      _stagename=$(dockerfile-stage-get-name "+${_targetind}" "${_buildpath}")
+    fi
+    if [ -z "${_cimagetag}" -a -n "${_targetind}" ]
+    then
+      _cimagetag=$(dockerfile-imagetag-get "+${_targetind}" "${_buildpath}")
     fi
     if [ -z "${_cimagetag}" ]
     then
       _cimagetag=$(dockerfile-env_IMAGENAME "${_buildpath}")
     fi
-    _labelopts="${_labelopts:+${_labelopts} }--label build-date="'"'$(date +'%Y%m%dT%H:%M%z')'"'
-    _labelopts="${_labelopts:+${_labelopts} }--label docker.build.options="'"'"${_buildopts}"'"'
+#    _labelopts="${_labelopts:+${_labelopts} }--label build-date="'"'$(date +'%Y%m%dT%H:%M%z')'"'
+#    _labelopts="${_labelopts:+${_labelopts} }--label docker.build.options="'"'"${_buildopts}"'"'
     echo docker build ${_buildopts} ${_labelopts} \
-      ${_cimagetag:+-t ${_cimagetag}} ${_targetind:+--target=${_targetind}} \
+      ${_cimagetag:+-t ${_cimagetag}} ${_stagename:+--target=${_stagename}} \
       ${_buildpath:+-f ${_buildpath}} "${_build_dir:-.}" &&
     eval $(echo \
       docker build ${_buildopts} ${_labelopts} \
-      ${_cimagetag:+-t ${_cimagetag}} ${_targetind:+--target=${_targetind}} \
+      ${_cimagetag:+-t ${_cimagetag}} ${_stagename:+--target=${_stagename}} \
       ${_buildpath:+-f ${_buildpath}} "${_build_dir:-.}")
     _dockerret=$?
   done

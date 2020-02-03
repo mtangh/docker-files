@@ -81,7 +81,10 @@ container-image-get() {
 
 container-image-get-property() {
   local _prop_name=""
-  local _dimagetag=""
+  local _propvalue=""
+  local _cimagelst=""
+  local _cimagetag=""
+  local _cimagecnt=0
   eval $(getoptions "f|:=_buildpath" "$@")
   while getoptions_has_next
   do
@@ -92,27 +95,34 @@ container-image-get-property() {
     *)
       if [ -z "${_prop_name}" ]
       then _prop_name="${_getopt_V}"
-      elif [ -z "${_dimagetag}" ]
-      then _dimagetag="${_getopt_V}"
+      else _cimagelst="${_cimagelst:+${_cimagelst} }${_getopt_V}"
       fi
       ;;
     esac
   done
-  if [ -n "${_dimagetag}" ]
+  if [ -z "${_cimagelst}" ]
   then
-    _dimagetag=$(
-      container-image-get-tag \
-      ${_buildpath:+-f ${_buildpath}} "{_dimagetag}")
-  else
-    _dimagetag=$(
-      dockerfile-imagetag-get - "${_buildpath:-}"|
-      tail -f -n 1)
+    _cimagelst=$(dockerfile-imagetag-get - "${_buildpath:-}")
   fi
-  [ -n "${_prop_name}" -a -n "${_dimagetag}" ] && {
-    docker inspect \
-      --type image \
-      --format='{{ index .Config.Labels "'"${_prop_name}"'" }}' \
-      "${_dimagetag}"
+  [ -n "${_prop_name}" -a -n "${_cimagelst}" ] && {
+    _cimagecnt=$(echo "${_cimagelst}" | wc -w 2>/dev/null)
+    for _cimagetag in ${_cimagelst}
+    do
+      _cimagetag=$(
+        container-image-get-tag \
+        ${_buildpath:+-f ${_buildpath}} "${_cimagetag}")
+      if [ -n "${_cimagetag}" ]
+      then
+        _propvalue=$(
+          docker inspect --type image \
+            --format='{{ index .Config.Labels "'"${_prop_name}"'" }}' \
+            "${_cimagetag}")
+        if [ ${_cimagecnt} -le 1 ]
+        then echo "${_propvalue}"
+        else echo "${_cimagetag} ${_propvalue}"
+        fi
+      fi
+    done
   }
   return $?
 }

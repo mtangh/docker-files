@@ -63,9 +63,8 @@ LABEL \
  vendor="UGOOLE.ORG" \
  maintainer="MT" \
  license="" \
- build-stage="true" \
- build-date="" \
- docker.build.options=""
+ docker.build.options="" \
+ build-stage="true"
 
 
 # CentOS minimal
@@ -92,8 +91,9 @@ LABEL \
  vendor="UGOOLE.ORG" \
  maintainer="MT" \
  license="" \
- build-date="" \
- docker.build.options=""
+ docker.build.options="" \
+ docker.run.options="" \
+ docker.run.confirm-startup=""
 
 
 # CentOS 7 with systemd
@@ -181,7 +181,6 @@ LABEL \
  vendor="UGOOLE.ORG" \
  maintainer="MT" \
  license="" \
- build-date="" \
  docker.build.options="" \
  docker.run.options="-d -P -h centos7-systemd --privileged" \
  docker.run.confirm-startup=""
@@ -229,11 +228,10 @@ LABEL \
  vendor="UGOOLE.ORG" \
  maintainer="MT" \
  license="" \
- build-date="" \
  docker.build.options="" \
  docker.run.options="" \
  docker.run.confirm-startup=""
-    
+
 # ONBUILD: OS locale
 ONBUILD \
 ARG CONTAINER_LANGUAGE="${LANGUAGE:-en_US.UTF-8}"
@@ -304,7 +302,6 @@ LABEL \
  vendor="UGOOLE.ORG" \
  maintainer="MT" \
  license="" \
- build-date="" \
  docker.build.options="" \
  docker.run.options="-d -P -h centos${CENTOS_VER}-systemd --privileged" \
  docker.run.confirm-startup=""

@@ -129,7 +129,7 @@ __docker_build_wdir="${__docker_build_path%/*}"
 # FIND CONTAINER ID BY Dockerfile
 [ -r "${__docker_build_path}" ] &&
 [ -z "${_docker_containerid}" ] &&
-_docker_containerid=$(get-container-id -f "${__docker_build_path}")
+_docker_containerid=$(container-get-id -f "${__docker_build_path}")
 
 # Print build file
 : && {
@@ -265,7 +265,7 @@ if [ ${EXIT_STATE} -eq 0 ]
 then
   [ -r "${__docker_build_path}" ] &&
   [ -z "${_docker_containerid}" ] &&
-  _docker_containerid=$(get-container-id -f "${__docker_build_path}")
+  _docker_containerid=$(container-get-id -f "${__docker_build_path}")
 else
   _docker_containerid=""
 fi

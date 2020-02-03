@@ -86,7 +86,7 @@ getoptions_end() {
 
 getoptions_has_next() {
   local _optargs=(${_getopt_ARGV:-$@})
-  [ -n "$(echo ${_optargs[@]})" ]
+  [ -n "$(echo ${_optargs[@]:-})" ]
   return $?
 }
 

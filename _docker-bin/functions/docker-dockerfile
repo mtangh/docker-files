@@ -48,7 +48,7 @@ dockerfile-multi-stage() {
 dockerfile-stage-list() {
   local _buildpath=""
   local _formatted=0
-  eval $(getoptions "f|format=_formatted" "$@")
+  eval $(getoptions "F|format=_formatted" "$@")
   while getoptions_has_next
   do
     eval $(getoptions_shift)
@@ -81,8 +81,8 @@ dockerfile-stage-list() {
     egrep -i '^[[:space:]]*FROM[[:space:]]+' "${_buildpath}" |
     while read _in_record; do eval "echo ${_in_record}"; done |
     if [ ${_formatted} -eq 0 ]
-    then ${AWK} '{print(NR-1,$4,$2);}'
-    else ${AWK} '{print(sprintf("%3d %-'"${_collength}"'s%s",NR-1,$4,$2));}'
+    then ${AWK} '{print(NR-1,(($4=="")?"-":$4),$2);}'
+    else ${AWK} '{print(sprintf("%3d %-'"${_collength}"'s%s",NR-1,(($4=="")?"-":$4),$2));}'
     fi 2>/dev/null
   }
   return $?
