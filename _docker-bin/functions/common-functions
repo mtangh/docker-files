@@ -1,0 +1,13 @@
+# common-functions
+
+__adjustcolwidth() {
+  local _collength=${1:-20}; shift
+  local _targetcol=${1:-1}; shift
+  cat |${AWK} -vm="${_collength}" -vc=0 '
+{if(m<(length($'"${_targetcol}"')+1)){m=(length($'"${_targetcol}"')+1)}};\
+END{c=(int(m/4)*4);if((m%4)>0){c=c+4;};print(c);}
+' 2>/dev/null
+  return $?
+}
+
+# vim: set ff=unix ts=2 sw=2 sts=2 et : This line is VIM modeline

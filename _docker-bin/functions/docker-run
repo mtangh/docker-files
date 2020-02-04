@@ -75,9 +75,9 @@ docker-run() {
       fi 2>/dev/null; )
   } || :
   [ -z "${_drun_opts}" ] &&
-  _drun_opts=$(dockerfile-env_BOOT_OPTS "${_buildpath}")
+  _drun_opts=$(dockerfile-env_BOOT_OPTS "${_buildpath}") || :
   [ -n "${_cimagetag}" -a -z "${_drun_opts}" ] &&
-  _drun_opts=$(get-image-property "docker.run.options" "${_cimagetag}") || :
+  _drun_opts=$(container-image-property_RUN_OPTS "${_cimagetag:-x}") || :
   if [ -n "${_cimagetag}" ]
   then
     echo docker run ${_drun_opts} ${_cimagetag} ${_cmnd_opts} &&

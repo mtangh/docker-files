@@ -90,11 +90,12 @@ container-image-get-config() {
   local _cimagetag=""
   local _cimagecnt=0
   local _inspecter=""
+  local _collength=20
   local _dockerret=0
   case "${_cmnd_type:-}" in
   cmd)
     ;;
-  property|label)
+  label|property)
     _prop_name="${1:-}"; shift
     [ -n "${_prop_name}" ] || {
       cat <<_USAGE_ 1>&2
@@ -136,7 +137,7 @@ _USAGE_
   }
   [ ${_cimagecnt} -le 1 -o ${_formatted} -eq 0 ] || {
     _collength=$(
-      for _cimagetag in ${_comagelst}
+      for _cimagetag in ${_cimagelst}
       do echo "${_cimagetag}"; done |
       __adjustcolwidth "${_collength}")
     printf "%-${_collength}s%s" "IMAGE-REPO:TAG" "${_prop_name:-${_cmnd_type}}"
@@ -151,10 +152,14 @@ _USAGE_
       ${_buildpath:+-f ${_buildpath}} "${_cimagetag}") &&
     [ -n "${_cimagetag}" ] && {
       _inspecter=$(
-        if [ -z "${_prop_name}" ]
-        then echo '{{ .Config.CMD }}'
-        else echo '{{ index .Config.Labels "'"${_prop_name}"'" }}'
-        fi)
+        case "${_cmnd_type}" in
+        label|property)
+          echo '{{ index .Config.Labels "'"${_prop_name}"'" }}'
+          ;;
+        *)
+          echo '{{ .Config.Cmd }}'
+          ;;
+        esac)
       _propvalue=$(
         docker inspect --type image --format="${_inspecter}" \
         "${_cimagetag}" 2>/dev/null) &&
@@ -162,7 +167,10 @@ _USAGE_
       then
         echo "${_propvalue}"
       else
-        printf "%-${_collength}s%s" "${_cimagetag} ${_propvalue}"
+        if [ ${_formatted} -ne 0 ]
+        then printf "%-${_collength}s%s" "${_cimagetag}" "${_propvalue}"
+        else printf "%s %s" "${_cimagetag}" "${_propvalue}"
+        fi
         echo
       fi
     } ||
@@ -172,15 +180,33 @@ _USAGE_
   return $?
 }
 
-container-image-property_RUNNABLE() {
-  container-image-get-property \
-  "docker.run.runnable" "${1:-1}"
+container-image-get-cmd() {
+  container-image-get-config cmd "${@}"
+  return $?
+}
+
+container-image-get-property() {
+  container-image-get-config property "${@}"
+  return $?
+}
+
+container-image-property_BUILD_OPTS() {
+  container-image-get-property "docker.build.options" "${@}"
   return $?
 }
 
 container-image-property_RUNNABLE() {
-  container-image-get-property \
-  "docker.run.runnable" "${1:-1}"
+  container-image-get-property "docker.run.runnable" "${@}"
+  return $?
+}
+
+container-image-property_RUN_OPTS() {
+  container-image-get-property "docker.run.options" "${@}"
+  return $?
+}
+
+container-image-property_CONFIRM-STARTUP() {
+  container-image-get-property "docker.run.confirm-startup" "${@}"
   return $?
 }
 

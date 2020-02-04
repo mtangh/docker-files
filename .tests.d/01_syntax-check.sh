@@ -3,10 +3,10 @@ THIS="${BASH_SOURCE##*/}"
 CDIR=$([ -n "${BASH_SOURCE%/*}" ] && cd "${BASH_SOURCE%/*}" &>/dev/null; pwd)
 
 # Run tests
-echo "[${tests_name}] syntax-check.sh" && {
+echo "[${tests_name:-${THIS}}] syntax-check.sh" && {
 
   # Path
-  docker_bin="${tests_wdir}/_docker-bin"
+  docker_bin="${tests_wdir:-${CDIR}/..}/_docker-bin"
   dockerfncs="${docker_bin}/functions"
 
   # Error
@@ -25,7 +25,7 @@ echo "[${tests_name}] syntax-check.sh" && {
   echo "OK."
 
 } &&
-echo "[${tests_name}] DONE."
+echo "[${tests_name:-${THIS}}] DONE."
 
 # End
 exit $?
