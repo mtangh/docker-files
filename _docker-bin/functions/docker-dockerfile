@@ -48,6 +48,7 @@ dockerfile-multi-stage() {
 dockerfile-stage-list() {
   local _buildpath=""
   local _formatted=0
+  local _collength=20
   eval $(getoptions "F|format=_formatted" "$@")
   while getoptions_has_next
   do
@@ -71,10 +72,7 @@ dockerfile-stage-list() {
     [ ${_formatted} -eq 0 ] || {
       _collength=$(
         egrep -i '^[[:space:]]*FROM[[:space:]]+' "${_buildpath}" |
-        ${AWK} -vm=${_collength} -vc=0 '
-        {if(m<length($4)){m=length($4)}};\
-        END{c=8*(int(m/8));if((m%8)>0){c=c+8;};print(c);}' \
-        2>/dev/null;)
+        __adjustcolwidth "${_collength}" 4 )
       printf "%3s %-${_collength}s%s" "IDX" "As" "From"
       echo
     }

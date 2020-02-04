@@ -79,13 +79,40 @@ container-image-get() {
   return $?
 }
 
-container-image-get-property() {
+# get container image config
+container-image-get-config() {
+  local _cmnd_type="${1:-}"; shift
   local _prop_name=""
   local _propvalue=""
+  local _buildpath=""
+  local _formatted=0
   local _cimagelst=""
   local _cimagetag=""
   local _cimagecnt=0
-  eval $(getoptions "f|:=_buildpath" "$@")
+  local _inspecter=""
+  local _dockerret=0
+  case "${_cmnd_type:-}" in
+  cmd)
+    ;;
+  property|label)
+    _prop_name="${1:-}"; shift
+    [ -n "${_prop_name}" ] || {
+      cat <<_USAGE_ 1>&2
+Usage: $FUNCNAME property name [-f dockerfile-path] [IMAGE ...]
+_USAGE_
+      return 2
+    }
+    ;;
+  *)
+    cat <<_USAGE_ 1>&2
+Usage: $FUNCNAME cmd [-f dockerfile-path] [IMAGE ...]
+       $FUNCNAME property name [-f dockerfile-path] [IMAGE ...]
+_USAGE_
+    return 2
+    ;;
+  esac
+  eval $(getoptions \
+    "f|:=_buildpath F|format=_formatted" "$@")
   while getoptions_has_next
   do
     eval $(getoptions_shift)
@@ -93,37 +120,67 @@ container-image-get-property() {
     -*)
       ;;
     *)
-      if [ -z "${_prop_name}" ]
-      then _prop_name="${_getopt_V}"
-      else _cimagelst="${_cimagelst:+${_cimagelst} }${_getopt_V}"
-      fi
+      _cimagelst="${_cimagelst:+${_cimagelst} }${_getopt_V}"
       ;;
     esac
   done
-  if [ -z "${_cimagelst}" ]
-  then
-    _cimagelst=$(dockerfile-imagetag-get - "${_buildpath:-}")
-  fi
-  [ -n "${_prop_name}" -a -n "${_cimagelst}" ] && {
-    _cimagecnt=$(echo "${_cimagelst}" | wc -w 2>/dev/null)
-    for _cimagetag in ${_cimagelst}
-    do
-      _cimagetag=$(
-        container-image-get-tag \
-        ${_buildpath:+-f ${_buildpath}} "${_cimagetag}")
-      if [ -n "${_cimagetag}" ]
-      then
-        _propvalue=$(
-          docker inspect --type image \
-            --format='{{ index .Config.Labels "'"${_prop_name}"'" }}' \
-            "${_cimagetag}")
-        if [ ${_cimagecnt} -le 1 ]
-        then echo "${_propvalue}"
-        else echo "${_cimagetag} ${_propvalue}"
-        fi
-      fi
-    done
+  eval $(getoptions_end)
+  [ -n "${_buildpath}" ] &&
+  _buildpath=$(dockerfile-get-path "${_buildpath:-}") || :
+  [ -z "${_cimagelst}" ] &&
+  _cimagelst=$(dockerfile-imagetag-get - "${_buildpath:-}") || :
+  [ -n "${_cimagelst}" ] &&
+  _cimagecnt=$(echo "${_cimagelst}" |wc -w 2>/dev/null) || :
+  [ ${_cimagecnt} -gt 0 ] || {
+    return 1
   }
+  [ ${_cimagecnt} -le 1 -o ${_formatted} -eq 0 ] || {
+    _collength=$(
+      for _cimagetag in ${_comagelst}
+      do echo "${_cimagetag}"; done |
+      __adjustcolwidth "${_collength}")
+    printf "%-${_collength}s%s" "IMAGE-REPO:TAG" "${_prop_name:-${_cmnd_type}}"
+    echo
+  }
+  for _cimagetag in ${_cimagelst}
+  do
+    _propvalue=""
+    [ -n "${_cimagetag}" ] &&
+    _cimagetag=$(
+      container-image-get-tag \
+      ${_buildpath:+-f ${_buildpath}} "${_cimagetag}") &&
+    [ -n "${_cimagetag}" ] && {
+      _inspecter=$(
+        if [ -z "${_prop_name}" ]
+        then echo '{{ .Config.CMD }}'
+        else echo '{{ index .Config.Labels "'"${_prop_name}"'" }}'
+        fi)
+      _propvalue=$(
+        docker inspect --type image --format="${_inspecter}" \
+        "${_cimagetag}" 2>/dev/null) &&
+      if [ ${_cimagecnt} -le 1 ]
+      then
+        echo "${_propvalue}"
+      else
+        printf "%-${_collength}s%s" "${_cimagetag} ${_propvalue}"
+        echo
+      fi
+    } ||
+    _dockerret=$?
+  done &&
+  [ ${_dockerret} -eq 0 ]
+  return $?
+}
+
+container-image-property_RUNNABLE() {
+  container-image-get-property \
+  "docker.run.runnable" "${1:-1}"
+  return $?
+}
+
+container-image-property_RUNNABLE() {
+  container-image-get-property \
+  "docker.run.runnable" "${1:-1}"
   return $?
 }
 
