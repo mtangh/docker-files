@@ -76,31 +76,31 @@ container-get-id-latest() {
   return $?
 }
 
-# container latest id
+# container last id
 container-get-id-last() {
   container-get-id --all --last=1 "${@}"
   return $?
 }
 
-# container all ids
+# container name
 container-get-name() {
   container-get-id -N "${@}"
   return $?
 }
 
-# container all ids
+# container all name
 container-get-name-all() {
   container-get-name --all "${@}"
   return $?
 }
 
-# container latest id
+# container latest name
 container-get-name-latest() {
   container-get-name --all --latest "${@}"
   return $?
 }
 
-# container latest id
+# container last name
 container-get-name-last() {
   container-get-name --all --last=1 "${@}"
   return $?

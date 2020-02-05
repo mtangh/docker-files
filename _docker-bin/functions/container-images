@@ -195,6 +195,11 @@ container-image-property_BUILD_OPTS() {
   return $?
 }
 
+container-image-property_CONTAINER_NAME() {
+  container-image-get-property "docker.run.container-name" "${@}"
+  return $?
+}
+
 container-image-property_RUNNABLE() {
   container-image-get-property "docker.run.runnable" "${@}"
   return $?
@@ -207,6 +212,14 @@ container-image-property_RUN_OPTS() {
 
 container-image-property_CONFIRM-STARTUP() {
   container-image-get-property "docker.run.confirm-startup" "${@}"
+  return $?
+}
+
+container-image-is-runnable() {
+  [ -n "$(container-image-get-cmd "${@}")" ] && {
+    container-image-property_RUNNABLE "${@}" |
+    egrep -i '^true$'
+  } 1>/dev/null 2>&1
   return $?
 }
 
