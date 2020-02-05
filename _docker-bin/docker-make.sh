@@ -8,7 +8,7 @@ DOCKER_HOST="${DOCKER_HOST:-tcp://127.0.0.1:4243}"
 export DOCKER_HOST
 
 # docker-bin functions
-. "${CDIR}/_docker-make_funcs.sh" 1>/dev/null 2>&1 || {
+. "${CDIR}/docker-make_funcs.sh" 1>/dev/null 2>&1 || {
   exit 127
 }
 
@@ -130,6 +130,7 @@ __docker_build_wdir="${__docker_build_path%/*}"
 # Print build file
 : && {
   cat <<_EOM_
+#* Pwd        : $(pwd).
 #* Dockerfile : ${__docker_build_path}.
 #* Context-Dir: ${__docker_build_wdir}.
 #* Build-File : ${__docker_build_file}.
@@ -139,9 +140,14 @@ _EOM_
 # FIND CONTAINER IDs BY Dockerfile
 [ -r "${__docker_build_path}" ] && {
 
+: && {
+  cat <<_EOM_
+#* Built Images >>>
+_EOM_
+} |__stdout_with_ts ""
+
   # Each images
-  for _docker_c_image_ent in $(
-  dockerfile-imagetag-get "" "${_dicker_build_path}")
+  for _docker_c_image_ent in $(dockerfile-imagetag-get "" "${__docker_build_path}")
   do
 
     # Reset container ID
@@ -149,20 +155,20 @@ _EOM_
 
     [ -n "${_docker_c_image_ent}" ] && {
 
-      container-image-is-runnbale \
-      "${_docker_c_image_ent}" -f "${_dicker_build_path}"
+      container-image-is-runnable "${_docker_c_image_ent}" -f "${__docker_build_path}"
+
       if [ $? -eq 0 ]
       then
         _docker_containerid=$(
           container-get-id-last -f "${__docker_build_path}" \
           "${_docker_c_image_ent}")
-        echo "#* Image=${_docker_c_image_ent} (Runnable)"
+        echo "#* + ${_docker_c_image_ent} (Runnable)"
         if [ -n "${_docker_containerid}" ]
-        then echo "#* --> Container ... Found - ID='${_docker_containerid}'."
-        else echo "#* --> Container ... Not found."
+        then echo "#*   - Container ... Found - ID='${_docker_containerid}'."
+        else echo "#*   - Container ... Not found."
         fi
       else
-        echo "#* Image=${_docker_c_image_ent} (Not Runnable)"
+        echo "#* + ${_docker_c_image_ent} (Not Runnable)"
       fi
 
       # Cleanup ?
@@ -177,8 +183,8 @@ _EOM_
           echo "#*     docker container ID='${_docker_containerid}' was stoped."
           docker rm "${_docker_containerid}" 1>/dev/null 2>&1 &&
           echo "#*     docker container ID='${_docker_containerid}' was removed."
-        }; ) 
-  
+        }; )
+
         # Cleanup status
         EXIT_STATE=$?
 
@@ -187,7 +193,7 @@ _EOM_
           exit ${EXIT_STATE}
         }
 
-      fi 
+      fi
 
     } || :
   done 1> >(__stdout_with_ts "") 2>&1
@@ -209,6 +215,7 @@ then
 
   # Build
   : && {
+
     if [ -s "./${__docker_build_file}.build" ]
     then
       cat <<_EOM_
@@ -225,6 +232,7 @@ _EOM_
     docker-build --stage-all -f "${__docker_build_file}" ${_docker_c_buildopts} .
     docker-build --stage-all -f "${__docker_build_file}" ${_docker_c_buildopts} .
     __echo_end $?
+
   } 1> >(__stdout_with_ts "BUILD") 2>&1
 
   # Build status
@@ -245,28 +253,30 @@ _EOM_
     pushd "${__docker_build_wdir}" 1>/dev/null 2>&1 || :
 
     # Each images
-    for _docker_c_image_ent in $(
-    dockerfile-imagetag-get "" "${_dicker_build_path}")
+    for _docker_c_image_ent in $(dockerfile-imagetag-get "" "${__docker_build_path}")
     do
-       
+
       # Reset status
       EXIT_STATE=0
 
       # Container ID
       _docker_containerid=""
-      
+
       # Runnable ?
-      container-image-is-runnbale \
-      "${_docker_c_image_ent:-X}" -f "${_dicker_build_path}" && {
+      [ -n "${_docker_c_image_ent}" ] &&
+      container-image-is-runnable "${_docker_c_image_ent}" -f "${__docker_build_path}" && {
 
         # Separator
         __section
 
+        # Image
+        echo "Image=${_docker_c_image_ent}"
+
         # Run
         : && {
           __echo_start \
-          docker-run -f "${__docker_build_path}" ${_docker_c_boot_opts} "${_docker_c_image_ent}"
-          docker-run -f "${__docker_build_path}" ${_docker_c_boot_opts} "${_docker_c_image_ent}"
+          docker-run "${_docker_c_image_ent}" -f "${__docker_build_path}" ${_docker_c_boot_opts}
+          docker-run "${_docker_c_image_ent}" -f "${__docker_build_path}" ${_docker_c_boot_opts}
           __echo_end $?
         }
 
@@ -279,14 +289,13 @@ _EOM_
         }
 
         # Checking build only mode
-        [ ${_docker_not_running} -eq 0 ] &&
-        [ -r "${__docker_build_path}" -a -z "${_docker_containerid}" ] && {
+        [ ${_docker_not_running} -eq 0 -a -r "${__docker_build_path}" ] && {
           _docker_containerid=$(
-          container-get-id-last -f "${__docker_build_path}" \
-          "${_docker_c_image_ent}")
+            container-get-id-last -f "${__docker_build_path}" \
+            "${_docker_c_image_ent}")
           _confirm_start_cmnd=$(
-          container-image-property_CONFIRM-STARTUP -f "${__docker_build_path}" \
-          "${_docker_c_image_ent}"))
+            container-image-property_CONFIRM-STARTUP -f "${__docker_build_path}" \
+            "${_docker_c_image_ent}")
         }
 
         # Portmap
@@ -311,8 +320,7 @@ _EOM_
         } # [ -n "${_docker_containerid}" ]
 
         # Check running process
-        [ -n "${_docker_containerid}" -a \
-          -n "${_confirm_start_cmnd}" ] && {
+        [ -n "${_docker_containerid}" -a -n "${_confirm_start_cmnd}" ] && {
 
           _retrymax=5
           _wait_for=3
@@ -363,11 +371,11 @@ _EOM_
 
           }
 
-        } # [ -n "${_docker_containerid}" ] && ...
+        } # [ -n "${_docker_containerid}" -a ...
 
       } || :
 
-    done 1> >(__stdout_with_ts "RUN") 2>&1 
+    done 1> >(__stdout_with_ts "RUN") 2>&1
 
     # Pop dir
     popd 1>/dev/null 2>&1 || :

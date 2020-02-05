@@ -48,10 +48,10 @@ echo "DOCKER_HOST is not set." 1>&2
 # Aliases
 alias docker-rc-reload=". ${DOCKERFILESDIR}/${DOCKER_RC_FILE} && echo OK"
 
-alias docker-make="MAKE.sh --build-only"
-alias docker-make-boot="MAKE.sh"
-alias docker-make-rebuild="MAKE.sh --build-only --rebuild"
-alias docker-make-clean="MAKE.sh --clean"
+alias docker-make="docker-make.sh --build-only"
+alias docker-make-boot="docker-make.sh"
+alias docker-make-rebuild="docker-make.sh --build-only --rebuild"
+alias docker-make-clean="docker-make.sh --clean"
 
 alias docker-clean=docker-cleanup
 

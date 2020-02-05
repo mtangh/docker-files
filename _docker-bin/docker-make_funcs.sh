@@ -10,20 +10,20 @@ DOCKERMAKEFUNC_DIR=$([ -n "${BASH_SOURCE%/*}" ] && cd "${BASH_SOURCE%/*}"; pwd)
 # echo start
 __echo_start() {
   echo "{{{ START - $(date +'%Y%m%dT%H%M%S')"
-  [ -n "$1" ] &&
+  [ -n "${1:-}" ] &&
   echo "COMMAND=[$@]"
   return 0
 }
 
 # echo end
 __echo_end() {
-  _exit_st=$1
-  if [ $_exit_st -eq 0 ]
+  local _exit_st=${1:-}
+  if [ ${_exit_st} -eq 0 ]
   then
     echo "}}} END - $(date +'%Y%m%dT%H%M%S')"
   else
-    echo "}}} ERROR OCCURED - ret($_exit_st)."
-    exit $_exit_st
+    echo "}}} ERROR OCCURED - ret(${_exit_st})."
+    exit ${_exit_st}
   fi
   return 0
 }
@@ -37,10 +37,10 @@ __section() {
 
 # Stdout with TS
 __stdout_with_ts() {
-  _tag="${1}"
+  local _tag="${1:-}"
   ${AWK} '{
   printf("%s: %s: %s%s\n",
-  "'"${BASE:-MAKE}"'",strftime("%Y%m%dT%H%M%S",systime()),"'"${_tag:+$_tag: }"'",$0);
+  "'"${BASE:-MAKE}"'",strftime("%Y%m%dT%H%M%S",systime()),"'"${_tag:+${_tag}: }"'",$0);
   fflush();};' |
   ${SED} -r 's/\x1B\[([0-9]{1,2}(;[0-9]{1,2})*)?m//g'
   return 0

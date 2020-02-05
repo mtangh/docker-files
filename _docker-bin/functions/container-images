@@ -151,15 +151,14 @@ _USAGE_
       container-image-get-tag \
       ${_buildpath:+-f ${_buildpath}} "${_cimagetag}") &&
     [ -n "${_cimagetag}" ] && {
-      _inspecter=$(
-        case "${_cmnd_type}" in
-        label|property)
-          echo '{{ index .Config.Labels "'"${_prop_name}"'" }}'
-          ;;
-        *)
-          echo '{{ .Config.Cmd }}'
-          ;;
-        esac)
+      case "${_cmnd_type}" in
+      label|property)
+        _inspecter='{{ index .Config.Labels "'"${_prop_name}"'" }}'
+        ;;
+      *)
+        _inspecter='{{ .Config.Cmd }}'
+        ;;
+      esac
       _propvalue=$(
         docker inspect --type image --format="${_inspecter}" \
         "${_cimagetag}" 2>/dev/null) &&
