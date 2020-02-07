@@ -28,8 +28,12 @@
     --setopt=tsflags='nodocs' \
     install yum &&
   sed -ri \
-    "/distroverpkg=centos-release/a override_install_langs=en_US.UTF-8\ntsflags=nodocs" \
-    "${CENTOSROOT}/etc/yum.conf"
+    "/^distroverpkg=centos-.*/a override_install_langs=en_US.UTF-8" \
+    "${CENTOSROOT}/etc/yum.conf" &&
+  sed -ri \
+    "/^override_install_langs=.*/a tsflags=nodocs" \
+    "${CENTOSROOT}/etc/yum.conf" &&
+  echo
 
 } &&
 : "Chroot to the environment and install some additional tools." && {

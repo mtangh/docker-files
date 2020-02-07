@@ -10,23 +10,43 @@
 # Don't add the anaconda build logs to the image
 touch /tmp/NOSAVE_LOGS
 
+# Rebuild RPM DB
+rpm --rebuilddb
+
+# Enable yum plugins
+cat /etc/yum.conf |
+sed -r -e 's/^(#*)plugins=[01]$/plugins=1/g' |
+cat 1>/etc/yum.conf.tmp &&
+mv -f /etc/yum.conf{.tmp,} &&{
+  echo "/etc/yum.conf >>"
+  cat /etc/yum.conf
+} || :
+
 # Modify yum-fastestmirror
-yum_plugins_dir="/etc/yum/pluginconf.d"
-yum_mirror_conf="${yum_plugins_dir}/fastestmirror.conf"
-[ -e "${yum_mirror_conf}" ] && {
-  cat "${yum_mirror_conf}" |
+yum_plgcnf="/etc/yum/pluginconf.d"
+yum_fm_cnf="${yum_plgcnf}/fastestmirror.conf"
+yum_fmserv="${YUM_FASTMIRROR_SERVER:-}"
+yum_fm_dom="${YUM_FASTMIRROR_DOMAIN:-.org}"
+[ -e "${yum_fm_cnf}" ] && {
+  cat "${yum_fm_cnf}" |
   sed -r \
-    -e 's/^verbose=0$/verbose=1/g' \
-    -e 's/^(#*)include_only=.*$/include_only=.jp,.org/g' \
-    -e '/^include_only=.*$/a prefer=www.ftp.ne.jp' \
-    1>"${yum_mirror_conf}.tmp" &&
-  mv -f "${yum_mirror_conf}"{.tmp,} &&
-  cat "${yum_mirror_conf}"
+    -e 's/^(#*)enabled=[01]$/enabled=1/g' \
+    -e 's/^(#*)verbose=[01]$/verbose=1/g' \
+    -e 's/^(#*)include_only=.*$/include_only='"${yum_fm_dom}"'/g' |
+  if [ -n "${yum_fmserv}" ]
+  then
+    sed -r -e '/^include_only=.*$/a prefer='"${yum_fmserv}"
+  else
+    cat
+  fi 1>"${yum_fm_cnf}.tmp" &&
+  mv -f "${yum_fm_cnf}"{.tmp,} && {
+    echo "${yum_fm_cnf} >>"
+    cat "${yum_fm_cnf}"
+  }
   [ $? -eq 0 ] || exit 1
 } || :
 
 # Package setup
-rpm --rebuilddb &&
 yum -v -y update &&
 yum -v -y install \
   bash \

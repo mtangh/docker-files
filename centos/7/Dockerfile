@@ -2,7 +2,8 @@
 # centos:7
 #
 #@  DOCKER_CONTAINER=""
-#@  DOCKER_IMAGE_TAG="centos:7"
+#@  DOCKER_IMAGEREPO="centos"
+#@  DOCKER_IMAGE_TAG="7"
 #@  DOCKER_BUILDOPTS=""
 #@  DOCKER_BOOT_OPTS=""
 #
@@ -44,14 +45,20 @@ ARG CENTOSROOT
 # RPM GPG Key
 ARG RPM_GPGKEY="/etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-${CENTOS_VER}"
 
+# YUM fastestmirror server
+ARG YUM_FASTMIRROR_SERVER="www.ftp.ne.jp"
+
+# YUM fastestmirror domains
+ARG YUM_FASTMIRROR_DOMAIN=".jp,.org"
+
 # COPY rootfs-build.sh to ./rootfs-build.sh
 COPY rootfs-build_centos*.sh ./
 
 RUN \
  set -ux; \
- fsbuild_sh=./rootfs-build_centos.sh; \
+ fsbuild_sh="./rootfs-build_centos.sh"; \
  fsbuildret=0; \
- : "Execute script." && { \
+ : "Execute build script." && { \
   . "${fsbuild_sh}" || fsbuildret=$?; \
  }; \
  [ ${fsbuildret} -eq 0 ] && \
@@ -182,7 +189,7 @@ LABEL \
  maintainer="MT" \
  license="" \
  docker.build.options="" \
- docker.run.options="-d -P -h centos7-systemd --privileged" \
+ docker.run.options="-d -P -h centos${CENTOS_VER}-systemd --privileged" \
  docker.run.confirm-startup=""
 
 # STOP SIGNAL
