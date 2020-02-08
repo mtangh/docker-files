@@ -59,6 +59,7 @@ t|tag:=_cimagetag
       ;;
     esac
   done
+  eval $(getoptions_end)
   if [ -n "${_build_dir}" ]
   then
     _buildpath=$(
@@ -127,7 +128,7 @@ t|tag:=_cimagetag
     fi
     if [ -z "${_cimagetag}" ]
     then
-      _cimagetag=$(dockerfile-env_IMAGENAME "${_buildpath}")
+      _cimagetag=$(dockerfile-env_IMAGEPATH "${_buildpath}")
     fi
 #    _labelopts="${_labelopts:+${_labelopts} }--label build-date="'"'$(date +'%Y%m%dT%H:%M%z')'"'
 #    _labelopts="${_labelopts:+${_labelopts} }--label docker.build.options="'"'"${_buildopts}"'"'

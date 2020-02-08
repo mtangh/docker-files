@@ -164,7 +164,7 @@ dockerfile-imagetag-get() {
   local _stage_key="${1:-}"; shift
   local _buildpath=$(dockerfile-get-path "${1:-}" 2>/dev/null); shift
   local _multi_stg=0
-  _cimagetag=$(dockerfile-env_IMAGENAME "${_buildpath}" 2>/dev/null) || {
+  _cimagetag=$(dockerfile-env_IMAGEPATH "${_buildpath}" 2>/dev/null) || {
     return 1
   }
   dockerfile-multi-stage "${_buildpath}" 1>/dev/null 2>&1 && {
@@ -298,8 +298,8 @@ dockerfile-env_CONTAINER() {
   return $?
 }
 
-dockerfile-env_IMAGENAME() {
-  local _imgname=$(dockerfile-env-get DOCKER_IMAGE_TAG "${@}")
+dockerfile-env_IMAGEPATH() {
+  local _imgname=$(dockerfile-env-get DOCKER_IMAGEPATH "${@}")
   local _imgrepo=$(echo "${_imgname}" |${AWK} -F: '{print($1);}')
   local _img_tag=$(echo "${_imgname}" |${AWK} -F: '{print($2);}')
   [ -n "${_imgrepo}${_img_tag}" ] &&
@@ -308,13 +308,13 @@ dockerfile-env_IMAGENAME() {
 }
 
 dockerfile-env_IMAGEREPO() {
-  dockerfile-env_IMAGENAME "${@}" |
+  dockerfile-env_IMAGEPATH "${@}" |
   ${AWK} -F: '{print($1);}' 2>/dev/null
   return $?
 }
 
 dockerfile-env_IMAGE_TAG() {
-  dockerfile-env_IMAGENAME "${@}" |
+  dockerfile-env_IMAGEPATH "${@}" |
   ${AWK} -F: '{print($2);}' 2>/dev/null
   return $?
 }

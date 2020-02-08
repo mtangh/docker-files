@@ -15,7 +15,9 @@ rpm --rebuilddb
 
 # Enable yum plugins
 cat /etc/yum.conf |
-sed -r -e 's/^(#*)plugins=[01]$/plugins=1/g' |
+sed -re 's/^(#*)plugins=[01]$/plugins=1/g' |
+sed -re "/^distroverpkg=centos-.*/a override_install_langs=en_US.UTF-8" |
+sed -re "/^override_install_langs=.*/a tsflags=nodocs" |
 cat 1>/etc/yum.conf.tmp &&
 mv -f /etc/yum.conf{.tmp,} &&{
   echo "/etc/yum.conf >>"
@@ -26,19 +28,23 @@ mv -f /etc/yum.conf{.tmp,} &&{
 yum_plgcnf="/etc/yum/pluginconf.d"
 yum_fm_cnf="${yum_plgcnf}/fastestmirror.conf"
 yum_fmserv="${YUM_FASTMIRROR_SERVER:-}"
-yum_fm_dom="${YUM_FASTMIRROR_DOMAIN:-.org}"
+yum_dominc="${YUM_FM_DOMAIN_INCLUDE:-.org}"
+yum_domexc="${YUM_FM_DOMAIN_EXCLUDE:-}"
 [ -e "${yum_fm_cnf}" ] && {
   cat "${yum_fm_cnf}" |
   sed -r \
     -e 's/^(#*)enabled=[01]$/enabled=1/g' \
     -e 's/^(#*)verbose=[01]$/verbose=1/g' \
-    -e 's/^(#*)include_only=.*$/include_only='"${yum_fm_dom}"'/g' |
+    -e 's/^(#*)include_only=.*$/include_only='"${yum_dominc}"'/g' |
+  if [ -n "${yum_domexc}" ]
+  then sed -r -e 's/^(#*)exclude=.*$/exclude='"${yum_domexc}"'/g'
+  else cat
+  fi |
   if [ -n "${yum_fmserv}" ]
-  then
-    sed -r -e '/^include_only=.*$/a prefer='"${yum_fmserv}"
-  else
-    cat
-  fi 1>"${yum_fm_cnf}.tmp" &&
+  then sed -r -e '/^include_only=.*$/a prefer='"${yum_fmserv}"
+  else cat
+  fi |
+  cat 1>"${yum_fm_cnf}.tmp" &&
   mv -f "${yum_fm_cnf}"{.tmp,} && {
     echo "${yum_fm_cnf} >>"
     cat "${yum_fm_cnf}"

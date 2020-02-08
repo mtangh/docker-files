@@ -3,6 +3,7 @@
 # docker run
 docker-run() {
   local _cimagetag=""
+  local _imagepath=""
   local _stage_key=""
   local _buildpath=""
   local _opts_path=""
@@ -10,12 +11,10 @@ docker-run() {
   local _cmnd_opts=""
   local _endofopts=0
   local _dockerret=0
-  if [ -n "${1:-}" ]
+  if [[ -n "${1:-}" && "${1}" =~ ^[-_/0-9A-Za-z]+(:[-_/0-9A-Za-z]+$|$) ]]
   then
-    [[ "${1:-}" =~ ^- ]] || {
-      _cimagetag=$(container-image-get-tag "${1:-}" 2>/dev/null) &&
-      shift
-    }
+    _imagepath=$(container-image-get-tag "${1}" 2>/dev/null) &&
+    shift
   fi
   eval $(getoptions "|image:=_cimagetag f|file:=_buildpath" "$@")
   while getoptions_has_next
@@ -51,7 +50,9 @@ docker-run() {
       ;;
     esac
   done
+  eval $(getoptions_end)
   _buildpath=$(dockerfile-get-path "${_buildpath:-}" 2>/dev/null )
+  _cimagetag="${_imagepath:-}"
   [ -n "${_drun_opts}" ] &&
   [[ "${_drun_opts}" =~ ^((..*)[\ ]+|[\ ]*)([^\ -][^\ ]*)$ ]] && {
     _drun_opts="${BASH_REMATCH[2]}"
@@ -71,7 +72,7 @@ docker-run() {
     _cimagetag=$(
       if [ -n "${_stage_key}" ]
       then dockerfile-imagetag-get "${_stage_key}" "${_buildpath}"
-      else dockerfile-env_IMAGENAME "${_buildpath}"
+      else dockerfile-env_IMAGEPATH "${_buildpath}"
       fi 2>/dev/null; )
   } || :
   [ -z "${_drun_opts}" ] &&

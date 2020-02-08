@@ -2,7 +2,7 @@
 # $reponame:$tag_name
 #
 #@  DOCKER_CONTAINER=""
-#@  DOCKER_IMAGE_TAG="$reponame:$tag_name"
+#@  DOCKER_IMAGEPATH="$reponame:$tag_name"
 #@  DOCKER_BUILDOPTS=""
 #@  DOCKER_BOOT_OPTS=""
 #

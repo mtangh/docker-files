@@ -2,8 +2,7 @@
 # centos:7
 #
 #@  DOCKER_CONTAINER=""
-#@  DOCKER_IMAGEREPO="centos"
-#@  DOCKER_IMAGE_TAG="7"
+#@  DOCKER_IMAGEPATH="centos:7"
 #@  DOCKER_BUILDOPTS=""
 #@  DOCKER_BOOT_OPTS=""
 #
@@ -48,8 +47,11 @@ ARG RPM_GPGKEY="/etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-${CENTOS_VER}"
 # YUM fastestmirror server
 ARG YUM_FASTMIRROR_SERVER="www.ftp.ne.jp"
 
-# YUM fastestmirror domains
-ARG YUM_FASTMIRROR_DOMAIN=".jp,.org"
+# YUM fastestmirror include domains
+ARG YUM_FM_DOMAIN_INCLUDE=".jp,.org"
+
+# YUM fastestmirror exclude domains
+ARG YUM_FM_DOMAIN_EXCLUDE=".jp,.org"
 
 # COPY rootfs-build.sh to ./rootfs-build.sh
 COPY rootfs-build_centos*.sh ./

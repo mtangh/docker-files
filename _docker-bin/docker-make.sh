@@ -14,8 +14,8 @@ export DOCKER_HOST
 
 # docker container name
 DOCKER_CONTAINER=""
-# docker container image tag
-DOCKER_IMAGE_TAG=""
+# docker container image path
+DOCKER_IMAGEPATH=""
 # docker build options
 DOCKER_BUILDOPTS=""
 # docker startup(run) options
