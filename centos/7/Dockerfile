@@ -13,6 +13,9 @@ ARG CENTOS_VER="7"
 # CentOS rootfs Image Dir
 ARG CENTOSROOT="/centos-image/rootfs"
 
+# root password
+ARG ROOTPSWD=""
+
 # default System locale
 ARG LANGUAGE="en_US.UTF-8"
 
@@ -25,8 +28,8 @@ ARG KMAPTYPE="jp106"
 # default timezone
 ARG TIMEZONE="Asia/Tokyo"
 
-# root password
-ARG ROOTPSWD=""
+# YUM Override install languages
+ARG YUM_LANG="en_US.UTF-8"
 
 
 # CentOS rootfs
@@ -51,9 +54,9 @@ ARG YUM_FASTMIRROR_SERVER="www.ftp.ne.jp"
 ARG YUM_FM_DOMAIN_INCLUDE=".jp,.org"
 
 # YUM fastestmirror exclude domains
-ARG YUM_FM_DOMAIN_EXCLUDE=".jp,.org"
+ARG YUM_FM_DOMAIN_EXCLUDE=""
 
-# COPY rootfs-build.sh to ./rootfs-build.sh
+# COPY shell scripts to ./
 COPY rootfs-build_centos*.sh ./
 
 RUN \
@@ -94,6 +97,50 @@ ARG CENTOSROOT
 # COPY From root-image
 COPY --from=rootfs "${CENTOSROOT}"/ /
 
+# Set Workdir
+ARG WORK_DIR=onbuild.d
+WORKDIR /root/"${WORK_DIR}"
+
+# root password
+ARG ROOTPSWD
+
+# default System locale
+ARG LANGUAGE
+
+# default keyboard laayout
+ARG KBD_TYPE
+
+# default keymap
+ARG KMAPTYPE
+
+# default timezone
+ARG TIMEZONE
+
+# YUM Override install languages
+ARG YUM_LANG
+
+# COPY onbuild-*.sh to Workdir
+COPY onbuild-0[12]*.sh ./
+
+RUN \
+ set -ux; \
+ : "Execute build script." && { \
+  for onbuild_sh in ./onbuild-*.sh; \
+  do . "${onbuild_sh}" || exit 1; done; \
+ } && \
+ : "Cleanup" && { \
+  cd /; \
+  for lf in /var/log/*; \
+  do [ -s "${lf}" ] && cat /dev/null >"${lf}"; done || :; \
+  rm -rf {,/var}/tmp/* || :; \
+  yum -v -y clean all; rm -rf /var/cache/yum/* || :; \
+  rm -rf /root/"${WORK_DIR}" || :; \
+ } && \
+ echo "DONE.";
+
+# Reset Workdir
+WORKDIR /
+
 # Labels
 LABEL \
  name="CentOS ${CENTOS_VER} Minimal" \
@@ -106,20 +153,55 @@ LABEL \
 
 
 # CentOS 7 with systemd
-FROM minimal AS systemd
+FROM scratch AS systemd
 
 # Env
 ENV container=docker
 
-# Set Workdir
-WORKDIR /root
+# Reset Workdir
+WORKDIR /
 
 # CentOS Version
 ARG CENTOS_VER
 
+# CentOS rootfs Image
+ARG CENTOSROOT
+
+# COPY From root-image
+COPY --from=rootfs "${CENTOSROOT}"/ /
+
+# Set Workdir
+ARG WORK_DIR=onbuild.d
+WORKDIR /root/"${WORK_DIR}"
+
+# root password
+ARG ROOTPSWD
+
+# default System locale
+ARG LANGUAGE
+
+# default keyboard laayout
+ARG KBD_TYPE
+
+# default keymap
+ARG KMAPTYPE
+
+# default timezone
+ARG TIMEZONE
+
+# YUM Override install languages
+ARG YUM_LANG
+
+# COPY onbuild-*.sh to Workdir
+COPY onbuild-0[12]*.sh ./
+
 # SetUp
 RUN \
  set -ux; \
+ : "Execute build script." && { \
+  for onbuild_sh in ./onbuild-*.sh; \
+  do . "${onbuild_sh}" || exit 1; done; \
+ } && \
  : "Install systemd" && { \
   yum -v -y update && \
   yum -v -y install systemd-sysv sudo && \
@@ -171,15 +253,16 @@ RUN \
     rm -f "$item"; \
    done; \
   } &>/dev/null; ); \
- }; \
- ( : "Cleanup" && { \
+ } && \
+ : "Cleanup" && { \
   cd /; \
-  for e in /var/log/*; \
-  do [ -f "$e" ] && cat /dev/null 1>"$e"; done; \
-  rm -f {,/var}/tmp/* /root/*; \
-  yum -v -y clean all; rm -rf /var/cache/yum/*; \
- } 2>/dev/null || :; ) && \
- echo;
+  for lf in /var/log/*; \
+  do [ -s "${lf}" ] && cat /dev/null >"${lf}"; done || :; \
+  rm -rf {,/var}/tmp/* || :; \
+  yum -v -y clean all; rm -rf /var/cache/yum/* || :; \
+  rm -rf /root/"${WORK_DIR}" || :; \
+ } && \
+ echo "DONE";
 
 # Reset Workdir
 WORKDIR /
@@ -228,8 +311,8 @@ ARG TIMEZONE
 # root password
 ARG ROOTPSWD
 
-# Copy onbuild-i18n.sh to image root
-COPY onbuild-i18n.sh /
+# Copy onbuild-*.sh to rootdir
+COPY onbuild-0[12]*.sh onbuild-90*.sh /
 
 # Labels
 LABEL \
@@ -241,37 +324,53 @@ LABEL \
  docker.run.options="" \
  docker.run.confirm-startup=""
 
+# ONBUILD: root password
+ONBUILD \
+ARG ROOTPSWD="${ROOTPSWD:-}"
+
 # ONBUILD: OS locale
 ONBUILD \
-ARG CONTAINER_LANGUAGE="${LANGUAGE:-en_US.UTF-8}"
+ARG LANGUAGE="${LANGUAGE:-en_US.UTF-8}"
+
+# ONBUILD: keyboard laayout
+ONBUILD \
+ARG KBD_TYPE="${KBD_TYPE:-jp}"
 
 # ONBUILD: keymap
 ONBUILD \
-ARG CONTAINER_KMAPTYPE="${KMAPTYPE:-jp106}"
+ARG KMAPTYPE="${KMAPTYPE:-jp106}"
 
 # ONBUILD: timezone
 ONBUILD \
-ARG CONTAINER_TIMEZONE="${TIMEZONE:-Asia/Tokyo}"
+ARG TIMEZONE="${TIMEZONE:-Asia/Tokyo}"
 
-# ONBUILD: root password
+# ONBUILD: Packages
 ONBUILD \
-ARG CONTAINER_ROOTPSWD="${ROOTPSWD:-}"
+ARG PACKAGES=""
 
 # ONBUILD: Set Workdir
 ONBUILD \
-WORKDIR /root
+ARG WORK_DIR=onbuild.d
+ONBUILD \
+WORKDIR /root/"${WORK_DIR}"
 
 # ONBUILD: SetUp
 ONBUILD \
 RUN \
  set -ux; \
- onbuild_sh=/onbuild-i18n.sh; \
- onbuildret=0; \
  : "ONBUILD: Execute onbuild script." && { \
-  . "${onbuild_sh}" || onbuildret=$?; \
- }; \
- rm -f /onbuild-*.sh || :; \
- [ ${onbuildret} -eq 0 ];
+  for onbuild_sh in /onbuild-*.sh; \
+  do . "${onbuild_sh}" || exit 1; rm -f "${onbuild_sh}"; done; \
+ } && \
+ : "ONBUILD: Cleanup" && { \
+  cd /; \
+  for lf in /var/log/*; \
+  do [ -s "${lf}" ] && cat /dev/null >"${lf}"; done || :; \
+  rm -rf {,/var}/tmp/* || :; \
+  yum -v -y clean all; rm -rf /var/cache/yum/* || :; \
+  rm -rf /root/"${WORK_DIR}" || :; \
+ } && \
+ echo "ONBUILD - DONE.";
 
 # ONBUILD: Reset Workdir
 ONBUILD \
@@ -287,6 +386,9 @@ WORKDIR /
 # CentOS Version
 ARG CENTOS_VER
 
+# root password
+ARG ROOTPSWD
+
 # default System locale
 ARG LANGUAGE
 
@@ -299,10 +401,7 @@ ARG KMAPTYPE
 # default timezone
 ARG TIMEZONE
 
-# root password
-ARG ROOTPSWD
-
-# Copy onbuild-*.sh to image root
+# Copy onbuild-*.sh to rootdir
 COPY onbuild-*.sh /
 
 # Labels
@@ -315,21 +414,25 @@ LABEL \
  docker.run.options="-d -P -h centos${CENTOS_VER}-systemd --privileged" \
  docker.run.confirm-startup=""
 
+# ONBUILD: root password
+ONBUILD \
+ARG ROOTPSWD="${ROOTPSWD:-}"
+
 # ONBUILD: OS locale
 ONBUILD \
-ARG CONTAINER_LANGUAGE="${LANGUAGE:-en_US.UTF-8}"
+ARG LANGUAGE="${LANGUAGE:-en_US.UTF-8}"
+
+# ONBUILD: keyboard laayout
+ONBUILD \
+ARG KBD_TYPE="${KBD_TYPE:-jp}"
 
 # ONBUILD: keymap
 ONBUILD \
-ARG CONTAINER_KMAPTYPE="${KMAPTYPE:-jp106}"
+ARG KMAPTYPE="${KMAPTYPE:-jp106}"
 
 # ONBUILD: timezone
 ONBUILD \
-ARG CONTAINER_TIMEZONE="${TIMEZONE:-Asia/Tokyo}"
-
-# ONBUILD: root password
-ONBUILD \
-ARG CONTAINER_ROOTPSWD="${ROOTPSWD:-}"
+ARG TIMEZONE="${TIMEZONE:-Asia/Tokyo}"
 
 # ONBUILD: Default login
 ONBUILD \
@@ -347,22 +450,33 @@ ARG NO_SSH_LOGIN=""
 ONBUILD \
 ARG NO_LOGROTATE=""
 
+# ONBUILD: Packages
+ONBUILD \
+ARG PACKAGES=""
+
 # ONBUILD: Set Workdir
 ONBUILD \
-WORKDIR /root
+ARG WORK_DIR=onbuild.d
+ONBUILD \
+WORKDIR /root/"${WORK_DIR}"
 
 # ONBUILD: SetUp
 ONBUILD \
 RUN \
  set -ux; \
- onbuild_sh=/onbuild-with_systemd.sh; \
- onbuildret=0; \
  : "ONBUILD: Execute onbuild script." && { \
-  . "${onbuild_sh}" || onbuildret=$?; \
- }; \
- rm -f /onbuild-*.sh || :; \
- [ ${onbuildret} -eq 0 ] && \
- echo;
+  for onbuild_sh in /onbuild-*.sh; \
+  do . "${onbuild_sh}" || exit 1; rm -f "${onbuild_sh}"; done; \
+ } && \
+ : "ONBUILD: Cleanup" && { \
+  cd /; \
+  for lf in /var/log/*; \
+  do [ -s "${lf}" ] && cat /dev/null >"${lf}"; done || :; \
+  rm -rf {,/var}/tmp/* || :; \
+  yum -v -y clean all; rm -rf /var/cache/yum/* || :; \
+  rm -rf /root/"${WORK_DIR}" || :; \
+ } && \
+ echo "ONBUILD - DONE.";
 
 # ONBUILD: Reset Workdir
 ONBUILD \

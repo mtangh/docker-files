@@ -1,11 +1,5 @@
 #!/bin/bash -ux
 
-: "ONBUILD:" && {
-
-  . /onbuild-i18n.sh || exit 1
-  rm -f /onbuild-i18n.sh || :
-
-} &&
 if [ -n "${DOCKERUSER:-}" ]
 then
 
@@ -14,7 +8,7 @@ then
     docker_uid="${DOCKER_UID:-500}"
     dockeruser="${DOCKERUSER:-dockeruser}"
     dockerpass="${DOCKERPASS:-}"
-    
+
     [ -n "${dockerpass:-}" ] || {
       dockerpass=$({
         dd "if=/dev/urandom" count=50 |
@@ -27,7 +21,7 @@ then
       echo "${dockerpass}" |
       passwd --stdin "${dockeruser}"
     } || exit 1
-  
+
     sudoerfile="/etc/sudoers"
     insertline="# For docker user\n${dockeruser}\tALL=(ALL)\tNOPASSWD: ALL"
 
@@ -117,31 +111,5 @@ _EOF_
   }
 
 fi &&
-: "ONBUILD: Execute script" && {
-
-  ( cd . && {
-    for onbuild_script_sh in ./onbuild*.sh
-    do
-      [ ! -s "${onbuild_script_sh}" ] || {
-        /bin/bash -ux "${onbuild_script_sh}" ||
-        exit 1
-      }
-    done
-  }; )
-
-} &&
-: "ONBUILD: Cleanup" && {
-
-  for log_file in /var/log/*
-  do
-    [ -s "${log_file}" ] &&
-    cat /dev/null >"${log_file}" || :
-  done
-  rm -rf {,/var}/tmp/* /root/*
-
-  yum -v -y clean all
-  rm -rf /var/cache/yum/* || :
-
-} &&
 [ $? -eq 0 ]
 

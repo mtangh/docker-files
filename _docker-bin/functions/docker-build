@@ -140,6 +140,7 @@ t|tag:=_cimagetag
       ${_cimagetag:+-t ${_cimagetag}} ${_stagename:+--target=${_stagename}} \
       ${_buildpath:+-f ${_buildpath}} "${_build_dir:-.}")
     _dockerret=$?
+    [ ${_dockerret} -eq 0 ] || break
   done
   return ${_dockerret}
 }
