@@ -16,16 +16,16 @@ ARG CENTOSROOT="/centos-image/rootfs"
 # root password
 ARG ROOTPSWD=""
 
-# default System locale
+# Default Language
 ARG LANGUAGE="en_US.UTF-8"
 
-# default keyboard laayout
+# Default keyboard layout
 ARG KBD_TYPE="jp"
 
-# default keymap
+# Default keymap
 ARG KMAPTYPE="jp106"
 
-# default timezone
+# Default timezone
 ARG TIMEZONE="Asia/Tokyo"
 
 # YUM Override install languages
@@ -44,30 +44,68 @@ ARG CENTOS_VER
 # CentOS rootfs Image
 ARG CENTOSROOT
 
-# RPM GPG Key
-ARG RPM_GPGKEY="/etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-${CENTOS_VER}"
+# root password
+ARG ROOTPSWD
+
+# Default Language
+ARG LANGUAGE
+
+# Default keyboard layout
+ARG KBD_TYPE
+
+# Default keymap
+ARG KMAPTYPE
+
+# Default timezone
+ARG TIMEZONE
+
+# YUM Override install languages
+ARG YUM_LANG
 
 # YUM fastestmirror server
-ARG YUM_FASTMIRROR_SERVER="www.ftp.ne.jp"
+ARG YUM_FAST_MIRROR="www.ftp.ne.jp"
 
 # YUM fastestmirror include domains
-ARG YUM_FM_DOMAIN_INCLUDE=".jp,.org"
+ARG YUM_FM_DOM_INCL=".jp,.org"
 
 # YUM fastestmirror exclude domains
-ARG YUM_FM_DOMAIN_EXCLUDE=""
+ARG YUM_FM_DOM_EXCL=""
 
-# COPY shell scripts to ./
-COPY rootfs-build_centos*.sh ./
+# Build env
+ENV CENTOS_VER="${CENTOS_VER:-}" \
+    CENTOSROOT="${CENTOSROOT:-}"
+ENV ROOTPSWD="${ROOTPSWD:-}" \
+    LANGUAGE="${LANGUAGE}" \
+    KBD_TYPE="${KBD_TYPE}" \
+    KMAPTYPE="${KMAPTYPE}" \
+    TIMEZONE="${TIMEZONE}" \
+    YUM_LANG="${YUM_LANG}"
+ENV YUM_FAST_MIRROR="${YUM_FAST_MIRROR:-}" \
+    YUM_FM_DOM_INCL="${YUM_FM_DOM_INCL:-}" \
+    YUM_FM_DOM_EXCL="${YUM_FM_DOM_EXCL:-}"
 
+# Set Workdir
+WORKDIR /root/build/build-chrootdir.d
+
+# COPY shell scripts to Wirkdir
+COPY 0[1-9]_*.sh 1[0-9]_*.sh ./
+
+# Set Workdir
+WORKDIR /root/build
+
+# COPY shell scripts to Workdir
+COPY 00_build-chrootdir.sh ./build-chrootdir.sh
+
+# Setup
 RUN \
  set -ux; \
- fsbuild_sh="./rootfs-build_centos.sh"; \
- fsbuildret=0; \
  : "Execute build script." && { \
-  . "${fsbuild_sh}" || fsbuildret=$?; \
- }; \
- [ ${fsbuildret} -eq 0 ] && \
- echo;
+   /bin/bash -ux ./build-chrootdir.sh
+ } && \
+ : "Done.";
+
+# Reset Workdir
+WORKDIR /
 
 # Labels
 LABEL \
@@ -104,31 +142,31 @@ WORKDIR /root/"${WORK_DIR}"
 # root password
 ARG ROOTPSWD
 
-# default System locale
+# Default Language
 ARG LANGUAGE
 
-# default keyboard laayout
+# Default keyboard layout
 ARG KBD_TYPE
 
-# default keymap
+# Default keymap
 ARG KMAPTYPE
 
-# default timezone
+# Default timezone
 ARG TIMEZONE
 
 # YUM Override install languages
 ARG YUM_LANG
 
-# COPY onbuild-*.sh to Workdir
-COPY onbuild-0[12]*.sh ./
+# COPY shell scripts to Workdir
+COPY [1-2][0-9]_*.sh ./
 
 RUN \
  set -ux; \
  : "Execute build script." && { \
-  for onbuild_sh in ./onbuild-*.sh; \
-  do . "${onbuild_sh}" || exit 1; done; \
+  for build_sh in ./[0-9][0-9]_*.sh; \
+  do . "${build_sh}" || exit 1; done; \
  } && \
- : "Cleanup" && { \
+ : "Cleanup." && { \
   cd /; \
   for lf in /var/log/*; \
   do [ -s "${lf}" ] && cat /dev/null >"${lf}"; done || :; \
@@ -136,7 +174,7 @@ RUN \
   yum -v -y clean all; rm -rf /var/cache/yum/* || :; \
   rm -rf /root/"${WORK_DIR}" || :; \
  } && \
- echo "DONE.";
+ : "Done.";
 
 # Reset Workdir
 WORKDIR /
@@ -177,84 +215,32 @@ WORKDIR /root/"${WORK_DIR}"
 # root password
 ARG ROOTPSWD
 
-# default System locale
+# Default Language
 ARG LANGUAGE
 
-# default keyboard laayout
+# Default keyboard layout
 ARG KBD_TYPE
 
-# default keymap
+# Default keymap
 ARG KMAPTYPE
 
-# default timezone
+# Default timezone
 ARG TIMEZONE
 
 # YUM Override install languages
 ARG YUM_LANG
 
-# COPY onbuild-*.sh to Workdir
-COPY onbuild-0[12]*.sh ./
+# COPY shell scripts to Workdir
+COPY [13][0-9]_*.sh ./
 
 # SetUp
 RUN \
  set -ux; \
  : "Execute build script." && { \
-  for onbuild_sh in ./onbuild-*.sh; \
-  do . "${onbuild_sh}" || exit 1; done; \
+  for build_sh in ./[0-9][0-9]_*.sh; \
+  do . "${build_sh}" || exit 1; done; \
  } && \
- : "Install systemd" && { \
-  yum -v -y update && \
-  yum -v -y install systemd-sysv sudo && \
-  yum -v -y clean all; \
-  rm -rf /var/cache/yum/*; \
- } && \
- : "Delete systemd files" && { \
-  etc_sysd_sys_dir="/etc/systemd/system"; \
-  usr_sysd_sys_dir="/usr/lib/systemd/system"; \
-  rm -f "${etc_sysd_sys_dir}"/*.wants/*; \
-  ( cd "${usr_sysd_sys_dir}/multi-user.target.wants" && { \
-   for item in \
-   ./dbus.service \
-   ./getty.target \
-   ./systemd-ask-password-wall.path \
-   ./systemd-update-utmp-runlevel.service \
-   ""; \
-   do [ -z "${item}" ] || rm -f "${item}"; done; \
-  } &>/dev/null; ); \
-  ( cd "${usr_sysd_sys_dir}/sockets.target.wants" && { \
-   for item in \
-   ./dbus.socket \
-   ./systemd-initctl.socket \
-   ./systemd-udevd-control.socket \
-   ./systemd-udevd-kernel.socket \
-   ""; \
-   do [ -z "${item}" ] || rm -f "${item}"; done; \
-  } &>/dev/null; ); \
-  ( cd "${usr_sysd_sys_dir}/sysinit.target.wants" && { \
-   for item in \
-   ./systemd-ask-password-console.path \
-   ./systemd-udevd.service \
-   ./systemd-udev-trigger.service \
-   ./systemd-vconsole-setup.service \
-   ""; \
-   do [ -z "${item}" ] || rm -f "${item}"; done; \
-  } &>/dev/null; ); \
-  ( cd "${usr_sysd_sys_dir}/local-fs.target.wants" && { \
-   for item in \
-   ./systemd-remount-fs.service \
-   ""; \
-   do [ -z "${item}" ] || rm -f "${item}"; done; \
-  } &>/dev/null; ); \
-  ( cd "${usr_sysd_sys_dir}"/sysinit.target.wants && { \
-   for item in *; \
-   do \
-    echo "${item}"| \
-    egrep '^systemd-tmpfiles-setup.*service' || \
-    rm -f "$item"; \
-   done; \
-  } &>/dev/null; ); \
- } && \
- : "Cleanup" && { \
+ : "Cleanup." && { \
   cd /; \
   for lf in /var/log/*; \
   do [ -s "${lf}" ] && cat /dev/null >"${lf}"; done || :; \
@@ -262,7 +248,7 @@ RUN \
   yum -v -y clean all; rm -rf /var/cache/yum/* || :; \
   rm -rf /root/"${WORK_DIR}" || :; \
  } && \
- echo "DONE";
+ : "Done.";
 
 # Reset Workdir
 WORKDIR /
@@ -296,23 +282,30 @@ WORKDIR /
 # CentOS Version
 ARG CENTOS_VER
 
-# default System locale
-ARG LANGUAGE
-
-# default keyboard laayout
-ARG KBD_TYPE
-
-# default keymap
-ARG KMAPTYPE
-
-# default timezone
-ARG TIMEZONE
-
 # root password
 ARG ROOTPSWD
 
-# Copy onbuild-*.sh to rootdir
-COPY onbuild-0[12]*.sh onbuild-90*.sh /
+# Default Language
+ARG LANGUAGE
+
+# Default keyboard layout
+ARG KBD_TYPE
+
+# Default keymap
+ARG KMAPTYPE
+
+# Default timezone
+ARG TIMEZONE
+
+# Set Workdir
+ARG WORK_DIR=onbuild.d
+WORKDIR /root/"${WORK_DIR}"
+
+# COPY shell scripts to Workdir
+COPY [19][0-9]_*.sh ./
+
+# Reset Workdir
+WORKDIR /
 
 # Labels
 LABEL \
@@ -328,11 +321,11 @@ LABEL \
 ONBUILD \
 ARG ROOTPSWD="${ROOTPSWD:-}"
 
-# ONBUILD: OS locale
+# ONBUILD: Language
 ONBUILD \
 ARG LANGUAGE="${LANGUAGE:-en_US.UTF-8}"
 
-# ONBUILD: keyboard laayout
+# ONBUILD: keyboard layout
 ONBUILD \
 ARG KBD_TYPE="${KBD_TYPE:-jp}"
 
@@ -350,7 +343,7 @@ ARG PACKAGES=""
 
 # ONBUILD: Set Workdir
 ONBUILD \
-ARG WORK_DIR=onbuild.d
+ARG WORK_DIR="${WORK_DIR}"
 ONBUILD \
 WORKDIR /root/"${WORK_DIR}"
 
@@ -359,10 +352,10 @@ ONBUILD \
 RUN \
  set -ux; \
  : "ONBUILD: Execute onbuild script." && { \
-  for onbuild_sh in /onbuild-*.sh; \
+  for onbuild_sh in /root/"${WORK_DIR}"/*.sh; \
   do . "${onbuild_sh}" || exit 1; rm -f "${onbuild_sh}"; done; \
  } && \
- : "ONBUILD: Cleanup" && { \
+ : "ONBUILD: Cleanup." && { \
   cd /; \
   for lf in /var/log/*; \
   do [ -s "${lf}" ] && cat /dev/null >"${lf}"; done || :; \
@@ -370,7 +363,7 @@ RUN \
   yum -v -y clean all; rm -rf /var/cache/yum/* || :; \
   rm -rf /root/"${WORK_DIR}" || :; \
  } && \
- echo "ONBUILD - DONE.";
+ : "ONBUILD: Done.";
 
 # ONBUILD: Reset Workdir
 ONBUILD \
@@ -389,20 +382,27 @@ ARG CENTOS_VER
 # root password
 ARG ROOTPSWD
 
-# default System locale
+# Default Language
 ARG LANGUAGE
 
-# default keyboard laayout
+# Default keyboard layout
 ARG KBD_TYPE
 
-# default keymap
+# Default keymap
 ARG KMAPTYPE
 
-# default timezone
+# Default timezone
 ARG TIMEZONE
 
-# Copy onbuild-*.sh to rootdir
-COPY onbuild-*.sh /
+# Set Workdir
+ARG WORK_DIR="onbuild.d"
+WORKDIR /root/"${WORK_DIR}"
+
+# Copy onbuild-*.sh to Workdir
+COPY [16-9][0-9]_*.sh ./
+
+# Reset Workdir
+WORKDIR /
 
 # Labels
 LABEL \
@@ -418,11 +418,11 @@ LABEL \
 ONBUILD \
 ARG ROOTPSWD="${ROOTPSWD:-}"
 
-# ONBUILD: OS locale
+# ONBUILD: Language
 ONBUILD \
 ARG LANGUAGE="${LANGUAGE:-en_US.UTF-8}"
 
-# ONBUILD: keyboard laayout
+# ONBUILD: keyboard layout
 ONBUILD \
 ARG KBD_TYPE="${KBD_TYPE:-jp}"
 
@@ -456,7 +456,7 @@ ARG PACKAGES=""
 
 # ONBUILD: Set Workdir
 ONBUILD \
-ARG WORK_DIR=onbuild.d
+ARG WORK_DIR="${WORK_DIR}"
 ONBUILD \
 WORKDIR /root/"${WORK_DIR}"
 
@@ -465,10 +465,10 @@ ONBUILD \
 RUN \
  set -ux; \
  : "ONBUILD: Execute onbuild script." && { \
-  for onbuild_sh in /onbuild-*.sh; \
+  for onbuild_sh in /root/"${WORK_DIR}"/*.sh; \
   do . "${onbuild_sh}" || exit 1; rm -f "${onbuild_sh}"; done; \
  } && \
- : "ONBUILD: Cleanup" && { \
+ : "ONBUILD: Cleanup." && { \
   cd /; \
   for lf in /var/log/*; \
   do [ -s "${lf}" ] && cat /dev/null >"${lf}"; done || :; \
@@ -476,7 +476,7 @@ RUN \
   yum -v -y clean all; rm -rf /var/cache/yum/* || :; \
   rm -rf /root/"${WORK_DIR}" || :; \
  } && \
- echo "ONBUILD - DONE.";
+ : "ONBUILD: Done.";
 
 # ONBUILD: Reset Workdir
 ONBUILD \

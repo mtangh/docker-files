@@ -1,8 +1,8 @@
 #!/bin/bash -ux
-# CentOS 7 rootfs build
+# CentOS rootfs build
 
+[ -n "${CENTOS_VER:-}" ] || exit 1
 [ -n "${CENTOSROOT:-}" ] || exit 1
-[ -n "${RPM_GPGKEY:-}" ] || exit 1
 
 #
 # - Create a folder for our new root structure
@@ -20,8 +20,10 @@ cat /etc/yum.conf |
 sed -r -e 's/^(#*)plugins=[01]$/plugins=1/g' |
 cat 1>/etc/yum.conf.tmp &&
 mv -f /etc/yum.conf{.tmp,} &&{
-  echo "/etc/yum.conf >>"
+  echo
+  echo "/etc/yum.conf >>>"
   cat /etc/yum.conf
+  echo
 } || :
 
 # Modify yum-fastestmirror
@@ -46,41 +48,53 @@ yum_domexc="${YUM_FM_DOMAIN_EXCLUDE:-}"
   fi |
   cat 1>"${yum_fm_cnf}.tmp" &&
   mv -f "${yum_fm_cnf}"{.tmp,} && {
-    echo "${yum_fm_cnf} >>"
+    echo
+    echo "${yum_fm_cnf} >>>"
     cat "${yum_fm_cnf}"
+    echo
   }
   [ $? -eq 0 ] || exit 1
 } || :
 
 : "Initialize Chroot Dir." && {
 
+  rpm_gpgkey="/etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-${CENTOS_VER}"
+
   mkdir -p "${CENTOSROOT}" &&
   rpm --root "${CENTOSROOT}" --initdb &&
   yum -v -y reinstall --downloadonly --downloaddir . centos-release &&
   rpm --root "${CENTOSROOT}" --nodeps -ivh centos-release*.rpm &&
-  rpm --root "${CENTOSROOT}" --import "${CENTOSROOT}${RPM_GPGKEY}" &&
+  rpm --root "${CENTOSROOT}" --import "${CENTOSROOT}${rpm_gpgkey}" &&
   yum -v -y \
     --installroot=${CENTOSROOT} \
     --setopt=override_install_langs=en_US.UTF-8 \
     --setopt=tsflags='nodocs' \
-    install yum &&
-  echo
+    install yum
 
 } &&
 : "Chroot to the environment and install some additional tools." && {
 
-  cp -pf "/etc/resolv.conf" "${CENTOSROOT}/etc/resolv.conf" &&
-  chroot "${CENTOSROOT}" /bin/bash <./rootfs-build_centos_setup.sh && {
+  buildscr=""
+  buildret=0
+
+  cp -pf "${CENTOSROOT}"{,/etc/resolv.conf} &&
+  for buildscr in ./build-rootfs*.sh
+  do
+    [ -e "${buildscr}" ] &&
+    chroot "${CENTOSROOT}" /bin/bash <"${buildscr}" ||
+    buildret=$?
+  done &&
+  [ ${buildret} -eq 0 ] && {
     rm -f "${CENTOSROOT}/etc/resolv.conf" || :
   }
 
 } &&
-( : "Cleanup" && {
+: "Cleanup" && {
   cd /;
-  for e in /var/log/*;
-  do [ -f "$e" ] && cat /dev/null 1>"$e"; done;
+  for lf in /var/log/*;
+  do [ -f "${lf}" ] && cat /dev/null 1>"${lf}"; done;
   yum -v -y clean all; rm -rf /var/cache/yum/*;
-} 2>/dev/null || :; ) &&
+} 2>/dev/null || : &&
 echo
 
 exit $?

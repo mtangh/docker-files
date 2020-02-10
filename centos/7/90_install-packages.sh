@@ -2,7 +2,7 @@
 
 packages="${PACKAGES:-}"
 
-: "ONBUILD: Install packages" && {
+: "Install packages" && {
 
   if [ -n "${packages:-}" ]
   then

@@ -2,7 +2,7 @@
 
 rootpswd="${ROOTPSWD:-}"
 
-: "ONBUILD: Set root password" && {
+: "Set root password" && {
 
   if [ -n "${rootpswd:-}" ]
   then
