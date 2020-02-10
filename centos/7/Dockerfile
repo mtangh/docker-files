@@ -72,23 +72,28 @@ ARG YUM_FM_DOM_INCL=".jp,.org"
 ARG YUM_FM_DOM_EXCL=""
 
 # Build env
-ENV CENTOS_VER="${CENTOS_VER:-}" \
-    CENTOSROOT="${CENTOSROOT:-}"
-ENV ROOTPSWD="${ROOTPSWD:-}" \
-    LANGUAGE="${LANGUAGE}" \
-    KBD_TYPE="${KBD_TYPE}" \
-    KMAPTYPE="${KMAPTYPE}" \
-    TIMEZONE="${TIMEZONE}" \
-    YUM_LANG="${YUM_LANG}"
-ENV YUM_FAST_MIRROR="${YUM_FAST_MIRROR:-}" \
-    YUM_FM_DOM_INCL="${YUM_FM_DOM_INCL:-}" \
-    YUM_FM_DOM_EXCL="${YUM_FM_DOM_EXCL:-}"
+ENV \
+ CENTOS_VER="${CENTOS_VER:-}" \
+ CENTOSROOT="${CENTOSROOT:-}"
+
+ENV \
+ ROOTPSWD="${ROOTPSWD:-}" \
+ LANGUAGE="${LANGUAGE:-}" \
+ KBD_TYPE="${KBD_TYPE:-}" \
+ KMAPTYPE="${KMAPTYPE:-}" \
+ TIMEZONE="${TIMEZONE:-}" \
+ YUM_LANG="${YUM_LANG:-}"
+
+ENV \
+ YUM_FAST_MIRROR="${YUM_FAST_MIRROR:-}" \
+ YUM_FM_DOM_INCL="${YUM_FM_DOM_INCL:-}" \
+ YUM_FM_DOM_EXCL="${YUM_FM_DOM_EXCL:-}"
 
 # Set Workdir
 WORKDIR /root/build/build-chrootdir.d
 
-# COPY shell scripts to Wirkdir
-COPY 0[1-9]_*.sh 1[0-9]_*.sh ./
+# COPY shell scripts to Workdir
+COPY \[01\]\[1-9\]_*.sh ./
 
 # Set Workdir
 WORKDIR /root/build
@@ -100,7 +105,7 @@ COPY 00_build-chrootdir.sh ./build-chrootdir.sh
 RUN \
  set -ux; \
  : "Execute build script." && { \
-   /bin/bash -ux ./build-chrootdir.sh
+   /bin/bash -ux ./build-chrootdir.sh; \
  } && \
  : "Done.";
 
@@ -121,7 +126,7 @@ LABEL \
 FROM scratch AS minimal
 
 # Env
-ENV container=docker
+ENV container="docker"
 
 # Reset Workdir
 WORKDIR /
@@ -136,7 +141,7 @@ ARG CENTOSROOT
 COPY --from=rootfs "${CENTOSROOT}"/ /
 
 # Set Workdir
-ARG WORK_DIR=onbuild.d
+ARG WORK_DIR="onbuild.d"
 WORKDIR /root/"${WORK_DIR}"
 
 # root password
@@ -158,7 +163,7 @@ ARG TIMEZONE
 ARG YUM_LANG
 
 # COPY shell scripts to Workdir
-COPY [1-2][0-9]_*.sh ./
+COPY \[12\]\[0-9\]_*.sh ./
 
 RUN \
  set -ux; \
@@ -194,7 +199,7 @@ LABEL \
 FROM scratch AS systemd
 
 # Env
-ENV container=docker
+ENV container="docker"
 
 # Reset Workdir
 WORKDIR /
@@ -209,7 +214,7 @@ ARG CENTOSROOT
 COPY --from=rootfs "${CENTOSROOT}"/ /
 
 # Set Workdir
-ARG WORK_DIR=onbuild.d
+ARG WORK_DIR="onbuild.d"
 WORKDIR /root/"${WORK_DIR}"
 
 # root password
@@ -231,7 +236,7 @@ ARG TIMEZONE
 ARG YUM_LANG
 
 # COPY shell scripts to Workdir
-COPY [13][0-9]_*.sh ./
+COPY \[13\]\[0-9\]_*.sh ./
 
 # SetUp
 RUN \
@@ -298,11 +303,11 @@ ARG KMAPTYPE
 ARG TIMEZONE
 
 # Set Workdir
-ARG WORK_DIR=onbuild.d
+ARG WORK_DIR="onbuild.d"
 WORKDIR /root/"${WORK_DIR}"
 
 # COPY shell scripts to Workdir
-COPY [19][0-9]_*.sh ./
+COPY \[19\]\[0-9\]_*.sh ./
 
 # Reset Workdir
 WORKDIR /
@@ -319,23 +324,23 @@ LABEL \
 
 # ONBUILD: root password
 ONBUILD \
-ARG ROOTPSWD="${ROOTPSWD:-}"
+ARG ROOTPSWD=""
 
 # ONBUILD: Language
 ONBUILD \
-ARG LANGUAGE="${LANGUAGE:-en_US.UTF-8}"
+ARG LANGUAGE=""
 
 # ONBUILD: keyboard layout
 ONBUILD \
-ARG KBD_TYPE="${KBD_TYPE:-jp}"
+ARG KBD_TYPE=""
 
 # ONBUILD: keymap
 ONBUILD \
-ARG KMAPTYPE="${KMAPTYPE:-jp106}"
+ARG KMAPTYPE=""
 
 # ONBUILD: timezone
 ONBUILD \
-ARG TIMEZONE="${TIMEZONE:-Asia/Tokyo}"
+ARG TIMEZONE=""
 
 # ONBUILD: Packages
 ONBUILD \
@@ -343,7 +348,7 @@ ARG PACKAGES=""
 
 # ONBUILD: Set Workdir
 ONBUILD \
-ARG WORK_DIR="${WORK_DIR}"
+ARG WORK_DIR="onbuild.d"
 ONBUILD \
 WORKDIR /root/"${WORK_DIR}"
 
@@ -352,8 +357,8 @@ ONBUILD \
 RUN \
  set -ux; \
  : "ONBUILD: Execute onbuild script." && { \
-  for onbuild_sh in /root/"${WORK_DIR}"/*.sh; \
-  do . "${onbuild_sh}" || exit 1; rm -f "${onbuild_sh}"; done; \
+  for build_sh in /root/"${WORK_DIR}"/*.sh; \
+  do . "${build_sh}" || exit 1; rm -f "${build_sh}"; done; \
  } && \
  : "ONBUILD: Cleanup." && { \
   cd /; \
@@ -399,7 +404,7 @@ ARG WORK_DIR="onbuild.d"
 WORKDIR /root/"${WORK_DIR}"
 
 # Copy onbuild-*.sh to Workdir
-COPY [16-9][0-9]_*.sh ./
+COPY \[16-9\]\[0-9\]_*.sh ./
 
 # Reset Workdir
 WORKDIR /
@@ -416,29 +421,29 @@ LABEL \
 
 # ONBUILD: root password
 ONBUILD \
-ARG ROOTPSWD="${ROOTPSWD:-}"
+ARG ROOTPSWD=""
 
 # ONBUILD: Language
 ONBUILD \
-ARG LANGUAGE="${LANGUAGE:-en_US.UTF-8}"
+ARG LANGUAGE=""
 
 # ONBUILD: keyboard layout
 ONBUILD \
-ARG KBD_TYPE="${KBD_TYPE:-jp}"
+ARG KBD_TYPE=""
 
 # ONBUILD: keymap
 ONBUILD \
-ARG KMAPTYPE="${KMAPTYPE:-jp106}"
+ARG KMAPTYPE=""
 
 # ONBUILD: timezone
 ONBUILD \
-ARG TIMEZONE="${TIMEZONE:-Asia/Tokyo}"
+ARG TIMEZONE=""
 
 # ONBUILD: Default login
 ONBUILD \
-ARG DOCKER_UID=500
+ARG DOCKER_UID=""
 ONBUILD \
-ARG DOCKERUSER=dockeruser
+ARG DOCKERUSER=""
 ONBUILD \
 ARG DOCKERPASS=""
 
@@ -456,7 +461,7 @@ ARG PACKAGES=""
 
 # ONBUILD: Set Workdir
 ONBUILD \
-ARG WORK_DIR="${WORK_DIR}"
+ARG WORK_DIR="onbuild.d"
 ONBUILD \
 WORKDIR /root/"${WORK_DIR}"
 
@@ -465,8 +470,8 @@ ONBUILD \
 RUN \
  set -ux; \
  : "ONBUILD: Execute onbuild script." && { \
-  for onbuild_sh in /root/"${WORK_DIR}"/*.sh; \
-  do . "${onbuild_sh}" || exit 1; rm -f "${onbuild_sh}"; done; \
+  for build_sh in /root/"${WORK_DIR}"/*.sh; \
+  do . "${build_sh}" || exit 1; rm -f "${build_sh}"; done; \
  } && \
  : "ONBUILD: Cleanup." && { \
   cd /; \

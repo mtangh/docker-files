@@ -8,12 +8,12 @@ packages="${PACKAGES:-}"
   then
 
     yum -v -y update &&
-    yum -v -y install ${packages} &&
-    yum -v -y clean all;
+    yum -v -y install ${packages}
 
   fi || exit 1
 
-  rm -rf /var/cache/yum/*
+  yum -v -y clean all;
+  rm -rf /var/cache/yum/* || :
 
 } &&
 [ $? -eq 0 ]

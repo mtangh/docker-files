@@ -6,10 +6,12 @@ rootpswd="${ROOTPSWD:-}"
 
   if [ -n "${rootpswd:-}" ]
   then
+
     echo "${rootpswd}" |
     passwd --stdin root &&
     passwd -u root &&
     passwd -S root
+
   fi || exit 1
 
 } &&

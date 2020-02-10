@@ -1,5 +1,8 @@
 #!/bin/bash -ux
-# CentOS 7 rootfs build (setup)
+# CentOS setup
+THIS="${BASH_SOURCE##*/}"
+BASE="${THIS%.*}"
+CDIR=$([ -n "${BASH_SOURCE%/*}" ] && cd "${BASH_SOURCE%/*}"; pwd)
 
 # /dev files
 [ -e "/dev/null" ] || mknod -m 666 /dev/null c 1 3
@@ -27,9 +30,9 @@ mv -f /etc/yum.conf{.tmp,} &&{
 # Modify yum-fastestmirror
 yum_plgcnf="/etc/yum/pluginconf.d"
 yum_fm_cnf="${yum_plgcnf}/fastestmirror.conf"
-yum_fmserv="${YUM_FASTMIRROR_SERVER:-}"
-yum_dominc="${YUM_FM_DOMAIN_INCLUDE:-.org}"
-yum_domexc="${YUM_FM_DOMAIN_EXCLUDE:-}"
+yum_fmserv="${YUM_FAST_MIRROR:-}"
+yum_dominc="${YUM_FM_DOM_INCL:-.org}"
+yum_domexc="${YUM_FM_DOM_EXCL:-}"
 [ -e "${yum_fm_cnf}" ] && {
   cat "${yum_fm_cnf}" |
   sed -r \
@@ -96,6 +99,7 @@ yum -v -y remove \
   gettext \
   gettext-libs \
   GeoIP \
+  geoipupdate \
   groff-base \
   grub2 \
   grub2-tools \

@@ -1,27 +1,27 @@
 #!/bin/bash -ux
 
-language="${LANGUAGE:-en_US.UTF-8}"
-keyboard="${KBD_TYPE:-jp}"
-kmaptype="${KMAPTYPE:-jp106}"
-timezone="${TIMEZONE:-Asia/Tokyo}"
+language="${LANGUAGE:-}"
+keyboard="${KBD_TYPE:-}"
+kmaptype="${KMAPTYPE:-}"
+timezone="${TIMEZONE:-}"
 
-yum_lang="${YUM_LANG:-en_US.UTF-8}"
+yum_lang="${YUM_LANG:-}"
 
+[ -n "${language}" ] &&
 : "SetUp system locale: ${language}" && {
 
   localecf="/etc/locale.conf"
-  yum_conf="/etc/yum.conf"
 
   [ -e "${localecf}" ] && {
     . "${localecf}"
   } || :
 
-  [ -z "${LANG:-}" ] && {
+  [ -n "${language}" -a -z "${LANG:-}" ] && {
     echo 'LANG='"${language}" 1>>"${localecf}" &&
     . "${localecf}"
   } || :
 
-  if [ "${LANG:-}" != "${language}" ]
+  if [ -n "${language}" -a "${LANG:-}" != "${language}" ]
   then
 
     lc_cntr=$(echo "${language}"|cut -d. -f1)
@@ -36,13 +36,20 @@ yum_lang="${YUM_LANG:-en_US.UTF-8}"
       sed -ri 's/^LANG=.*$/LANG='"${language}"'/g' "${localecf}"
     } && {
       echo
-      echo "${localecf} >>>" 
+      echo "${localecf} >>>"
       cat "${localecf}" || :
       echo
     }
 
   else :
   fi || exit 1
+
+} || :
+
+[ -n "${yum_lang}" ] &&
+: "Yum override install langs: ${yum_lang}" && {
+
+  yum_conf="/etc/yum.conf"
 
   if [ -e "${yum_conf}" ] &&
      egrep '(^[#[:space:]]+|^)override_install_langs=' "${yum_conf}" 1>/dev/null 2>&1
@@ -56,7 +63,7 @@ yum_lang="${YUM_LANG:-en_US.UTF-8}"
         "${yum_conf}" || exit 1
     } && {
       echo
-      echo "${yum_conf} >>>" 
+      echo "${yum_conf} >>>"
       cat "${yum_conf}" || :
       echo
     }
@@ -64,8 +71,10 @@ yum_lang="${YUM_LANG:-en_US.UTF-8}"
   else :
   fi || exit 1
 
-} &&
-: "SetUp Keymap: kmaptype=${kmaptype}" && {
+} || :
+
+[ -n "${keyboard}" -o -n "${kmaptype}" ] &&
+: "SetUp Keyboard and Keymap: keyboard=${keyboard}, kmaptype=${kmaptype}" && {
 
   vconconf="/etc/vconsole.conf"
 
@@ -78,14 +87,14 @@ yum_lang="${YUM_LANG:-en_US.UTF-8}"
     . "${vconconf}"
   } || :
 
-  if [ "${KEYMAP:-}" != "${kmaptype}" ]
+  if [ -n "${kmaptype}" -a "${KEYMAP:-}" != "${kmaptype}" ]
   then
 
     localectl set-keymap "${kmaptype}" || {
       sed -ri 's/^KEYMAP=.*$/KEYMAP="'"${kmaptype}"'"/g' "${vconconf}"
     } && {
       echo
-      echo "${vconconf} >>>" 
+      echo "${vconconf} >>>"
       cat "${vconconf}" || :
       echo
     }
@@ -93,7 +102,9 @@ yum_lang="${YUM_LANG:-en_US.UTF-8}"
   else :
   fi || exit 1
 
-} &&
+} || :
+
+[ -n "${timezone}" ] &&
 : "SetUp Timezone: timezone=${timezone}" && {
 
   zoneinfo="/usr/share/zoneinfo"
@@ -113,6 +124,5 @@ yum_lang="${YUM_LANG:-en_US.UTF-8}"
 
   fi || exit 1
 
-} &&
-[ $? -eq 0 ]
+} || :
 

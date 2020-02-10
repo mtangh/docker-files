@@ -1,5 +1,8 @@
 #!/bin/bash -ux
-# CentOS rootfs build
+# CentOS built rootfs image
+THIS="${BASH_SOURCE##*/}"
+BASE="${THIS%.*}"
+CDIR=$([ -n "${BASH_SOURCE%/*}" ] && cd "${BASH_SOURCE%/*}"; pwd)
 
 [ -n "${CENTOS_VER:-}" ] || exit 1
 [ -n "${CENTOSROOT:-}" ] || exit 1
@@ -74,19 +77,17 @@ yum_domexc="${YUM_FM_DOMAIN_EXCLUDE:-}"
 } &&
 : "Chroot to the environment and install some additional tools." && {
 
-  buildscr=""
-  buildret=0
+  cp -pf {,"${CENTOSROOT}"}/etc/resolv.conf && {
 
-  cp -pf "${CENTOSROOT}"{,/etc/resolv.conf} &&
-  for buildscr in ./build-rootfs*.sh
-  do
-    [ -e "${buildscr}" ] &&
-    chroot "${CENTOSROOT}" /bin/bash <"${buildscr}" ||
-    buildret=$?
-  done &&
-  [ ${buildret} -eq 0 ] && {
-    rm -f "${CENTOSROOT}/etc/resolv.conf" || :
-  }
+    for build_sh in ./${BASE}.d/*.sh
+    do
+      [ -e "${build_sh}" ] &&
+      chroot "${CENTOSROOT}" /bin/bash <"${build_sh}" ||
+      exit 1
+    done
+
+  } &&
+  rm -f "${CENTOSROOT}/etc/resolv.conf" || :
 
 } &&
 : "Cleanup" && {
