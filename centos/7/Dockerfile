@@ -19,7 +19,7 @@ ARG ROOTPSWD=""
 # Default Language
 ARG LANGUAGE="en_US.UTF-8"
 
-# Default keyboard layout
+# Default Keyboard Type
 ARG KBD_TYPE="jp"
 
 # Default keymap
@@ -35,9 +35,6 @@ ARG YUM_LANG="en_US.UTF-8"
 # CentOS rootfs
 FROM centos:centos${CENTOS_VER} AS rootfs
 
-# Set Workdir
-WORKDIR /root
-
 # CentOS Version
 ARG CENTOS_VER
 
@@ -50,7 +47,7 @@ ARG ROOTPSWD
 # Default Language
 ARG LANGUAGE
 
-# Default keyboard layout
+# Default Keyboard Type
 ARG KBD_TYPE
 
 # Default keymap
@@ -90,7 +87,7 @@ ENV \
  YUM_FM_DOM_EXCL="${YUM_FM_DOM_EXCL:-}"
 
 # Set Workdir
-WORKDIR /root/build/build-chrootdir.d
+WORKDIR /root/build/scripts.d
 
 # COPY shell scripts to Workdir
 COPY \[01\]\[1-9\]_*.sh ./
@@ -104,7 +101,7 @@ COPY 00_build-chrootdir.sh ./build-chrootdir.sh
 # Setup
 RUN \
  set -ux; \
- : "Execute build script." && { \
+ : "Execute Build Script." && { \
    /bin/bash -ux ./build-chrootdir.sh; \
  } && \
  : "Done.";
@@ -128,21 +125,11 @@ FROM scratch AS minimal
 # Env
 ENV container="docker"
 
-# Reset Workdir
-WORKDIR /
-
 # CentOS Version
 ARG CENTOS_VER
 
 # CentOS rootfs Image
 ARG CENTOSROOT
-
-# COPY From root-image
-COPY --from=rootfs "${CENTOSROOT}"/ /
-
-# Set Workdir
-ARG WORK_DIR="onbuild.d"
-WORKDIR /root/"${WORK_DIR}"
 
 # root password
 ARG ROOTPSWD
@@ -150,7 +137,7 @@ ARG ROOTPSWD
 # Default Language
 ARG LANGUAGE
 
-# Default keyboard layout
+# Default Keyboard Type
 ARG KBD_TYPE
 
 # Default keymap
@@ -162,22 +149,34 @@ ARG TIMEZONE
 # YUM Override install languages
 ARG YUM_LANG
 
+# COPY From root-image
+COPY --from=rootfs "${CENTOSROOT}"/ /
+
+# Set Workdir
+WORKDIR /tmp/build-work
+
 # COPY shell scripts to Workdir
 COPY \[12\]\[0-9\]_*.sh ./
 
 RUN \
  set -ux; \
- : "Execute build script." && { \
+ : "Export Args." && { \
+  export CENTOS_VER; \
+  export ROOTPSWD; \
+  export LANGUAGE KBD_TYPE KMAPTYPE TIMEZONE; \
+  export YUM_LANG; \
+ }; \
+ : "Execute Build Script." && { \
   for build_sh in ./[0-9][0-9]_*.sh; \
-  do . "${build_sh}" || exit 1; done; \
+  do /bin/bash -ux "${build_sh}" || exit 1; done; \
  } && \
  : "Cleanup." && { \
-  cd /; \
+  work_dir=$(pwd); cd /; \
   for lf in /var/log/*; \
   do [ -s "${lf}" ] && cat /dev/null >"${lf}"; done || :; \
   rm -rf {,/var}/tmp/* || :; \
   yum -v -y clean all; rm -rf /var/cache/yum/* || :; \
-  rm -rf /root/"${WORK_DIR}" || :; \
+  rm -rf "${work_dir}" || :; \
  } && \
  : "Done.";
 
@@ -201,21 +200,11 @@ FROM scratch AS systemd
 # Env
 ENV container="docker"
 
-# Reset Workdir
-WORKDIR /
-
 # CentOS Version
 ARG CENTOS_VER
 
 # CentOS rootfs Image
 ARG CENTOSROOT
-
-# COPY From root-image
-COPY --from=rootfs "${CENTOSROOT}"/ /
-
-# Set Workdir
-ARG WORK_DIR="onbuild.d"
-WORKDIR /root/"${WORK_DIR}"
 
 # root password
 ARG ROOTPSWD
@@ -223,7 +212,7 @@ ARG ROOTPSWD
 # Default Language
 ARG LANGUAGE
 
-# Default keyboard layout
+# Default Keyboard Type
 ARG KBD_TYPE
 
 # Default keymap
@@ -235,23 +224,35 @@ ARG TIMEZONE
 # YUM Override install languages
 ARG YUM_LANG
 
+# COPY From root-image
+COPY --from=rootfs "${CENTOSROOT}"/ /
+
+# Set Workdir
+WORKDIR /tmp/build-work
+
 # COPY shell scripts to Workdir
 COPY \[13\]\[0-9\]_*.sh ./
 
 # SetUp
 RUN \
  set -ux; \
- : "Execute build script." && { \
+ : "Export Args." && { \
+  export CENTOS_VER; \
+  export ROOTPSWD; \
+  export LANGUAGE KBD_TYPE KMAPTYPE TIMEZONE; \
+  export YUM_LANG; \
+ }; \
+ : "Execute Build Script." && { \
   for build_sh in ./[0-9][0-9]_*.sh; \
-  do . "${build_sh}" || exit 1; done; \
+  do /bin/bash -ux "${build_sh}" || exit 1; done; \
  } && \
  : "Cleanup." && { \
-  cd /; \
+  work_dir=$(pwd); cd /; \
   for lf in /var/log/*; \
   do [ -s "${lf}" ] && cat /dev/null >"${lf}"; done || :; \
   rm -rf {,/var}/tmp/* || :; \
   yum -v -y clean all; rm -rf /var/cache/yum/* || :; \
-  rm -rf /root/"${WORK_DIR}" || :; \
+  rm -rf "${work_dir}" || :; \
  } && \
  : "Done.";
 
@@ -281,32 +282,13 @@ CMD [ "/sbin/init" ]
 # CentOS7 minimal (onbuild)
 FROM minimal AS minimal-onbuild
 
-# Reset Workdir
-WORKDIR /
-
 # CentOS Version
 ARG CENTOS_VER
 
-# root password
-ARG ROOTPSWD
-
-# Default Language
-ARG LANGUAGE
-
-# Default keyboard layout
-ARG KBD_TYPE
-
-# Default keymap
-ARG KMAPTYPE
-
-# Default timezone
-ARG TIMEZONE
-
 # Set Workdir
-ARG WORK_DIR="onbuild.d"
-WORKDIR /root/"${WORK_DIR}"
+WORKDIR /root/onbuild.d
 
-# COPY shell scripts to Workdir
+# Copy onbuild scripts to Workdir
 COPY \[19\]\[0-9\]_*.sh ./
 
 # Reset Workdir
@@ -330,11 +312,11 @@ ARG ROOTPSWD=""
 ONBUILD \
 ARG LANGUAGE=""
 
-# ONBUILD: keyboard layout
+# ONBUILD: Keyboard Type
 ONBUILD \
 ARG KBD_TYPE=""
 
-# ONBUILD: keymap
+# ONBUILD: Keymap
 ONBUILD \
 ARG KMAPTYPE=""
 
@@ -342,31 +324,38 @@ ARG KMAPTYPE=""
 ONBUILD \
 ARG TIMEZONE=""
 
-# ONBUILD: Packages
+# ONBUILD: Extra RPM Packages
 ONBUILD \
-ARG PACKAGES=""
+ARG RPM_PACKAGES=""
 
 # ONBUILD: Set Workdir
 ONBUILD \
-ARG WORK_DIR="onbuild.d"
+WORKDIR /root/onbuild.d
+
+# ONBUILD: COPY contents to workdir
 ONBUILD \
-WORKDIR /root/"${WORK_DIR}"
+COPY * ./
 
 # ONBUILD: SetUp
 ONBUILD \
 RUN \
  set -ux; \
- : "ONBUILD: Execute onbuild script." && { \
-  for build_sh in /root/"${WORK_DIR}"/*.sh; \
-  do . "${build_sh}" || exit 1; rm -f "${build_sh}"; done; \
+ : "ONBUILD: Export Args." && { \
+  export ROOTPSWD; \
+  export LANGUAGE KBD_TYPE KMAPTYPE TIMEZONE; \
+  export RPM_PACKAGES; \
+ }; \
+ : "ONBUILD: Execute OnBuild Scripts." && { \
+  for build_sh in ./[0-9][0-9]_*.sh; \
+  do /bin/bash -ux "${build_sh}" || exit 1; done; \
  } && \
  : "ONBUILD: Cleanup." && { \
-  cd /; \
+  work_dir=$(pwd); cd /; \
   for lf in /var/log/*; \
   do [ -s "${lf}" ] && cat /dev/null >"${lf}"; done || :; \
   rm -rf {,/var}/tmp/* || :; \
   yum -v -y clean all; rm -rf /var/cache/yum/* || :; \
-  rm -rf /root/"${WORK_DIR}" || :; \
+  rm -rf "${work_dir}" || :; \
  } && \
  : "ONBUILD: Done.";
 
@@ -378,32 +367,13 @@ WORKDIR /
 # CentOS 7 with systemd (onbuild)
 FROM systemd AS systemd-onbuild
 
-# Reset Workdir
-WORKDIR /
-
 # CentOS Version
 ARG CENTOS_VER
 
-# root password
-ARG ROOTPSWD
-
-# Default Language
-ARG LANGUAGE
-
-# Default keyboard layout
-ARG KBD_TYPE
-
-# Default keymap
-ARG KMAPTYPE
-
-# Default timezone
-ARG TIMEZONE
-
 # Set Workdir
-ARG WORK_DIR="onbuild.d"
-WORKDIR /root/"${WORK_DIR}"
+WORKDIR /root/onbuild.d
 
-# Copy onbuild-*.sh to Workdir
+# Copy onbuild scripts to Workdir
 COPY \[16-9\]\[0-9\]_*.sh ./
 
 # Reset Workdir
@@ -427,11 +397,11 @@ ARG ROOTPSWD=""
 ONBUILD \
 ARG LANGUAGE=""
 
-# ONBUILD: keyboard layout
+# ONBUILD: Keyboard Type
 ONBUILD \
 ARG KBD_TYPE=""
 
-# ONBUILD: keymap
+# ONBUILD: Keymap
 ONBUILD \
 ARG KMAPTYPE=""
 
@@ -455,31 +425,40 @@ ARG NO_SSH_LOGIN=""
 ONBUILD \
 ARG NO_LOGROTATE=""
 
-# ONBUILD: Packages
+# ONBUILD: Extra RPM Packages
 ONBUILD \
-ARG PACKAGES=""
+ARG RPM_PACKAGES=""
 
 # ONBUILD: Set Workdir
 ONBUILD \
-ARG WORK_DIR="onbuild.d"
+WORKDIR /root/onbuild.d
+
+# ONBUILD: COPY contents to workdir
 ONBUILD \
-WORKDIR /root/"${WORK_DIR}"
+COPY * ./
 
 # ONBUILD: SetUp
 ONBUILD \
 RUN \
  set -ux; \
- : "ONBUILD: Execute onbuild script." && { \
-  for build_sh in /root/"${WORK_DIR}"/*.sh; \
-  do . "${build_sh}" || exit 1; rm -f "${build_sh}"; done; \
+ : "ONHUILD: Export Args." && { \
+  export ROOTPSWD; \
+  export LANGUAGE KBD_TYPE KMAPTYPE TIMEZONE; \
+  export DOCKER_UID DOCKERUSER DOCKERPASS; \
+  export NO_SSH_LOGIN NO_LOGROTATE; \
+  export RPM_PACKAGES; \
+ }; \
+ : "ONBUILD: Execute OnBuild Scripts." && { \
+  for build_sh in ./[0-9][0-9]_*.sh; \
+  do /bin/bash -ux "${build_sh}" || exit 1; done; \
  } && \
  : "ONBUILD: Cleanup." && { \
-  cd /; \
+  work_dir=$(pwd); cd /; \
   for lf in /var/log/*; \
   do [ -s "${lf}" ] && cat /dev/null >"${lf}"; done || :; \
   rm -rf {,/var}/tmp/* || :; \
   yum -v -y clean all; rm -rf /var/cache/yum/* || :; \
-  rm -rf /root/"${WORK_DIR}" || :; \
+  rm -rf "${work_dir}" || :; \
  } && \
  : "ONBUILD: Done.";
 

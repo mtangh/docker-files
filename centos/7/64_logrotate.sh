@@ -1,8 +1,11 @@
 #!/bin/bash -ux
+THIS="${BASH_SOURCE##*/}"
+BASE="${THIS%.*}"
+CDIR=$([ -n "${BASH_SOURCE%/*}" ] && cd "${BASH_SOURCE%/*}"; pwd)
 
 if [ -n "${NO_LOGROTATE:-}" ]
-then
-  yum -v -y update || :
+then yum -v -y update || :
+else :
 fi &&
 if [ -n "${NO_LOGROTATE:-}" ]
 then
@@ -19,7 +22,7 @@ else
       chown root:root "${systemd_sys_dir}" &&
       chmod 0755 "${systemd_sys_dir}" || exit 1
     }
-    : && {
+    : "logrotate: logrotate.service" && {
       cat <<_EOF_
 # Systemd unit file for logrotate.service
 
@@ -34,7 +37,7 @@ ExecStart=/etc/cron.daily/logrotate
 
 _EOF_
     } 1>"${systemd_sys_dir}/logrotate.service"
-    : && {
+    : "logrotate: logrotate.timer" && {
       cat <<_EOF_
 # Systemd unit file for logrotate.timer
 
@@ -60,3 +63,4 @@ _EOF_
 fi &&
 [ $? -eq 0 ]
 
+exit $?

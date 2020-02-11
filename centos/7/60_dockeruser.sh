@@ -1,9 +1,12 @@
 #!/bin/bash -ux
+THIS="${BASH_SOURCE##*/}"
+BASE="${THIS%.*}"
+CDIR=$([ -n "${BASH_SOURCE%/*}" ] && cd "${BASH_SOURCE%/*}"; pwd)
 
-if [ -n "${DOCKERUSER:-}" ]
-then
+: "SetUp default user" && {
 
-  : "SetUp default user" && {
+  if [ -n "${DOCKERUSER:-}" ]
+  then
 
     docker_uid="${DOCKER_UID:-500}"
     dockeruser="${DOCKERUSER:-dockeruser}"
@@ -29,8 +32,9 @@ then
       '/^root[ \t]*ALL.*$/a '"${insertline}" \
       "${sudoerfile}" || exit 1
 
-  }
+  fi
 
-fi &&
+} &&
 [ $? -eq 0 ]
 
+exit $?

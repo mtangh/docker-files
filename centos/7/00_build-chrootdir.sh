@@ -24,7 +24,7 @@ sed -r -e 's/^(#*)plugins=[01]$/plugins=1/g' |
 cat 1>/etc/yum.conf.tmp &&
 mv -f /etc/yum.conf{.tmp,} &&{
   echo
-  echo "/etc/yum.conf >>>"
+  echo "[/etc/yum.conf]"
   cat /etc/yum.conf
   echo
 } || :
@@ -32,9 +32,9 @@ mv -f /etc/yum.conf{.tmp,} &&{
 # Modify yum-fastestmirror
 yum_plgcnf="/etc/yum/pluginconf.d"
 yum_fm_cnf="${yum_plgcnf}/fastestmirror.conf"
-yum_fmserv="${YUM_FASTMIRROR_SERVER:-}"
-yum_dominc="${YUM_FM_DOMAIN_INCLUDE:-.org}"
-yum_domexc="${YUM_FM_DOMAIN_EXCLUDE:-}"
+yum_fmserv="${YUM_FAST_MIRROR:-}"
+yum_dominc="${YUM_FM_DOM_INCL:-.org}"
+yum_domexc="${YUM_FM_DOM_EXCL:-}"
 [ -e "${yum_fm_cnf}" ] && {
   cat "${yum_fm_cnf}" |
   sed -r \
@@ -52,7 +52,7 @@ yum_domexc="${YUM_FM_DOMAIN_EXCLUDE:-}"
   cat 1>"${yum_fm_cnf}.tmp" &&
   mv -f "${yum_fm_cnf}"{.tmp,} && {
     echo
-    echo "${yum_fm_cnf} >>>"
+    echo "[${yum_fm_cnf}]"
     cat "${yum_fm_cnf}"
     echo
   }
@@ -79,7 +79,7 @@ yum_domexc="${YUM_FM_DOMAIN_EXCLUDE:-}"
 
   cp -pf {,"${CENTOSROOT}"}/etc/resolv.conf && {
 
-    for build_sh in ./${BASE}.d/*.sh
+    for build_sh in ./scripts.d/[0-9][0-9]_*.sh
     do
       [ -e "${build_sh}" ] &&
       chroot "${CENTOSROOT}" /bin/bash <"${build_sh}" ||
@@ -96,6 +96,6 @@ yum_domexc="${YUM_FM_DOMAIN_EXCLUDE:-}"
   do [ -f "${lf}" ] && cat /dev/null 1>"${lf}"; done;
   yum -v -y clean all; rm -rf /var/cache/yum/*;
 } 2>/dev/null || : &&
-echo
+: "Done."
 
 exit $?

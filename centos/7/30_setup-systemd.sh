@@ -1,4 +1,7 @@
 #!/bin/bash -ux
+THIS="${BASH_SOURCE##*/}"
+BASE="${THIS%.*}"
+CDIR=$([ -n "${BASH_SOURCE%/*}" ] && cd "${BASH_SOURCE%/*}"; pwd)
 
 : "Install systemd" && {
 
@@ -30,24 +33,24 @@ local-fs.target.wants/systemd-remount-fs.service
 _END_
 )
 
-  rm -f "${etc_sysd_dir}"/*.wants/* || :
+  ( cd "${etc_sysd_dir}" && {
+      rm -fv ./*.wants/* || :
+    }; )
 
   ( cd "${usr_sysd_dir}/" && {
-      for item in ${remove_files}
+      rm -fv ${remove_files}
+    }
+    cd "${usr_sysd_dir}"/sysinit.target.wants && {
+      for systemd_file in *
       do
-        [ -z "${item}" ] || rm -f "${item}"
+        echo "${systemd_file}" |
+        egrep '^systemd-tmpfiles-setup.*service' &>/dev/null ||
+        rm -fv "${systemd_file}"
       done
-    } &>/dev/null
-    cd ./sysinit.target.wants && {
-      for item in *
-      do
-        echo "${item}" |
-        egrep '^systemd-tmpfiles-setup.*service' ||
-        rm -f "${item}"
-      done
-    } &>/dev/null
+    }
     echo; )
 
 } &&
 [ $? -eq 0 ]
 
+exit $?

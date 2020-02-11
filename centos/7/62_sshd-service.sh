@@ -1,8 +1,11 @@
 #!/bin/bash -ux
+THIS="${BASH_SOURCE##*/}"
+BASE="${THIS%.*}"
+CDIR=$([ -n "${BASH_SOURCE%/*}" ] && cd "${BASH_SOURCE%/*}"; pwd)
 
 if [ -n "${NO_SSH_LOGIN:-}" ]
-then
-  yum -v -y update || :
+then yum -v -y update || :
+else :
 fi &&
 if [ -n "${NO_SSH_LOGIN:-}" ]
 then
@@ -27,3 +30,4 @@ else
 fi &&
 [ $? -eq 0 ]
 
+exit $?
