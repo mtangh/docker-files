@@ -1,7 +1,4 @@
 #!/bin/bash -ux
-THIS="${BASH_SOURCE##*/}"
-BASE="${THIS%.*}"
-CDIR=$([ -n "${BASH_SOURCE%/*}" ] && cd "${BASH_SOURCE%/*}"; pwd)
 
 : "SetUp default user" && {
 

@@ -1,11 +1,7 @@
 #!/bin/bash -ux
-THIS="${BASH_SOURCE##*/}"
-BASE="${THIS%.*}"
-CDIR=$([ -n "${BASH_SOURCE%/*}" ] && cd "${BASH_SOURCE%/*}"; pwd)
 
 language="${LANGUAGE:-}"
-keyboard="${KBD_TYPE:-}"
-kmaptype="${KMAPTYPE:-}"
+keyboard="${KEYBOARD:-}"
 timezone="${TIMEZONE:-}"
 
 yum_lang="${YUM_LANG:-}"
@@ -22,11 +18,11 @@ yum_lang="${YUM_LANG:-}"
     } || :
 
     [ -n "${language}" -a -z "${LANG:-}" ] && {
-      echo 'LANG='"${language}" 1>>"${localecf}" &&
+      echo 'LANG=""' 1>>"${localecf}" &&
       . "${localecf}"
     } || :
 
-    if [ -n "${language}" -a "${LANG:-}" != "${language}" ]
+    if [ -n "${language}" -a "${language}" != "${LANG:-}" ]
     then
 
       lc_cntr=$(echo "${language}"|cut -d. -f1)
@@ -84,9 +80,9 @@ yum_lang="${YUM_LANG:-}"
   fi
 
 } &&
-: "SetUp Keyboard and Keymap: keyboard=${keyboard}, kmaptype=${kmaptype}" && {
+: "SetUp Keyboard: keyboard=${keyboard}" && {
 
-  if [ -n "${keyboard}" -o -n "${kmaptype}" ]
+  if [ -n "${keyboard}" ]
   then
 
     vconconf="/etc/vconsole.conf"
@@ -95,22 +91,34 @@ yum_lang="${YUM_LANG:-}"
       . "${vconconf}"
     } || :
 
-    [ -n "${kmaptype}" -a -z "${KEYMAP:-}" ] && {
-      echo 'KEYMAP='"${kmaptype}" 1>>"${vconconf}" &&
+    [ -n "${keyboard}" -a -z "${KEYMAP:-}" ] && {
+      echo 'KEYMAP=""' 1>>"${vconconf}" &&
       . "${vconconf}"
     } || :
 
-    if [ -n "${kmaptype}" -a "${KEYMAP:-}" != "${kmaptype}" ]
+    if [ -n "${keyboard}" -a "${keyboard}" != "${KEYMAP:-}" ]
     then
 
-      localectl set-keymap "${kmaptype}" || {
-        sed -ri 's/^KEYMAP=.*$/KEYMAP="'"${kmaptype}"'"/g' "${vconconf}"
+      localectl set-keymap "${keyboard}" || {
+        sed -ri 's/^KEYMAP=.*$/KEYMAP="'"${keyboard}"'"/g' "${vconconf}"
       } && {
         echo
         echo "[${vconconf}]"
         cat "${vconconf}" || :
         echo
       }
+
+      : && {
+cat <<_EOF_
+# Read and parsed by systemd-localed. It's probably wise not to edit this file
+# manually too freely.
+Section "InputClass"
+        Identifier "system-keyboard"
+        MatchIsKeyboard "on"
+        Option "XkbLayout" "${keyboard}"
+EndSection
+_EOF_
+      } 1>/etc/X11/xorg.conf.d/00-keyboard.conf
 
     else :
     fi || exit 1

@@ -19,11 +19,8 @@ ARG ROOTPSWD=""
 # Default Language
 ARG LANGUAGE="en_US.UTF-8"
 
-# Default Keyboard Type
-ARG KBD_TYPE="jp"
-
-# Default keymap
-ARG KMAPTYPE="jp106"
+# Default Keyboard Layout
+ARG KEYBOARD="jp"
 
 # Default timezone
 ARG TIMEZONE="Asia/Tokyo"
@@ -47,11 +44,8 @@ ARG ROOTPSWD
 # Default Language
 ARG LANGUAGE
 
-# Default Keyboard Type
-ARG KBD_TYPE
-
-# Default keymap
-ARG KMAPTYPE
+# Default Keyboard Layout
+ARG KEYBOARD
 
 # Default timezone
 ARG TIMEZONE
@@ -76,8 +70,7 @@ ENV \
 ENV \
  ROOTPSWD="${ROOTPSWD:-}" \
  LANGUAGE="${LANGUAGE:-}" \
- KBD_TYPE="${KBD_TYPE:-}" \
- KMAPTYPE="${KMAPTYPE:-}" \
+ KEYBOARD="${KEYBOARD:-}" \
  TIMEZONE="${TIMEZONE:-}" \
  YUM_LANG="${YUM_LANG:-}"
 
@@ -85,12 +78,6 @@ ENV \
  YUM_FAST_MIRROR="${YUM_FAST_MIRROR:-}" \
  YUM_FM_DOM_INCL="${YUM_FM_DOM_INCL:-}" \
  YUM_FM_DOM_EXCL="${YUM_FM_DOM_EXCL:-}"
-
-# Set Workdir
-WORKDIR /root/build/scripts.d
-
-# COPY shell scripts to Workdir
-COPY \[01\]\[1-9\]_*.sh ./
 
 # Set Workdir
 WORKDIR /root/build
@@ -105,6 +92,28 @@ RUN \
    /bin/bash -ux ./build-chrootdir.sh; \
  } && \
  : "Done.";
+
+## Set Workdir
+#WORKDIR /root/build/scripts.d
+#
+## COPY shell scripts to Workdir
+#COPY 1\[0-9\]_*.sh ./
+#
+## Setup (Ph2)
+#RUN \
+# set -ux; \
+# : "Chroot to the environment and install some additional tools." && { \
+#  cp -pf {,"${CENTOSROOT}"}/etc/resolv.conf && { \
+#    for build_sh in ./[0-9][0-9]_*.sh; \
+#    do \
+#      [ -e "${build_sh}" ] && \
+#      chroot "${CENTOSROOT}" /bin/bash -ux <"${build_sh}" || \
+#      exit 1; \
+#    done; \
+#  } && \
+#  rm -f "${CENTOSROOT}/etc/resolv.conf" || :; \
+# } && \
+# : "Done.";
 
 # Reset Workdir
 WORKDIR /
@@ -137,11 +146,8 @@ ARG ROOTPSWD
 # Default Language
 ARG LANGUAGE
 
-# Default Keyboard Type
-ARG KBD_TYPE
-
-# Default keymap
-ARG KMAPTYPE
+# Default Keyboard Layout
+ARG KEYBOARD
 
 # Default timezone
 ARG TIMEZONE
@@ -163,7 +169,7 @@ RUN \
  : "Export Args." && { \
   export CENTOS_VER; \
   export ROOTPSWD; \
-  export LANGUAGE KBD_TYPE KMAPTYPE TIMEZONE; \
+  export LANGUAGE KEYBOARD TIMEZONE; \
   export YUM_LANG; \
  }; \
  : "Execute Build Script." && { \
@@ -212,11 +218,8 @@ ARG ROOTPSWD
 # Default Language
 ARG LANGUAGE
 
-# Default Keyboard Type
-ARG KBD_TYPE
-
-# Default keymap
-ARG KMAPTYPE
+# Default Keyboard Layout
+ARG KEYBOARD
 
 # Default timezone
 ARG TIMEZONE
@@ -239,7 +242,7 @@ RUN \
  : "Export Args." && { \
   export CENTOS_VER; \
   export ROOTPSWD; \
-  export LANGUAGE KBD_TYPE KMAPTYPE TIMEZONE; \
+  export LANGUAGE KEYBOARD TIMEZONE; \
   export YUM_LANG; \
  }; \
  : "Execute Build Script." && { \
@@ -312,13 +315,9 @@ ARG ROOTPSWD=""
 ONBUILD \
 ARG LANGUAGE=""
 
-# ONBUILD: Keyboard Type
+# ONBUILD: Keyboard Layout
 ONBUILD \
-ARG KBD_TYPE=""
-
-# ONBUILD: Keymap
-ONBUILD \
-ARG KMAPTYPE=""
+ARG KEYBOARD=""
 
 # ONBUILD: timezone
 ONBUILD \
@@ -342,7 +341,7 @@ RUN \
  set -ux; \
  : "ONBUILD: Export Args." && { \
   export ROOTPSWD; \
-  export LANGUAGE KBD_TYPE KMAPTYPE TIMEZONE; \
+  export LANGUAGE KEYBOARD TIMEZONE; \
   export RPM_PACKAGES; \
  }; \
  : "ONBUILD: Execute OnBuild Scripts." && { \
@@ -397,13 +396,9 @@ ARG ROOTPSWD=""
 ONBUILD \
 ARG LANGUAGE=""
 
-# ONBUILD: Keyboard Type
+# ONBUILD: Keyboard Layout
 ONBUILD \
-ARG KBD_TYPE=""
-
-# ONBUILD: Keymap
-ONBUILD \
-ARG KMAPTYPE=""
+ARG KEYBOARD=""
 
 # ONBUILD: timezone
 ONBUILD \
@@ -443,7 +438,7 @@ RUN \
  set -ux; \
  : "ONHUILD: Export Args." && { \
   export ROOTPSWD; \
-  export LANGUAGE KBD_TYPE KMAPTYPE TIMEZONE; \
+  export LANGUAGE KEYBOARD TIMEZONE; \
   export DOCKER_UID DOCKERUSER DOCKERPASS; \
   export NO_SSH_LOGIN NO_LOGROTATE; \
   export RPM_PACKAGES; \
