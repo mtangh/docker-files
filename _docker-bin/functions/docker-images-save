@@ -29,7 +29,7 @@ docker-images-save() {
   [ -z "${_cimg_keys}" ] && {
     _buildpath=$(dockerfile-get-path "${_buildpath}") || :
     [ -r "${_buildpath}" ] && {
-      for _cimagetag in $(dockerfile-imagetag-get - "${_buildpath}")
+      for _cimagetag in $(dockerfile-imagepath-get - "${_buildpath}")
       do
         [ -n "${_cimagetag}" ] && {
           _cimg_keys="${_cimg_keys:+${_cimg_keys} }${_cimagetag}"

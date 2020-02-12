@@ -11,7 +11,8 @@ docker-run() {
   local _cmnd_opts=""
   local _endofopts=0
   local _dockerret=0
-  if [[ -n "${1:-}" && "${1}" =~ ^[-_/0-9A-Za-z]+(:[-_/0-9A-Za-z]+$|$) ]]
+  if [[ -n "${1:-}" && "${1}" =~ \
+     ^[_0-9A-Za-z][-_/0-9A-Za-z]+(:[_0-9A-Za-z][-_/0-9A-Za-z]+$|$) ]]
   then
     _imagepath=$(container-image-get-tag "${1}" 2>/dev/null) &&
     shift
@@ -22,7 +23,10 @@ docker-run() {
     eval $(getoptions_shift 2>/dev/null)
     case "${_getopt_V:=}" in
     --help)
-      docker run --help
+cat <<_USAGE_
+Usage: $FUNCNAME [OPTIONS] [+stage-index|@stage-name|IMAGE] [-- [COMMAND] [ARG...]]
+_USAGE_
+      docker run --help |egrep -v '^Usage' |tail -n +2
       echo
       return 0
       ;;
@@ -76,14 +80,16 @@ docker-run() {
     } || :
     _cimagetag=$(
       if [ -n "${_stage_key}" ]
-      then dockerfile-imagetag-get "${_stage_key}" "${_buildpath}"
+      then dockerfile-imagepath-get "${_stage_key}" "${_buildpath}"
       else dockerfile-env_IMAGEPATH "${_buildpath}"
       fi 2>/dev/null; )
   } || :
   [ -z "${_drun_opts}" ] &&
   _drun_opts=$(dockerfile-env_BOOT_OPTS "${_buildpath}") || :
   [ -n "${_cimagetag}" -a -z "${_drun_opts}" ] &&
-  _drun_opts=$(container-image-property_RUN_OPTS "${_cimagetag:-x}") || :
+  _drun_opts=$(container-image-property_RUN_OPTS "${_cimagetag}") || :
+# [ -z "${_cmnd_opts}" ] &&
+# _cmnd_opts="/bin/bash" || :
   if [ -n "${_cimagetag}" ]
   then
     echo docker run ${_drun_opts} ${_cimagetag} ${_cmnd_opts} &&

@@ -3,18 +3,36 @@
 # docker bash
 docker-bash() {
   local _container="$(container-get-id)"
+  local _cimagetag=""
   [ -n "${_container}" ] || {
-    _container="$(container-get-id ${1:-})" &&
-    shift
+    case "${1:-}" in
+    +[0-9]*|@[0-9A-Za-z]*)
+      _cimagetag="$(dockerfile-imagepath-get ${1:-})" &&
+      shift
+      ;;
+    *)
+      _container="$(container-get-id ${1:-})" &&
+      shift
+      ;;
+    esac
   }
-  [ -n "${_container}" ] || {
+  if [ -n "${_cimagetag}" -a -n "${_container}" ]
+  then
+    _container="$(container-get-id ${_cimagetag})" || :
+  fi
+  if [ -n "${_container}" ]
+  then
+    docker exec -it ${_container} /bin/bash "$@"
+  elif [ -n "${_cimagetag}" ]
+  then
+    docker-run -it ${_cimagetag} -- /bin/bash "$@"
+  else
     cat <<_USAGE_
-Usage: $FUNCNAME [CONTAINER] [BASH-ARG...]
+Usage: $FUNCNAME [CONTAINER|+stage-index|@stage-name] [BASH-ARG ...]
 
 _USAGE_
     return 1
-  }
-  docker exec -it ${_container} /bin/bash "$@"
+  fi
   return $?
 }
 

@@ -31,7 +31,7 @@ container-get-id() {
     _find_file=1
     _find_keys=$(echo \
       $(dockerfile-env_CONTAINER "${_buildpath}") \
-      $(dockerfile-imagetag-get "" "${_buildpath}") \
+      $(dockerfile-imagepath-get "" "${_buildpath}") \
       "" )
   }
   [ ${_ps_allids} -ne 0 ] &&

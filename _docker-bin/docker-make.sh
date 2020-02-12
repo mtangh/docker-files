@@ -147,7 +147,7 @@ _EOM_
 } |__stdout_with_ts ""
 
   # Each images
-  for _docker_c_image_ent in $(dockerfile-imagetag-get "" "${__docker_build_path}")
+  for _docker_c_image_ent in $(dockerfile-imagepath-get "" "${__docker_build_path}")
   do
 
     # Reset container ID
@@ -253,7 +253,7 @@ _EOM_
     pushd "${__docker_build_wdir}" 1>/dev/null 2>&1 || :
 
     # Each images
-    for _docker_c_image_ent in $(dockerfile-imagetag-get "" "${__docker_build_path}")
+    for _docker_c_image_ent in $(dockerfile-imagepath-get "" "${__docker_build_path}")
     do
 
       # Reset status

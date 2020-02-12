@@ -46,7 +46,7 @@ container-image-get() {
   then
     _buildpath=$(dockerfile-get-path "${_buildpath:-}") &&
     [ -r "${_buildpath}" ] && {
-      for _cimagekey in $(dockerfile-imagetag-get - "${_buildpath}")
+      for _cimagekey in $(dockerfile-imagepath-get - "${_buildpath}")
       do
         [ -n "${_cimagekey}" ] && {
           _cimg_keys="${_cimg_keys:+${_cimg_keys} }${_cimagekey}"
@@ -129,7 +129,7 @@ _USAGE_
   [ -n "${_buildpath}" ] &&
   _buildpath=$(dockerfile-get-path "${_buildpath:-}") || :
   [ -z "${_cimagelst}" ] &&
-  _cimagelst=$(dockerfile-imagetag-get - "${_buildpath:-}") || :
+  _cimagelst=$(dockerfile-imagepath-get - "${_buildpath:-}") || :
   [ -n "${_cimagelst}" ] &&
   _cimagecnt=$(echo "${_cimagelst}" |wc -w 2>/dev/null) || :
   [ ${_cimagecnt} -gt 0 ] || {

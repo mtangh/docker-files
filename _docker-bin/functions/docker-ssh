@@ -65,7 +65,7 @@ docker-ssh() {
     } || :
     _cimagetag=$(
       if [ -n "${_stage_key}" ]
-      then dockerfile-imagetag-get "${_stage_key}" "${_buildpath}"
+      then dockerfile-imagepath-get "${_stage_key}" "${_buildpath}"
       else dockerfile-env_IMAGEPATH "${_buildpath}"
       fi 2>/dev/null; )
   } || :

@@ -31,7 +31,10 @@ t|tag:=_cimagetag
     eval $(getoptions_shift)
     case "${_getopt_V:=}" in
     --help)
-      docker build --help
+cat <<_USAGE_
+Usage: $FUNCNAME [OPTIONS] [+stage-index|@stage-name] [PATH]
+_USAGE_
+      docker build --help |egrep -v '^Usage' |tail -n +2
       echo
       return 0
       ;;
@@ -129,7 +132,7 @@ t|tag:=_cimagetag
     fi
     if [ -z "${_cimagetag}" -a -n "${_targetind}" ]
     then
-      _cimagetag=$(dockerfile-imagetag-get "+${_targetind}" "${_buildpath}")
+      _cimagetag=$(dockerfile-imagepath-get "+${_targetind}" "${_buildpath}")
     fi
     if [ -z "${_cimagetag}" ]
     then

@@ -48,8 +48,11 @@ dockerfile-multi-stage() {
 dockerfile-stage-list() {
   local _buildpath=""
   local _formatted=0
-  local _collength=20
-  eval $(getoptions "F|format=_formatted" "$@")
+  local _withimage=0
+  local _fromindex=0
+  local _cl_asname=20
+  local _cl_source=20
+  eval $(getoptions "F|format=_formatted I|image=_withimage" "$@")
   while getoptions_has_next
   do
     eval $(getoptions_shift)
@@ -70,17 +73,32 @@ dockerfile-stage-list() {
   [ -f "${_buildpath}" -a -r "${_buildpath}" ] && {
     eval $(dockerfile-apply-build-opts "${_buildpath}")
     [ ${_formatted} -eq 0 ] || {
-      _collength=$(
+      _cl_asname=$(
         egrep -i '^[[:space:]]*FROM[[:space:]]+' "${_buildpath}" |
-        __adjustcolwidth "${_collength}" 4 )
-      printf "%3s %-${_collength}s%s" "IDX" "As" "From"
+        __adjustcolwidth "${_cl_asname}" 4 )
+      _cl_source=$(
+        egrep -i '^[[:space:]]*FROM[[:space:]]+' "${_buildpath}" |
+        __adjustcolwidth "${_cl_source}" 4 )
+      printf "%3s %-${_cl_asname}s%-${_cl_source}s" "IDX" "As" "From"
+      if [ ${_withimage} -ne 0 ]
+      then printf "%s" "Image"; fi
       echo
     }
     egrep -i '^[[:space:]]*FROM[[:space:]]+' "${_buildpath}" |
-    while read _in_record; do eval "echo ${_in_record}"; done |
-    if [ ${_formatted} -eq 0 ]
+    while read _in_record
+    do
+#     eval "echo ${_in_record} "$(dockerfile-imagepath-get "+${_fromindex}" "${_buildpath}")
+      eval "echo ${_in_record} "
+      _fromindex=$(( ${_fromindex} + 1 ))
+    done |
+    if [ ${_formatted} -eq 0 -a ${_withimage} -eq 0 ]
     then ${AWK} '{print(NR-1,(($4=="")?"-":$4),$2);}'
-    else ${AWK} '{print(sprintf("%3d %-'"${_collength}"'s%s",NR-1,(($4=="")?"-":$4),$2));}'
+    elif [ ${_formatted} -ne 0 -a ${_withimage} -eq 0 ]
+    then ${AWK} '{print(sprintf("%3d %-'"${_cl_asname}"'s%-'"${_cl_source}"'s",NR-1,(($4=="")?"-":$4),$2));}'
+    elif [ ${_formatted} -eq 0 -a ${_withimage} -ne 0 ]
+    then ${AWK} '{print(NR-1,(($4=="")?"-":$4),$2,$5);}'
+    elif [ ${_formatted} -ne 0 -a ${_withimage} -ne 0 ]
+    then ${AWK} '{print(sprintf("%3d %-'"${_cl_asname}"'s%-'"${_cl_source}"'s%s",NR-1,(($4=="")?"-":$4),$2,$5));}'
     fi 2>/dev/null
   }
   return $?
@@ -157,7 +175,7 @@ dockerfile-stage-has-name() {
 }
 
 # Get stage name by index
-dockerfile-imagetag-get() {
+dockerfile-imagepath-get() {
   local _stage_ind=""
   local _stagename=""
   local _cimagetag=""
