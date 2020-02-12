@@ -11,7 +11,7 @@
 ARG CENTOS_VER="7"
 
 # CentOS rootfs Image Dir
-ARG CENTOSROOT="/centos-image/rootfs"
+ARG CENTOSROOT="/centos-image/ROOT"
 
 # root password
 ARG ROOTPSWD=""
@@ -24,9 +24,6 @@ ARG KEYBOARD="jp"
 
 # Default timezone
 ARG TIMEZONE="Asia/Tokyo"
-
-# YUM Override install languages
-ARG YUM_LANG="en_US.UTF-8"
 
 
 # CentOS rootfs
@@ -50,9 +47,6 @@ ARG KEYBOARD
 # Default timezone
 ARG TIMEZONE
 
-# YUM Override install languages
-ARG YUM_LANG
-
 # YUM fastestmirror server
 ARG YUM_FAST_MIRROR="www.ftp.ne.jp"
 
@@ -71,8 +65,7 @@ ENV \
  ROOTPSWD="${ROOTPSWD:-}" \
  LANGUAGE="${LANGUAGE:-}" \
  KEYBOARD="${KEYBOARD:-}" \
- TIMEZONE="${TIMEZONE:-}" \
- YUM_LANG="${YUM_LANG:-}"
+ TIMEZONE="${TIMEZONE:-}"
 
 ENV \
  YUM_FAST_MIRROR="${YUM_FAST_MIRROR:-}" \
@@ -152,9 +145,6 @@ ARG KEYBOARD
 # Default timezone
 ARG TIMEZONE
 
-# YUM Override install languages
-ARG YUM_LANG
-
 # COPY From root-image
 COPY --from=rootfs "${CENTOSROOT}"/ /
 
@@ -170,7 +160,6 @@ RUN \
   export CENTOS_VER; \
   export ROOTPSWD; \
   export LANGUAGE KEYBOARD TIMEZONE; \
-  export YUM_LANG; \
  }; \
  : "Execute Build Script." && { \
   for build_sh in ./[0-9][0-9]_*.sh; \
@@ -224,9 +213,6 @@ ARG KEYBOARD
 # Default timezone
 ARG TIMEZONE
 
-# YUM Override install languages
-ARG YUM_LANG
-
 # COPY From root-image
 COPY --from=rootfs "${CENTOSROOT}"/ /
 
@@ -243,7 +229,6 @@ RUN \
   export CENTOS_VER; \
   export ROOTPSWD; \
   export LANGUAGE KEYBOARD TIMEZONE; \
-  export YUM_LANG; \
  }; \
  : "Execute Build Script." && { \
   for build_sh in ./[0-9][0-9]_*.sh; \

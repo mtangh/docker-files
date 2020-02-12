@@ -21,6 +21,11 @@ docker-run() {
   do
     eval $(getoptions_shift 2>/dev/null)
     case "${_getopt_V:=}" in
+    --help)
+      docker run --help
+      echo
+      return 0
+      ;;
     --)
       if [ ${_endofopts} -ne 0 ]
       then _endofopts=0

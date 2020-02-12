@@ -13,12 +13,15 @@ else
      yum -v -y install openssh-server
   } &&
   : "sshd: Configure sshd_config" && {
+
     sshd_config="/etc/ssh/sshd_config"
+
     [ -s "${sshd_config}" ] && {
       sed -ri 's/^#PermitRootLogin[ ]*yes/PermitRootLogin yes/' "${sshd_config}" &&
       sed -ri 's/^UsePAM yes/UsePAM no/' "${sshd_config}" &&
       cat "${sshd_config}"
     }
+
   } &&
   : "sshd: Enable sshd.service" && {
     systemctl enable sshd.service || :;

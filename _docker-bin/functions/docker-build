@@ -30,6 +30,11 @@ t|tag:=_cimagetag
   do
     eval $(getoptions_shift)
     case "${_getopt_V:=}" in
+    --help)
+      docker build --help
+      echo
+      return 0
+      ;;
     -*)
       _buildopts="${_buildopts:+${_buildopts} }${_getopt_V}"
       ;;
@@ -130,8 +135,8 @@ t|tag:=_cimagetag
     then
       _cimagetag=$(dockerfile-env_IMAGEPATH "${_buildpath}")
     fi
-#    _labelopts="${_labelopts:+${_labelopts} }--label build-date="'"'$(date +'%Y%m%dT%H:%M%z')'"'
-#    _labelopts="${_labelopts:+${_labelopts} }--label docker.build.options="'"'"${_buildopts}"'"'
+#   _labelopts="${_labelopts:+${_labelopts} }--label build-date="'"'$(date +'%Y%m%dT%H:%M%z')'"'
+    _labelopts="${_labelopts:+${_labelopts} }--label docker.build.options="'"'"${_buildopts}"'"'
     echo docker build ${_buildopts} ${_labelopts} \
       ${_cimagetag:+-t ${_cimagetag}} ${_stagename:+--target=${_stagename}} \
       ${_buildpath:+-f ${_buildpath}} "${_build_dir:-.}" &&
