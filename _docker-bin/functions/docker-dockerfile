@@ -60,6 +60,7 @@ dockerfile-stage-list() {
   local _cimagetag=""
   local _cimagetmp=""
   local _stage_ind=0
+  local _stagename=""
   local _in_record=""
   local _prtformat="%s %s %s"
   local _colwidth2=20
@@ -89,14 +90,14 @@ dockerfile-stage-list() {
   then _cimagetag=""
   else _cimagetag=$(dockerfile-env_IMAGEPATH "${_buildpath}" 2>/dev/null)
   fi
-  if [ ${_formatted} -eq 0 -a ${_withimage} -ne 0]
+  if [ ${_formatted} -eq 0 -a ${_withimage} -ne 0 ]
   then
     _prtformat="%s %s %s %s"
   elif [ ${_formatted} -ne 0 ]
   then
     eval $(
       : && {
-      eval $(dockerfile-apply-build-opts "${_buildpath}")
+      eval $(dockerfile-build-opts-apply "${_buildpath}")
       while read _in_record
       do
         _colwidth2=$(
@@ -106,49 +107,64 @@ dockerfile-stage-list() {
           eval "echo ${_in_record}" |
           __adjustcolwidth "${_colwidth3}" 3 )
       done < <(dockerfile-cat-FROM "${_buildpath}")
-      echo "_colwidth2=${_colwidth2}"
-      echo "_colwidth3=${_colwidth3}"
+      printf "_colwidth2=%s;" "${_colwidth2}"
+      printf "_colwidth3=%s;" "${_colwidth3}"
       }; )
     if [ ${_withimage} -eq 0 ]
     then
-      _prtformat="%3s %-'"${_colwidth2}"'s%s"
+      _prtformat="%3s %-${_colwidth2}s%s"
       printf "${_prtformat}" "IDX" "As" "From"
     else
-      _prtformat="%3s %-'"${_colwidth2}"'s%-'"${_colwidth3}"'s%s"
+      _prtformat="%3s %-${_colwidth2}s%-${_colwidth3}s%s"
       printf "${_prtformat}" "IDX" "As" "From" "Image"
     fi; echo
   fi
   ( : && {
-    eval $(dockerfile-apply-build-opts "${_buildpath}")
+    eval $(dockerfile-build-opts-apply "${_buildpath}")
     while read _in_record
     do
       _cimagetmp=""
       [ -z "${_cimagetag}" ] || {
-        _stage_ind=$(
-          echo "${_in_record}" |${AWK} '{print($1);}')
+        eval $(
+          echo "${_in_record}" |${AWK} \
+          '{printf("_stage_ind=%s;_stagename=%s;",$1,$2);}')
         _cimagetmp=$(
           dockerfile-imagepath-echo \
-          "${_cimagetag}" "${_stage_ind}" 2>/dev/null)
+          "${_cimagetag}" "${_stage_ind}" "${_stagename}" \
+          2>/dev/null)
       }
       eval "echo ${_in_record}${_cimagetmp:+ ${_cimagetmp}}"
     done < <(dockerfile-cat-FROM "${_buildpath}")
-    }; ) |
+  }; )|
   if [ ${_withimage} -eq 0 ]
-  then ${AWK} '{print(sprint("'"${_prtformat}"'",$1,$2,$3));}'
-  else ${AWK} '{print(sprint("'"${_prtformat}"'",$1,$2,$3,$4));}'
+  then ${AWK} '{print(sprintf("'"${_prtformat}"'",$1,$2,$3));}'
+  else ${AWK} '{print(sprintf("'"${_prtformat}"'",$1,$2,$3,$4));}'
   fi 2>/dev/null
   return $?
 }
 
 # Apply build-args
-dockerfile-apply-build-opts() {
+dockerfile-build-opts-apply() {
   local _buildpath="$(dockerfile-get-path ${1:-} 2>/dev/null)"
   local _buildopts=""
   [ -f "${_buildpath}" -a -r "${_buildpath}" ] && {
     cat "${_buildpath}" |dockerfile-cat |${SED} -nre \
     's/^[[:space:]]*ARG[[:space:]]+([^=]+=.*)$/\1;/gip'
     dockerfile-env_BUILDOPTS "${_buildpath}" |${SED} -re \
-    's/([^=]+[[:space:]])([_0-9A-Za-z]+=([^[:space:]]+|'"'[^']+'|''"'|""))/\2 /g'
+    's/([^=]+[[:space:]])([_0-9A-Za-z]+=([^[:space:]]+|'"'[^']+'|''"'|""))/\2;/g'
+  } 2>/dev/null
+  return $?
+}
+
+# Apply build-args
+dockerfile-build-opts-unset() {
+  local _buildpath="$(dockerfile-get-path ${1:-} 2>/dev/null)"
+  local _buildopts=""
+  [ -f "${_buildpath}" -a -r "${_buildpath}" ] && {
+    cat "${_buildpath}" |dockerfile-cat |${SED} -nre \
+    's/^[[:space:]]*ARG[[:space:]]+([^=]+)=.*$/unset \1;/gip'
+    dockerfile-env_BUILDOPTS "${_buildpath}" |${SED} -re \
+    's/([^=]+[[:space:]])([_0-9A-Za-z]+)=([^[:space:]]+|'"'[^']+'|''"'|"")/unset \2;/g'
   } 2>/dev/null
   return $?
 }
@@ -240,7 +256,7 @@ dockerfile-imagepath-get() {
     _stagename="${_stage_key##*@}"
     _stage_ind=$(
       dockerfile-stage-get-index "${_stagename}" "${_buildpath}" 2>/dev/null)
-    [ $? -eq 0 -a -n "${_stage_ind}" ] || 
+    [ $? -eq 0 -a -n "${_stage_ind}" ] ||
     return 2
     ;;
   *)
