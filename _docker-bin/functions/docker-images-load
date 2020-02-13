@@ -2,51 +2,51 @@
 docker-images-load() {
   local _imagefile=""
   local _cimage_id=""
-  local _cimagetag=""
+  local _imagepath=""
   local _cimg_pref=""
   local _cimg_suff=""
   local _gunzipcmd=""
   local _dockerret=0
   for _imagefile in "${@}"
   do
-    _cimagetag=""
+    _imagepath=""
     _cimg_pref=""
     _cimg_suff=""
     [ -r "${_imagefile}" ] || {
       echo "$FUNCNAME: Unable to read file '${_imagefile}'." 1>&2
       continue
     }
-    _cimagetag="${_imagefile##*/}"
-    case "${_cimagetag}" in
+    _imagepath="${_imagefile##*/}"
+    case "${_imagepath}" in
     *.tar.gz)
-      _cimagetag="${_cimagetag%.tar.gz*}"
+      _imagepath="${_imagepath%.tar.gz*}"
       _gunzipcmd="gunzip -c"
       ;;
     *.tgz)
-      _cimagetag="${_cimagetag%.tgz*}"
+      _imagepath="${_imagepath%.tgz*}"
       _gunzipcmd="gunzip -c"
       ;;
     *.*)
-      _cimagetag="${_cimagetag%.*}"
+      _imagepath="${_imagepath%.*}"
       _gunzipcmd="cat"
       ;;
     esac
-    case "${_cimagetag}" in
+    case "${_imagepath}" in
     *=*)
-      _cimg_pref="${_cimagetag%%:*}"
-      _cimagetag="${_cimg_pref//_/\/}:${_cimagetag#*:}"
+      _cimg_pref="${_imagepath%%:*}"
+      _imagepath="${_cimg_pref//_/\/}:${_imagepath#*:}"
       ;;
     *)
-      _cimagetag="${_cimagetag//_/\/}"
+      _imagepath="${_imagepath//_/\/}"
       ;;
     esac
     _cimage_id=$(
       ${_gunzipcmd} "${_imagefile}" |docker load -q |
       ${SED} -re 's/^Loaded[[:space:]]+image[[:space:]]+ID:[[:space:]]+//gi') &&
-    docker tag "${_cimage_id}" "${_cimagetag}" ||
+    docker tag "${_cimage_id}" "${_imagepath}" ||
     _dockerret=$?
     if [ ${_dockerret} -eq 0 ]
-    then echo "$FUNCNAME: Loaded image ID: ${_cimage_id} Tag: '${_cimagetag}'."
+    then echo "$FUNCNAME: Loaded image ID: ${_cimage_id} Tag: '${_imagepath}'."
     else echo "$FUNCNAME: Failed to load image: ${_imagefile}." 1>&2
     fi
   done &&

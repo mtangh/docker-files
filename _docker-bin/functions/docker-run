@@ -2,8 +2,8 @@
 
 # docker run
 docker-run() {
-  local _cimagetag=""
   local _imagepath=""
+  local _image_tmp=""
   local _stage_key=""
   local _buildpath=""
   local _opts_path=""
@@ -14,10 +14,10 @@ docker-run() {
   if [[ -n "${1:-}" && "${1}" =~ \
      ^[_0-9A-Za-z][-_/0-9A-Za-z]+(:[_0-9A-Za-z][-_/0-9A-Za-z]+$|$) ]]
   then
-    _imagepath=$(container-image-get-tag "${1}" 2>/dev/null) &&
+    _image_tmp=$(container-image-get-tag "${1}" 2>/dev/null) &&
     shift
   fi
-  eval $(getoptions "|image:=_cimagetag f|file:=_buildpath" "$@")
+  eval $(getoptions "|image:=_imagepath f|file:=_buildpath" "$@")
   while getoptions_has_next
   do
     eval $(getoptions_shift 2>/dev/null)
@@ -61,15 +61,15 @@ _USAGE_
   done
   eval $(getoptions_end)
   _buildpath=$(dockerfile-get-path "${_buildpath:-}" 2>/dev/null )
-  _cimagetag="${_imagepath:-}"
+  _imagepath="${_image_tmp:-}"
   [ -n "${_drun_opts}" ] &&
   [[ "${_drun_opts}" =~ ^((..*)[\ ]+|[\ ]*)([^\ -][^\ ]*)$ ]] && {
     _drun_opts="${BASH_REMATCH[2]}"
     [ -n "${BASH_REMATCH[3]}" ] && {
-      _cimagetag=$(container-image-get-tag "${BASH_REMATCH[3]}" 2>/dev/null)
+      _imagepath=$(container-image-get-tag "${BASH_REMATCH[3]}" 2>/dev/null)
     }
   }
-  [ -r "${_buildpath}" -a -z "${_cimagetag}" ] && {
+  [ -r "${_buildpath}" -a -z "${_imagepath}" ] && {
     [ -z "${_stage_key}" ] &&
     dockerfile-multi-stage "${_buildpath}" 1>/dev/null 2>&1 && {
       echo "Choose a stage to run."
@@ -78,7 +78,7 @@ _USAGE_
       echo
       return 1
     } || :
-    _cimagetag=$(
+    _imagepath=$(
       if [ -n "${_stage_key}" ]
       then dockerfile-imagepath-get "${_stage_key}" "${_buildpath}"
       else dockerfile-env_IMAGEPATH "${_buildpath}"
@@ -86,14 +86,14 @@ _USAGE_
   } || :
   [ -z "${_drun_opts}" ] &&
   _drun_opts=$(dockerfile-env_BOOT_OPTS "${_buildpath}") || :
-  [ -n "${_cimagetag}" -a -z "${_drun_opts}" ] &&
-  _drun_opts=$(container-image-property_RUN_OPTS "${_cimagetag}") || :
+  [ -n "${_imagepath}" -a -z "${_drun_opts}" ] &&
+  _drun_opts=$(container-image-property_RUN_OPTS "${_imagepath}") || :
 # [ -z "${_cmnd_opts}" ] &&
 # _cmnd_opts="/bin/bash" || :
-  if [ -n "${_cimagetag}" ]
+  if [ -n "${_imagepath}" ]
   then
-    echo docker run ${_drun_opts} ${_cimagetag} ${_cmnd_opts} &&
-    eval $(echo docker run ${_drun_opts} ${_cimagetag} ${_cmnd_opts})
+    echo docker run ${_drun_opts} ${_imagepath} ${_cmnd_opts} &&
+    eval $(echo docker run ${_drun_opts} ${_imagepath} ${_cmnd_opts})
     _dockerret=$?
   else
     docker run --help; echo; _dockerret=1

@@ -2,7 +2,7 @@
 
 # docker build
 docker-build() {
-  local _cimagetag=""
+  local _imagepath=""
   local _stage_ind=""
   local _stagename=""
   local _buildpath=""
@@ -17,7 +17,7 @@ docker-build() {
   eval $(
 getoptions "
 f|file:=_buildpath
-t|tag:=_cimagetag
+t|tag:=_imagepath
 |target:=_targetind
 |stage-all=_eachstage
 " "$@")
@@ -120,7 +120,7 @@ _USAGE_
   _buildopts=$(dockerfile-env_BUILDOPTS "${_buildpath}")
   for _targetind in ${_targetlst}
   do
-    _cimagetag=""
+    _imagepath=""
     _stagename=""
     if [ "${_targetind:--}" = "-" ]
     then
@@ -130,22 +130,22 @@ _USAGE_
     then
       _stagename=$(dockerfile-stage-get-name "+${_targetind}" "${_buildpath}")
     fi
-    if [ -z "${_cimagetag}" -a -n "${_targetind}" ]
+    if [ -z "${_imagepath}" -a -n "${_targetind}" ]
     then
-      _cimagetag=$(dockerfile-imagepath-get "+${_targetind}" "${_buildpath}")
+      _imagepath=$(dockerfile-imagepath-get "+${_targetind}" "${_buildpath}")
     fi
-    if [ -z "${_cimagetag}" ]
+    if [ -z "${_imagepath}" ]
     then
-      _cimagetag=$(dockerfile-env_IMAGEPATH "${_buildpath}")
+      _imagepath=$(dockerfile-env_IMAGEPATH "${_buildpath}")
     fi
 #   _labelopts="${_labelopts:+${_labelopts} }--label build-date="'"'$(date +'%Y%m%dT%H:%M%z')'"'
     _labelopts="${_labelopts:+${_labelopts} }--label docker.build.options="'"'"${_buildopts}"'"'
     echo docker build ${_buildopts} ${_labelopts} \
-      ${_cimagetag:+-t ${_cimagetag}} ${_stagename:+--target=${_stagename}} \
+      ${_imagepath:+-t ${_imagepath}} ${_stagename:+--target=${_stagename}} \
       ${_buildpath:+-f ${_buildpath}} "${_build_dir:-.}" &&
     eval $(echo \
       docker build ${_buildopts} ${_labelopts} \
-      ${_cimagetag:+-t ${_cimagetag}} ${_stagename:+--target=${_stagename}} \
+      ${_imagepath:+-t ${_imagepath}} ${_stagename:+--target=${_stagename}} \
       ${_buildpath:+-f ${_buildpath}} "${_build_dir:-.}")
     _dockerret=$?
     [ ${_dockerret} -eq 0 ] || break

@@ -4,7 +4,7 @@
 docker-ssh() {
   local _container=""
   local _cinstance=""
-  local _cimagetag=""
+  local _imagepath=""
   local _stage_key=""
   local _buildpath=""
   local c_ssh_user="root"
@@ -18,7 +18,7 @@ docker-ssh() {
     c_ssh_host="$(docker-machine ip 2>/dev/null)"
   }
   eval $(getoptions \
-    "|file:=_buildpath |name:=_cinstance |tag:=_cimagetag l|:=c_ssh_user p|:=c_ssh_port" "$@")
+    "|file:=_buildpath |name:=_cinstance |tag:=_imagepath l|:=c_ssh_user p|:=c_ssh_port" "$@")
   while getoptions_has_next
   do
     eval $(getoptions_shift)
@@ -57,13 +57,13 @@ docker-ssh() {
     dockerfile-get-path "${_buildpath:-}" 2>/dev/null )
   [ -r "${_buildpath}" -a -z "${_cinstance}" ] &&
   _cinstance=$(dockerfile-env_CONTAINER "${_buildpath}") || :
-  [ -r "${_buildpath}" -a -z "${_cimagetag}" ] && {
+  [ -r "${_buildpath}" -a -z "${_imagepath}" ] && {
     [ -z "${_stage_key}" ] &&
     dockerfile-multi-stage "${_buildpath}" 1>/dev/null 2>&1 && {
       dockerfile-stage-list --format "${_buildpath}" 2>/dev/null
       return 1
     } || :
-    _cimagetag=$(
+    _imagepath=$(
       if [ -n "${_stage_key}" ]
       then dockerfile-imagepath-get "${_stage_key}" "${_buildpath}"
       else dockerfile-env_IMAGEPATH "${_buildpath}"
@@ -72,7 +72,7 @@ docker-ssh() {
   [ -z "${c_ssh_port}" ] && {
     _container=$(
       container-get-id-all "${_cinstance}" ||
-      container-get-id-all "${_cimagetag}" ||
+      container-get-id-all "${_imagepath}" ||
       echo "")
   } || :
   [ -z "${c_ssh_port}" ] &&

@@ -57,7 +57,7 @@ dockerfile-stage-list() {
   local _buildpath=""
   local _formatted=0
   local _withimage=0
-  local _cimagetag=""
+  local _imagepath=""
   local _cimagetmp=""
   local _stage_ind=0
   local _stagename=""
@@ -87,8 +87,8 @@ dockerfile-stage-list() {
     return 1
   }
   if [ ${_withimage} -eq 0 ]
-  then _cimagetag=""
-  else _cimagetag=$(dockerfile-env_IMAGEPATH "${_buildpath}" 2>/dev/null)
+  then _imagepath=""
+  else _imagepath=$(dockerfile-env_IMAGEPATH "${_buildpath}" 2>/dev/null)
   fi
   if [ ${_formatted} -eq 0 -a ${_withimage} -ne 0 ]
   then
@@ -124,13 +124,13 @@ dockerfile-stage-list() {
     while read _in_record
     do
       _cimagetmp=""
-      [ -z "${_cimagetag}" ] || {
+      [ -z "${_imagepath}" ] || {
         eval $(
           echo "${_in_record}" |${AWK} \
           '{printf("_stage_ind=%s;_stagename=%s;",$1,$2);}')
         _cimagetmp=$(
           dockerfile-imagepath-echo \
-          "${_cimagetag}" "${_stage_ind}" "${_stagename}" \
+          "${_imagepath}" "${_stage_ind}" "${_stagename}" \
           2>/dev/null)
       }
       eval "echo ${_in_record}${_cimagetmp:+ ${_cimagetmp}}"
@@ -230,18 +230,18 @@ dockerfile-stage-has-name() {
 dockerfile-imagepath-get() {
   local _stage_ind=""
   local _stagename=""
-  local _cimagetag=""
+  local _imagepath=""
   local _stage_key="${1:-}"; shift
   local _buildpath=$(dockerfile-get-path "${1:-}" 2>/dev/null); shift
   local _multi_stg=0
-  _cimagetag=$(dockerfile-env_IMAGEPATH "${_buildpath}" 2>/dev/null) || {
+  _imagepath=$(dockerfile-env_IMAGEPATH "${_buildpath}" 2>/dev/null) || {
     return 1
   }
   dockerfile-multi-stage "${_buildpath}" 1>/dev/null 2>&1 && {
     _multi_stg=1
   } || :
   [ ${_multi_stg} -eq 0 ] && {
-    [ -n "${_cimagetag}" ] && echo "${_cimagetag}"
+    [ -n "${_imagepath}" ] && echo "${_imagepath}"
     return $?
   } || :
   case "${_stage_key}" in
@@ -276,31 +276,31 @@ dockerfile-imagepath-get() {
   for _stage_ind in ${_stage_key}
   do
     _stagename=$(dockerfile-stage-get-name "${_stage_ind}" "${_buildpath}" 2>/dev/null)
-    dockerfile-imagepath-echo "${_cimagetag}" "${_stage_ind}" "${_stagename}"
+    dockerfile-imagepath-echo "${_imagepath}" "${_stage_ind}" "${_stagename}"
   done
   return $?
 }
 
 dockerfile-imagepath-echo() {
-  local _cimagetag="${1:-}"; shift
+  local _imagepath="${1:-}"; shift
   local _stage_ind="${1:-}"; shift
   local _stagename="${1:-}"; shift
-  [ -n "${_cimagetag}" -a \
+  [ -n "${_imagepath}" -a \
     -n "${_stage_ind}${_stagename}" ] && {
     [ "${_stagename}" = "-" ] && {
       _stagename=""
     }
-    case "${_cimagetag}" in
+    case "${_imagepath}" in
     [-_0-9A-Za-z]*:[-_0-9A-Za-z]*)
       if [ -n "${_stagename}" ]
-      then echo "${_cimagetag}${_stagename:+_${_stagename}}"
-      else echo "${_cimagetag}${_stage_ind:+_${_stage_ind}}"
+      then echo "${_imagepath}${_stagename:+_${_stagename}}"
+      else echo "${_imagepath}${_stage_ind:+_${_stage_ind}}"
       fi
       ;;
     [-_0-9A-Za-z]*)
       if [ -n "${_stagename}" ]
-      then echo "${_cimagetag}${_stagename:+:${_stagename}}"
-      else echo "${_cimagetag}${_stage_ind:+:${_stage_ind}}"
+      then echo "${_imagepath}${_stagename:+:${_stagename}}"
+      else echo "${_imagepath}${_stage_ind:+:${_stage_ind}}"
       fi
       ;;
     *)

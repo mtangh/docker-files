@@ -3,7 +3,7 @@ docker-images-save() {
   local _cimg_keys=""
   local _cimagekey=""
   local _cimage_id=""
-  local _cimagetag=""
+  local _imagepath=""
   local _buildpath=""
   local _store_dir=""
   local _stage_key=""
@@ -29,33 +29,33 @@ docker-images-save() {
   [ -z "${_cimg_keys}" ] && {
     _buildpath=$(dockerfile-get-path "${_buildpath}") || :
     [ -r "${_buildpath}" ] && {
-      for _cimagetag in $(dockerfile-imagepath-get - "${_buildpath}")
+      for _imagepath in $(dockerfile-imagepath-get - "${_buildpath}")
       do
-        [ -n "${_cimagetag}" ] && {
-          _cimg_keys="${_cimg_keys:+${_cimg_keys} }${_cimagetag}"
+        [ -n "${_imagepath}" ] && {
+          _cimg_keys="${_cimg_keys:+${_cimg_keys} }${_imagepath}"
         } || break
       done
     }
     _cimage_id=""
-    _cimagetag=""
+    _imagepath=""
   } || :
   [ -n "${_cimg_keys}" ] &&
   for _cimagekey in ${_cimg_keys}
   do
     _cimage_id=""
-    _cimagetag=""
+    _imagepath=""
     [ -n "${_cimagekey}" ] && {
       _cimage_id=$(container-image-get-id "${_cimagekey}")
-      _cimagetag=$(container-image-get-tag "${_cimagekey}")
+      _imagepath=$(container-image-get-tag "${_cimagekey}")
     } 2>/dev/null
-    [  -n "${_cimage_id}" -a -n "${_cimagetag}" ] && {
-      case "${_cimagetag}" in
+    [  -n "${_cimage_id}" -a -n "${_imagepath}" ] && {
+      case "${_imagepath}" in
       *:*)
-        _file_pref="${_cimagetag%%:*}"
-        _savedfile="${_file_pref/\//_}=${_cimagetag#*:}.tgz"
+        _file_pref="${_imagepath%%:*}"
+        _savedfile="${_file_pref/\//_}=${_imagepath#*:}.tgz"
         ;;
       *)
-        _savedfile="${_cimagetag/\//_}.tgz"
+        _savedfile="${_imagepath/\//_}.tgz"
         ;;
       esac
       docker save "${_cimage_id}" |
@@ -63,8 +63,8 @@ docker-images-save() {
     } ||
     _dockerret=$?
     if [ ${_dockerret} -eq 0 ]
-    then echo "$FUNCNAME: Saved image: '${_cimagetag:-${_cimagekey}}${_cimage_id:+(${_cimage_id})}' to '${_savedfile}'."
-    else echo "$FUNCNAME: Failed to save image: '${_cimagetag:-${_cimagekey}}${_cimage_id:+(${_cimage_id})}'."
+    then echo "$FUNCNAME: Saved image: '${_imagepath:-${_cimagekey}}${_cimage_id:+(${_cimage_id})}' to '${_savedfile}'."
+    else echo "$FUNCNAME: Failed to save image: '${_imagepath:-${_cimagekey}}${_cimage_id:+(${_cimage_id})}'."
     fi
     _savedfile=""
   done &&

@@ -87,7 +87,7 @@ container-image-get-config() {
   local _buildpath=""
   local _formatted=0
   local _cimagelst=""
-  local _cimagetag=""
+  local _imagepath=""
   local _cimagecnt=0
   local _inspecter=""
   local _collength=20
@@ -137,20 +137,20 @@ _USAGE_
   }
   [ ${_cimagecnt} -le 1 -o ${_formatted} -eq 0 ] || {
     _collength=$(
-      for _cimagetag in ${_cimagelst}
-      do echo "${_cimagetag}"; done |
+      for _imagepath in ${_cimagelst}
+      do echo "${_imagepath}"; done |
       __adjustcolwidth "${_collength}")
     printf "%-${_collength}s%s" "IMAGE-REPO:TAG" "${_prop_name:-${_cmnd_type}}"
     echo
   }
-  for _cimagetag in ${_cimagelst}
+  for _imagepath in ${_cimagelst}
   do
     _propvalue=""
-    [ -n "${_cimagetag}" ] &&
-    _cimagetag=$(
+    [ -n "${_imagepath}" ] &&
+    _imagepath=$(
       container-image-get-tag \
-      ${_buildpath:+-f ${_buildpath}} "${_cimagetag}") &&
-    [ -n "${_cimagetag}" ] && {
+      ${_buildpath:+-f ${_buildpath}} "${_imagepath}") &&
+    [ -n "${_imagepath}" ] && {
       case "${_cmnd_type}" in
       label|property)
         _inspecter='{{ index .Config.Labels "'"${_prop_name}"'" }}'
@@ -161,14 +161,14 @@ _USAGE_
       esac
       _propvalue=$(
         docker inspect --type image --format="${_inspecter}" \
-        "${_cimagetag}" 2>/dev/null) &&
+        "${_imagepath}" 2>/dev/null) &&
       if [ ${_cimagecnt} -le 1 ]
       then
         echo "${_propvalue}"
       else
         if [ ${_formatted} -ne 0 ]
-        then printf "%-${_collength}s%s" "${_cimagetag}" "${_propvalue}"
-        else printf "%s %s" "${_cimagetag}" "${_propvalue}"
+        then printf "%-${_collength}s%s" "${_imagepath}" "${_propvalue}"
+        else printf "%s %s" "${_imagepath}" "${_propvalue}"
         fi
         echo
       fi
