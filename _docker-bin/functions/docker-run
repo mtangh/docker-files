@@ -14,7 +14,7 @@ docker-run() {
   if [[ -n "${1:-}" && "${1}" =~ \
      ^[_0-9A-Za-z][-_/0-9A-Za-z]+(:[_0-9A-Za-z][-_/0-9A-Za-z]+$|$) ]]
   then
-    _image_tmp=$(container-image-get-tag "${1}" 2>/dev/null) &&
+    _image_tmp=$(container-image-get-path "${1}" 2>/dev/null) &&
     shift
   fi
   eval $(getoptions "|image:=_imagepath f|file:=_buildpath" "$@")
@@ -66,7 +66,7 @@ _USAGE_
   [[ "${_drun_opts}" =~ ^((..*)[\ ]+|[\ ]*)([^\ -][^\ ]*)$ ]] && {
     _drun_opts="${BASH_REMATCH[2]}"
     [ -n "${BASH_REMATCH[3]}" ] && {
-      _imagepath=$(container-image-get-tag "${BASH_REMATCH[3]}" 2>/dev/null)
+      _imagepath=$(container-image-get-path "${BASH_REMATCH[3]}" 2>/dev/null)
     }
   }
   [ -r "${_buildpath}" -a -z "${_imagepath}" ] && {

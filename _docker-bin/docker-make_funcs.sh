@@ -30,7 +30,7 @@ __echo_end() {
 
 # Section
 __section() {
-  printf "${BASE:-MAKE}: "
+  printf ""
   for i in {1..68};do printf '-';done;echo
   return 0
 }

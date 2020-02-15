@@ -26,13 +26,14 @@ yum_chroot="${yum_chroot} --setopt=tsflags=nodocs"
 
 : "Initialize Chroot Dir." && {
 
-  rpm_gpgkey="/etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-${CENTOS_VER}"
+  rpm_gpgkey="/etc/pki/rpm-gpg/RPM-GPG-KEY-centosofficial"
 
   mkdir -p "${CENTOSROOT}" &&
   ${yum} reinstall --downloadonly --downloaddir . centos-release &&
+  ${yum} reinstall --downloadonly --downloaddir . centos-gpg-keys &&
   ${rpm_chroot} --initdb &&
-  ${rpm_chroot} --nodeps -ivh centos-release*.rpm &&
-  rm -f centos-release*.rpm &&
+  ${rpm_chroot} --nodeps -ivh centos-release*.rpm centos-gpg-keys*.rpm &&
+  rm -f centos-release*.rpm centos-gpg-keys*.rpm &&
   ${rpm_chroot} --import "${CENTOSROOT}${rpm_gpgkey}" &&
   ${yum_chroot} install yum
 
@@ -50,19 +51,18 @@ yum_chroot="${yum_chroot} --setopt=tsflags=nodocs"
 
   # Package setup
   ${yum_chroot} update &&
-  ${yum_chroot} install \
-    bash \
-    bind-utils \
-    iputils \
-    iproute \
-    passwd \
-    rootfiles \
-    tar \
-    vim-minimal \
-    yum-plugin-fastestmirror \
-    yum-plugin-ovl \
-    yum-utils \
-    || exit 1
+  ${yum_chroot} install procps-ng iputils
+#  ${yum_chroot} install \
+#    bash \
+#    bind-utils \
+#    iputils \
+#    iproute \
+#    passwd \
+#    rootfiles \
+#    tar \
+#    vim-minimal \
+#    yum-utils \
+#    || exit 1
 
   # Install EPEL
   ${yum_chroot} install \
@@ -74,50 +74,50 @@ yum_chroot="${yum_chroot} --setopt=tsflags=nodocs"
   ${rpm_chroot} -e kernel || :
 
   # Remove
-  ${yum_chroot} remove \
-    bind-libs \
-    bind-libs-lite \
-    dhclient \
-    dhcp-common \
-    dhcp-libs \
-    dracut-network \
-    e2fsprogs \
-    e2fsprogs-libs \
-    ebtables \
-    ethtool \
-    file \
-    firewalld \
-    firewalld-filesystem \
-    freetype \
-    gettext* \
-    GeoIP \
-    geoipupdate \
-    groff-base \
-    grub2 \
-    grub2-tools \
-    grubby \
-    initscripts \
-    iproute \
-    iptables \
-    kexec-tools \
-    libcroco \
-    libgomp \
-    libmnl \
-    libnetfilter_conntrack \
-    libnfnetlink \
-    libselinux-python \
-    libunistring \
-    linux-firmware \
-    lzo \
-    os-prober \
-    python-decorator \
-    python-slip \
-    python-slip-dbus \
-    qemu-guest-agent \
-    snappy \
-    sysvinit-tools \
-    which \
-    || exit 1
+#1  ${yum_chroot} --skip-broken --nobest remove \
+#    bind-libs \
+#    bind-libs-lite \
+#    dhclient \
+#    dhcp-common \
+#    dhcp-libs \
+#    dracut-network \
+#    e2fsprogs \
+#    e2fsprogs-libs \
+#    ebtables \
+#    ethtool \
+#    file \
+#    firewalld \
+#    firewalld-filesystem \
+#    freetype \
+#    gettext* \
+#    GeoIP \
+#    geoipupdate \
+#    groff-base \
+#    grub2 \
+#    grub2-tools \
+#    grubby \
+#    initscripts \
+#    iproute \
+#    iptables \
+#    kexec-tools \
+#    libcroco \
+#    libgomp \
+#    libmnl \
+#    libnetfilter_conntrack \
+#    libnfnetlink \
+#    libselinux-python \
+#    libunistring \
+#    linux-firmware \
+#    lzo \
+#    os-prober \
+#    python-decorator \
+#    python-slip \
+#    python-slip-dbus \
+#    qemu-guest-agent \
+#    snappy \
+#    sysvinit-tools \
+#    which \
+#    || exit 1
 
   # yum cleanup
   ${yum_chroot} update &&

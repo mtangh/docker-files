@@ -7,6 +7,13 @@ CDIR=$([ -n "${BASH_SOURCE%/*}" ] && cd "${BASH_SOURCE%/*}"; pwd)
 [ -n "${CENTOS_VER:-}" ] || exit 1
 [ -n "${CENTOSROOT:-}" ] || exit 1
 
+cat <<_EOF_
+#*
+#* CENTOS_VER${CENTOS_VER:-}
+#* CENTOSROOT${CENTOSROOT:-}
+#*
+_EOF_
+
 rpm="rpm -v"
 yum="yum -v -y"
 
@@ -46,14 +53,11 @@ yum_chroot="${yum_chroot} --setopt=tsflags=nodocs"
   ${yum_chroot} install \
     bash \
     bind-utils \
-    findutils \
     iputils \
     iproute \
     passwd \
     rootfiles \
-    shadow-utils \
     tar \
-    util-linux-ng \
     vim-minimal \
     yum-plugin-fastestmirror \
     yum-plugin-ovl \
@@ -77,11 +81,14 @@ yum_chroot="${yum_chroot} --setopt=tsflags=nodocs"
     dbus-python \
     device-mapper* \
     dhclient \
+    dhcp-common \
     dhcp-libs \
     dracut \
     dracutinstall \
     e2fsprogs-libs \
     ebtables \
+    ethtool \
+    file \
     firewalld \
     freetype \
     gettext* \
@@ -115,10 +122,9 @@ yum_chroot="${yum_chroot} --setopt=tsflags=nodocs"
   : && {
     chroot "${CENTOSROOT}" /bin/bash -ux <<_EOF_
 : "Disable services" && {
-  for sn in $(/sbin/chkconfig|cut -f1)
+  for sn in \$(/sbin/chkconfig|cut -f1)
   do
-     [ -n "\${sn}" ] &&
-     /sbin/chkconfig "\${sn}" off || :
+     [ -n "\${sn}" ] && /sbin/chkconfig "\${sn}" off || :
   done
   # udev-post
   [ -e "/etc/rc1.d/S26udev-post" ] && {
@@ -133,15 +139,18 @@ yum_chroot="${yum_chroot} --setopt=tsflags=nodocs"
   passwd -S root
 } &&
 : "Default Language." && {
-  echo 'LANG=en_US.UTF-8' 1>/etc/sysconfig/i18n
+  if [ -s "${langfile:=/etc/sysconfig/i18n}" ] &&
+     egrep '^LANG=' "${langfile}" 1>/dev/null 2>&1
+  then sed -ri 's/^LANG=.*\$/LANG=en_US.UTF-8/g' "${langfile}"
+  else echo 'LANG=en_US.UTF-8' 1>>"${langfile}"
+  fi || :
 } &&
 : "Remove some things we don't need" && {
   rm -rf \
     /boot/* \
     /etc/firewalld \
     /etc/sysconfig/network-scripts/ifcfg-* \
-    /usr/lib/locale/locale-archive \\
-    /tmp/ks-script* \
+    /usr/lib/locale/locale-archive \
     /root/* || :
 } &&
 : "Make sure login works" && {
@@ -155,10 +164,10 @@ yum_chroot="${yum_chroot} --setopt=tsflags=nodocs"
   done
 } &&
 : "Cleanup tmp." && {
-  rm -f {,/var}/tmp/* || :
+  rm -rf {,/var}/tmp/* || :
 } &&
 : "Generate installtime file record." && {
-  /bin/date +'%Y%m%dT%H%M%S%:z' 1>/etc/BUILDTIME || :
+  date +'%Y%m%dT%H%M%S%:z' 1>/etc/BUILDTIME || :
 } &&
 [ \$? -eq 0 ]
 _EOF_

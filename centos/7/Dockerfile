@@ -19,11 +19,12 @@ ARG ROOTPSWD=""
 # Default Language
 ARG LANGUAGE="en_US.UTF-8"
 
-# Default Keyboard Layout
-ARG KEYBOARD="jp"
-
 # Default timezone
 ARG TIMEZONE="Asia/Tokyo"
+
+# Default Keyboard Layout and key-table
+ARG KEYBOARD="jp"
+ARG KBDTABLE="jp106"
 
 
 # CentOS rootfs
@@ -41,11 +42,12 @@ ARG ROOTPSWD
 # Default Language
 ARG LANGUAGE
 
-# Default Keyboard Layout
-ARG KEYBOARD
-
 # Default timezone
 ARG TIMEZONE
+
+# Default Keyboard Layout and Key-Table
+ARG KEYBOARD
+ARG KBDTABLE
 
 # YUM fastestmirror server
 ARG YUM_FAST_MIRROR="www.ftp.ne.jp"
@@ -64,8 +66,9 @@ ENV \
 ENV \
  ROOTPSWD="${ROOTPSWD:-}" \
  LANGUAGE="${LANGUAGE:-}" \
+ TIMEZONE="${TIMEZONE:-}" \
  KEYBOARD="${KEYBOARD:-}" \
- TIMEZONE="${TIMEZONE:-}"
+ KBDTABLE="${KBDTABLE:-}"
 
 ENV \
  YUM_FAST_MIRROR="${YUM_FAST_MIRROR:-}" \
@@ -139,11 +142,12 @@ ARG ROOTPSWD
 # Default Language
 ARG LANGUAGE
 
-# Default Keyboard Layout
-ARG KEYBOARD
-
 # Default timezone
 ARG TIMEZONE
+
+# Default Keyboard Layout and Key-Table
+ARG KEYBOARD
+ARG KBDTABLE
 
 # COPY From root-image
 COPY --from=rootfs "${CENTOSROOT}"/ /
@@ -159,7 +163,7 @@ RUN \
  : "Export Args." && { \
   export CENTOS_VER; \
   export ROOTPSWD; \
-  export LANGUAGE KEYBOARD TIMEZONE; \
+  export LANGUAGE TIMEZONE KEYBOARD KBDTABLE; \
  }; \
  : "Execute Build Script." && { \
   for build_sh in ./[0-9][0-9]_*.sh; \
@@ -207,11 +211,12 @@ ARG ROOTPSWD
 # Default Language
 ARG LANGUAGE
 
-# Default Keyboard Layout
-ARG KEYBOARD
-
 # Default timezone
 ARG TIMEZONE
+
+# Default Keyboard Layout and Key-Table
+ARG KEYBOARD
+ARG KBDTABLE
 
 # COPY From root-image
 COPY --from=rootfs "${CENTOSROOT}"/ /
@@ -228,7 +233,7 @@ RUN \
  : "Export Args." && { \
   export CENTOS_VER; \
   export ROOTPSWD; \
-  export LANGUAGE KEYBOARD TIMEZONE; \
+  export LANGUAGE TIMEZONE KEYBOARD KBDTABLE; \
  }; \
  : "Execute Build Script." && { \
   for build_sh in ./[0-9][0-9]_*.sh; \
@@ -305,13 +310,15 @@ ARG ROOTPSWD=""
 ONBUILD \
 ARG LANGUAGE=""
 
-# ONBUILD: Keyboard Layout
-ONBUILD \
-ARG KEYBOARD=""
-
 # ONBUILD: timezone
 ONBUILD \
 ARG TIMEZONE=""
+
+# ONBUILD: Keyboard Layout and Key-Table
+ONBUILD \
+ARG KEYBOARD=""
+ONBUILD \
+ARG KBDTABLE=""
 
 # ONBUILD: Extra RPM Packages
 ONBUILD \
@@ -332,7 +339,7 @@ RUN \
  : "ONBUILD: Export Args." && { \
   export CENTOS_VER=$(cat ./CENTOS_VER); \
   export ROOTPSWD; \
-  export LANGUAGE KEYBOARD TIMEZONE; \
+  export LANGUAGE TIMEZONE KEYBOARD KBDTABLE; \
   export RPM_PACKAGES; \
  }; \
  : "ONBUILD: Execute OnBuild Scripts." && { \
@@ -392,13 +399,15 @@ ARG ROOTPSWD=""
 ONBUILD \
 ARG LANGUAGE=""
 
-# ONBUILD: Keyboard Layout
-ONBUILD \
-ARG KEYBOARD=""
-
 # ONBUILD: timezone
 ONBUILD \
 ARG TIMEZONE=""
+
+# ONBUILD: Keyboard Layout and Key-Table
+ONBUILD \
+ARG KEYBOARD=""
+ONBUILD \
+ARG KBDTABLE=""
 
 # ONBUILD: Default login
 ONBUILD \
@@ -435,7 +444,7 @@ RUN \
  : "ONBUILD: Export Args." && { \
   export CENTOS_VER=$(cat ./CENTOS_VER); \
   export ROOTPSWD; \
-  export LANGUAGE KEYBOARD TIMEZONE; \
+  export LANGUAGE TIMEZONE KEYBOARD KBDTABLE; \
   export DOCKER_UID DOCKERUSER DOCKERPASS; \
   export NO_SSH_LOGIN NO_LOGMANAGE; \
   export RPM_PACKAGES; \

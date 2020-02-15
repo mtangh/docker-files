@@ -6,13 +6,13 @@ container-image-get-id() {
   return $?
 }
 
-# container image tag
-container-image-get-tag() {
-  container-image-get tag "$@"
+# container image path(repo:tag)
+container-image-get-path() {
+  container-image-get path "$@"
   return $?
 }
 
-# get container image id or tag
+# get container image id or path
 container-image-get() {
   local _cimg_type="${1:-}"; shift
   local _cimg_fcls=""
@@ -22,10 +22,10 @@ container-image-get() {
   local _found_val=""
   local _buildpath=""
   case "${_cimg_type}" in
-  id)  _cimg_fcls='{print($1);}' ;;
-  tag) _cimg_fcls='{print($2);}' ;;
+  id)   _cimg_fcls='{print($1);}' ;;
+  path) _cimg_fcls='{print($2);}' ;;
   *)
-    echo "Usage: $FUNCNAME {tag|id} [-f dockerfile-path] [IMAGE ...]" 1>&2
+    echo "Usage: $FUNCNAME {path|id} [-f dockerfile-path] [IMAGE ...]" 1>&2
     return 2
     ;;
   esac
@@ -148,7 +148,7 @@ _USAGE_
     _propvalue=""
     [ -n "${_imagepath}" ] &&
     _imagepath=$(
-      container-image-get-tag \
+      container-image-get-path \
       ${_buildpath:+-f ${_buildpath}} "${_imagepath}") &&
     [ -n "${_imagepath}" ] && {
       case "${_cmnd_type}" in

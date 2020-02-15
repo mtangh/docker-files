@@ -3,6 +3,7 @@
 # docker build
 docker-build() {
   local _imagepath=""
+  local _eachstage=0
   local _stage_ind=""
   local _stagename=""
   local _buildpath=""
@@ -19,7 +20,7 @@ getoptions "
 f|file:=_buildpath
 t|tag:=_imagepath
 |target:=_targetind
-|stage-all=_eachstage
+|for-each-stage=_eachstage
 " "$@")
   if [ -n "${_buildpath}" -a "${_buildpath}" != "${_buildpath##*/}" ]
   then

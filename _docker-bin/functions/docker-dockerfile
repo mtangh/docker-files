@@ -26,7 +26,10 @@ dockerfile-cat() {
   local _line_data=""
   [ $# -gt 0  ] &&
   _buildpath=$(dockerfile-get-path "${1:-}" 2>/dev/null) && shift || :
-  cat "${_buildpath}" |
+  if [ -n "${_buildpath}" ]
+  then cat "${_buildpath}"
+  else cat
+  fi |
   while IFS= read _line_data
   do
     case "${_line_data}" in

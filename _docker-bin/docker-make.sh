@@ -129,12 +129,25 @@ __docker_build_wdir="${__docker_build_path%/*}"
 
 # Print build file
 : && {
+  __section
+  cat <<'_EOM_'
+#
+#    ____             _                ____        _ _     _
+#   |  _ \  ___   ___| | _____ _ __   | __ ) _   _(_) | __| |
+#   | | | |/ _ \ / __| |/ / _ \ '__|  |  _ \| | | | | |/ _` |
+#   | |_| | (_) | (__|   <  __/ |     | |_) | |_| | | | (_| |
+#   |____/ \___/ \___|_|\_\___|_|     |____/ \__,_|_|_|\__,_|
+#
+#
+_EOM_
+  __section
   cat <<_EOM_
 #* Pwd        : $(pwd).
 #* Dockerfile : ${__docker_build_path}.
 #* Context-Dir: ${__docker_build_wdir}.
 #* Build-File : ${__docker_build_file}.
 _EOM_
+  __section
 } |__stdout_with_ts ""
 
 # FIND CONTAINER IDs BY Dockerfile
@@ -210,11 +223,10 @@ then
   # Push dir
   pushd "${__docker_build_wdir}" 1>/dev/null 2>&1 || :
 
-  # Separator
-  __section
-
   # Build
   : && {
+
+    __section
 
     if [ -s "./${__docker_build_file}.build" ]
     then
@@ -223,14 +235,14 @@ Found file './${__docker_build_path}.build'.
 Build the file './${__docker_build_path}.build' first.
 _EOM_
       __echo_start \
-      docker-build --stage-all -f "./${__docker_build_file}.build" ${_docker_c_buildopts} .
-      docker-build --stage-all -f "./${__docker_build_file}.build" ${_docker_c_buildopts} .
+      docker-build --for-each-stage -f "./${__docker_build_file}.build" ${_docker_c_buildopts} .
+      docker-build --for-each-stage -f "./${__docker_build_file}.build" ${_docker_c_buildopts} .
       __echo_end $?
     else :
     fi &&
     __echo_start \
-    docker-build --stage-all -f "${__docker_build_file}" ${_docker_c_buildopts} .
-    docker-build --stage-all -f "${__docker_build_file}" ${_docker_c_buildopts} .
+    docker-build --for-each-stage -f "${__docker_build_file}" ${_docker_c_buildopts} .
+    docker-build --for-each-stage -f "${__docker_build_file}" ${_docker_c_buildopts} .
     __echo_end $?
 
   } 1> >(__stdout_with_ts "BUILD") 2>&1

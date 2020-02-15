@@ -46,7 +46,7 @@ docker-images-save() {
     _imagepath=""
     [ -n "${_cimagekey}" ] && {
       _cimage_id=$(container-image-get-id "${_cimagekey}")
-      _imagepath=$(container-image-get-tag "${_cimagekey}")
+      _imagepath=$(container-image-get-path "${_cimagekey}")
     } 2>/dev/null
     [  -n "${_cimage_id}" -a -n "${_imagepath}" ] && {
       case "${_imagepath}" in

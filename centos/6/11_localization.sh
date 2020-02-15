@@ -1,22 +1,25 @@
 #!/bin/bash -ux
 
 language="${LANGUAGE:-}"
-keyboard="${KEYBOARD:-}"
 timezone="${TIMEZONE:-}"
+keyboard="${KEYBOARD:-}"
+kbdtable="${KBDTABLE:-}"
 
 : "SetUp system LANG=${language}" && {
 
   if [ -n "${language}" -a "${language}" != "en_US.UTF-8" ]
   then
 
-    i18nconf="/etc/sysconfig/i18n"
+    localecf="/etc/sysconfig/i18n"
     yum_conf="/etc/yum.conf"
 
-    [ -e "${i18nconf}" ] || {
-      echo 'LANG=""' 1>>"${i18nconf}"
+    [ -s "${localecf}" ] || {
+cat <_EOF_ 1>"${localecf}"
+LANG=
+_EOF_
     }
 
-    . "${i18nconf}" || exit 1
+    . "${localecf}" || exit 1
 
     if [ "${language}" != "${LANG:-}" ]
     then
@@ -32,15 +35,15 @@ timezone="${TIMEZONE:-}"
         localedef -v -c -i "${locale}" -f "${chrmap}" "${locale}.${chrmap}" || :
       }
 
-      if egrep '^LANG=' "${i18nconf}" 1>/dev/null 2>&1
+      if egrep '^LANG=' "${localecf}" 1>/dev/null 2>&1
       then
-        sed -ri 's/^LANG=.*$/LANG='"${language}"'/g' "${i18nconf}"
+        sed -ri 's/^LANG=.*$/LANG='"${language}"'/g' "${localecf}"
       else
-        echo 'LANG="'"${language}"'"' 1>>"${i18nconf}"
+        echo 'LANG="'"${language}"'"' 1>>"${localecf}"
       fi && {
         echo
-        echo "[${i18nconf}]"
-        cat "${i18nconf}" || :
+        echo "[${localecf}]"
+        cat "${localecf}" || :
         echo
       } &&
       if [ -e "${yum_conf}" ]
@@ -70,61 +73,6 @@ timezone="${TIMEZONE:-}"
   fi
 
 } &&
-: "SetUp Keyboard: keyboard=${keyboard}" && {
-
-  if [ -n "${keyboard}" ] &&
-     egrep '^[a-z]{2}$' 1>/dev/null 2>&1
-  then
-
-    kbd_conf="/etc/sysconfig/keyboard"
-
-    [ -s "${kbd_conf}" ] || {
-      : && {
-cat <<_EOF_
-KEYBOARDTYPE="pc"
-LAYOUT=""
-KEYTABLE=""
-MODEL=""
-_EOF_
-      } 1>"${kbd_conf}"
-    }
-      
-    . "${kbd_conf}" || exit 1
-
-    if [ "${keyboard}" != "${LAYOUT:-}" ]
-    then
-
-      if egrep '^LAYOUT=' "${kbd_conf}" 1>/dev/null 2>&1
-      then
-        sed -ri 's/^LAYOUT=.*$/LAYOUT="'"${keyboard}"'"/g' "${kbd_conf}"
-      else
-        echo 'LAYOUT="'"${keyboard}"'"' 1>>"${kbd_conf}"
-      fi || exit $?
-
-    else :
-    fi &&
-    if [ "${keyboard}" != "${KEYTABLE:-}" ]
-    then
-
-      if egrep '^KEYTABLE=' "${kbd_conf}" 1>/dev/null 2>&1
-      then
-        sed -ri 's/^KEYTABLE=.*$/LAYOUT="'"${keyboard}"'"/g' "${kbd_conf}"
-      else
-        echo 'KEYTABLE="'"${keyboard}"'"' 1>>"${kbd_conf}"
-      fi || exit $?
-
-    else :
-    fi && {
-      echo
-      echo "[${kbd_conf}]"
-      cat "${kbd_conf}" || :
-      echo
-    }
-
-  else :
-  fi
-
-} &&
 : "SetUp Timezone: timezone=${timezone}" && {
 
   if [ -n "${timezone}" ]
@@ -146,6 +94,63 @@ _EOF_
       }
 
     fi || exit 1
+
+  else :
+  fi
+
+} &&
+: "SetUp Keyboard: keyboard=${keyboard} kbdtable=${kbdtable}" && {
+
+  if [ -n "${keyboard}" ]
+  then
+    echo "${keyboard}" |egrep '^[a-z]{2}$' || {
+      keyboard=""
+    }
+  fi 1>/dev/null 2>&1
+
+  if [ -n "${keyboard}${kbdtable}" ]
+  then
+
+    kbd_conf="/etc/sysconfig/keyboard"
+
+    [ -s "${kbd_conf}" ] || {
+      : && {
+cat <<_EOF_
+KEYBOARDTYPE="pc"
+LAYOUT=""
+KEYTABLE=""
+MODEL=""
+_EOF_
+      } 1>"${kbd_conf}"
+    }
+
+    . "${kbd_conf}" || exit 1
+
+    if [ "${keyboard}" != "${LAYOUT:-}" ]
+    then
+
+      if egrep '^LAYOUT=' "${kbd_conf}" 1>/dev/null 2>&1
+      then sed -ri 's/^LAYOUT=.*$/LAYOUT="'"${keyboard}"'"/g' "${kbd_conf}"
+      else echo 'LAYOUT="'"${keyboard}"'"' 1>>"${kbd_conf}"
+      fi || exit $?
+
+    else :
+    fi &&
+    if [ "${kbdtable}" != "${KEYTABLE:-}" ]
+    then
+
+      if egrep '^KEYTABLE=' "${kbd_conf}" 1>/dev/null 2>&1
+      then sed -ri 's/^KEYTABLE=.*$/KEYTABLE="'"${kbdtable}"'"/g' "${kbd_conf}"
+      else echo 'KEYTABLE="'"${kbdtable}"'"' 1>>"${kbd_conf}"
+      fi || exit $?
+
+    else :
+    fi && {
+      echo
+      echo "[${kbd_conf}]"
+      cat "${kbd_conf}" || :
+      echo
+    }
 
   else :
   fi

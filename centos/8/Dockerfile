@@ -1,14 +1,14 @@
 #
-# centos:6
+# centos:8
 #
 #@  DOCKER_CONTAINER=""
-#@  DOCKER_IMAGEPATH="centos:6"
+#@  DOCKER_IMAGEPATH="centos:8"
 #@  DOCKER_BUILDOPTS=""
 #@  DOCKER_BOOT_OPTS=""
 #
 
 # CentOS Version
-ARG CENTOS_VER="6"
+ARG CENTOS_VER="8"
 
 # CentOS rootfs Image Dir
 ARG CENTOSROOT="/centos-image/ROOT"
@@ -193,8 +193,8 @@ LABEL \
  docker.run.confirm-startup=""
 
 
-# CentOS 6 with upstart
-FROM scratch AS upstart
+# CentOS 7 with systemd
+FROM scratch AS systemd
 
 # Env
 ENV container="docker"
@@ -254,12 +254,12 @@ WORKDIR /
 
 # Labels
 LABEL \
- name="CentOS ${CENTOS_VER} with Upstart" \
+ name="CentOS ${CENTOS_VER} with Systemd" \
  vendor="UGOOLE.ORG" \
  maintainer="MT" \
  license="" \
  docker.build.options="" \
- docker.run.options="-d -P -h centos${CENTOS_VER}-upstart --privileged" \
+ docker.run.options="-d -P -h centos${CENTOS_VER}-systemd --privileged" \
  docker.run.confirm-startup=""
 
 # STOP SIGNAL
@@ -269,7 +269,7 @@ STOPSIGNAL SIGINT
 VOLUME [ "/sys/fs/cgroup" ]
 
 # Start /sbin/init
-CMD [ "/sbin/init", "3" ]
+CMD [ "/sbin/init" ]
 
 
 # CentOS7 minimal (onbuild)
@@ -361,8 +361,8 @@ ONBUILD \
 WORKDIR /
 
 
-# CentOS 6 with upstart (onbuild)
-FROM upstart AS upstart-onbuild
+# CentOS 7 with systemd (onbuild)
+FROM systemd AS systemd-onbuild
 
 # CentOS Version
 ARG CENTOS_VER
@@ -383,12 +383,12 @@ WORKDIR /
 
 # Labels
 LABEL \
- name="CentOS ${CENTOS_VER} with Upstart (onbuild)" \
+ name="CentOS ${CENTOS_VER} with Systemd (onbuild)" \
  vendor="UGOOLE.ORG" \
  maintainer="MT" \
  license="" \
  docker.build.options="" \
- docker.run.options="-d -P -h centos${CENTOS_VER}-upstart --privileged" \
+ docker.run.options="-d -P -h centos${CENTOS_VER}-systemd --privileged" \
  docker.run.confirm-startup=""
 
 # ONBUILD: root password
