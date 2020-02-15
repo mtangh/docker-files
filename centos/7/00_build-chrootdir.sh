@@ -122,36 +122,49 @@ yum_chroot="${yum_chroot} --setopt=tsflags=nodocs"
   # Fix /run/lock breakage since it's not tmpfs in docker
   : && {
     chroot "${CENTOSROOT}" /bin/bash -ux <<_EOF_
-umount /run
-systemd-tmpfiles --create --boot
+: "Fix /run/lock breakage since it's not tmpfs in docker" && {
+  umount /run || :
+  systemd-tmpfiles --create --boot || :
+} &&
+: "Set the root user." && {
+  # Randomize root password and lock
+  dd if=/dev/urandom count=50 |md5sum |
+  passwd --stdin root &&
+  passwd -l root &&
+  passwd -S root
+} &&
+: "Default Language." && {
+  echo 'LANG=en_US.UTF-8' 1>/etc/locale.conf
+} &&
+: "Remove some things we don't need" && {
+  rm -rf \
+    /boot/* \
+    /etc/firewalld \
+    /etc/sysconfig/network-scripts/ifcfg-* \
+    /etc/udev/hwdb.bin \
+    /usr/lib/locale/locale-archive \
+    /usr/lib/udev/hwdb.d/* \
+    /root/* || :
+} &&
+: "Make sure login works" && {
+  rm -f /var/run/nologin || :
+} &&
+: "Cleanup all log files" && {
+  for lf in /var/log/*
+  do
+    [ -s "\${lf}" ] &&
+    cat /dev/null 1>"\${lf}" || :
+  done
+} &&
+: "Cleanup tmp." && {
+  rm -f {,/var}/tmp/* || :
+} &&
+: "Generate installtime file record." && {
+  /bin/date +'%Y%m%dT%H%M%S%:z' 1>/etc/BUILDTIME || :
+} &&
+[ \$? -eq 0 ]
 _EOF_
   } || :
-
-  # Remove some things we don't need
-  rm -rf \
-    ${CENTOSROOT}/boot/* \
-    ${CENTOSROOT}/etc/firewalld \
-    ${CENTOSROOT}/etc/sysconfig/network-scripts/ifcfg-* \
-    ${CENTOSROOT}/etc/udev/hwdb.bin \
-    ${CENTOSROOT}/usr/lib/locale/locale-archive
-    ${CENTOSROOT}/usr/lib/udev/hwdb.d/* \
-    ${CENTOSROOT}/root/*
-
-  # Make sure login works
-  rm -f ${CENTOSROOT}/var/run/nologin
-
-  # Cleanup all log files
-  for log_file in ${CENTOSROOT}/var/log/*
-  do
-    [ -s "${log_file}" ] &&
-    cat /dev/null 1>"${log_file}" || :
-  done
-
-  # Cleanup tmp.
-  rm -f ${CENTOSROOT}{,/var}/tmp/*
-
-  # Generate installtime file record
-  /bin/date +'%Y%m%dT%H%M%S%:z' 1>${CENTOSROOT}/etc/BUILDTIME || :
 
 } &&
 : "Configure YUM and Plugins." && {
@@ -201,32 +214,19 @@ _EOF_
   } || :
 
   # yum vars
-  echo "container" 1>/etc/yum/vars/infra
-
-} &&
-: "Set the root user." && {
-
-  : && {
-    chroot "${CENTOSROOT}" /bin/bash -ux <<_EOF_
-# Randomize root password and lock
-dd if=/dev/urandom count=50 |md5sum |
-passwd --stdin root &&
-passwd -l root &&
-passwd -S root
-_EOF_
-  } || exit 1
-
-} &&
-: "Default Language." && {
-
-  echo 'LANG=en_US.UTF-8' 1>${CENTOSROOT}/etc/locale.conf
+  echo "container" 1>${CENTOSROOT}/etc/yum/vars/infra
 
 } &&
 : "Cleanup." && {
-  cd /;
-  for lf in /var/log/*;
-  do [ -f "${lf}" ] && cat /dev/null 1>"${lf}"; done;
-  yum -v -y clean all; rm -rf /var/cache/yum/*;
+  work_dir=$(pwd); cd /
+  for lf in /var/log/*
+  do
+    [ -f "${lf}" ] &&
+    cat /dev/null 1>"${lf}"
+  done
+  rm -f {,/var}/tmp/*
+  yum -v -y clean all
+  rm -rf /var/cache/yum/*
 } 2>/dev/null || : &&
 : "Done."
 
