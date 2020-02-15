@@ -1,10 +1,10 @@
 #!/bin/bash -ux
 
-if [ -n "${NO_LOGROTATE:-}" ]
+if [ -n "${NO_LOGMANAGE:-}" ]
 then yum -v -y update || :
 else :
 fi &&
-if [ -n "${NO_LOGROTATE:-}" ]
+if [ -n "${NO_LOGMANAGE:-}" ]
 then
   echo "Without logrotate, skipping this instruction."
 else

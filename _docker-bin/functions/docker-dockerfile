@@ -4,12 +4,20 @@
 dockerfile-get-path() {
   local _buildpath="${1:-}"; shift
   [ -z "${_buildpath}" ] &&
-   _buildpath="$(pwd)/Dockerfile" || :
-  [ -d "${_buildpath}" ] &&
-   _buildpath="${_buildpath}/Dockerfile" || :
-  [ "${_buildpath}" = "${_buildpath##*/}" ] &&
-   _buildpath="$(pwd)/${_buildpath}" || :
-  [ -n "${_buildpath}" ] && echo "${_buildpath}"
+    _buildpath="$(pwd)/Dockerfile" || :
+  if [[ "${_buildpath}" =~ ^http(s:|:)// ]]
+  then
+    [[ "${_buildpath}" =~ .*/$ ]] && {
+      _buildpath="${_buildpath}Dockerfile"
+    } || :
+  else
+    [ -d "${_buildpath}" ] &&
+    _buildpath="${_buildpath}/Dockerfile" || :
+    [ "${_buildpath}" = "${_buildpath##*/}" ] &&
+    _buildpath="$(pwd)/${_buildpath}" || :
+  fi
+  [ -n "${_buildpath}" ] &&
+    echo "${_buildpath}"
   return $?
 }
 
@@ -18,7 +26,7 @@ dockerfile-cat() {
   local _line_data=""
   [ $# -gt 0  ] &&
   _buildpath=$(dockerfile-get-path "${1:-}" 2>/dev/null) && shift || :
-  cat ${_buildpath} |
+  cat "${_buildpath}" |
   while IFS= read _line_data
   do
     case "${_line_data}" in

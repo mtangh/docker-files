@@ -9,14 +9,14 @@ timezone="${TIMEZONE:-}"
   if [ -n "${language}" -a "${language}" != "en_US.UTF-8" ]
   then
 
-    localecf="/etc/locale.conf"
+    i18nconf="/etc/sysconfig/i18n"
     yum_conf="/etc/yum.conf"
 
-    [ -s "${localecf}" ] || {
-      echo 'LANG=""' 1>"${localecf}"
+    [ -e "${i18nconf}" ] || {
+      echo 'LANG=""' 1>>"${i18nconf}"
     }
 
-    . "${localecf}" || exit 1
+    . "${i18nconf}" || exit 1
 
     if [ "${language}" != "${LANG:-}" ]
     then
@@ -32,17 +32,15 @@ timezone="${TIMEZONE:-}"
         localedef -v -c -i "${locale}" -f "${chrmap}" "${locale}.${chrmap}" || :
       }
 
-      localectl set-locale "LANG=${locale}.${chrmap}" || {
-        if egrep '^LANG=' "${localecf}" 1>/dev/null 2>&1
-        then
-          sed -ri 's/^LANG=.*$/LANG='"${language}"'/g' "${localecf}"
-        else
-          echo 'LANG="'"${language}"'"' 1>>"${localecf}"
-        fi
-      } && {
+      if egrep '^LANG=' "${i18nconf}" 1>/dev/null 2>&1
+      then
+        sed -ri 's/^LANG=.*$/LANG='"${language}"'/g' "${i18nconf}"
+      else
+        echo 'LANG="'"${language}"'"' 1>>"${i18nconf}"
+      fi && {
         echo
-        echo "[${localecf}]"
-        cat "${localecf}" || :
+        echo "[${i18nconf}]"
+        cat "${i18nconf}" || :
         echo
       } &&
       if [ -e "${yum_conf}" ]
@@ -78,56 +76,50 @@ timezone="${TIMEZONE:-}"
      egrep '^[a-z]{2}$' 1>/dev/null 2>&1
   then
 
-    vconconf="/etc/vconsole.conf"
-    xkbdconf="/etc/X11/xorg.conf.d/00-keyboard.conf"
+    kbd_conf="/etc/sysconfig/keyboard"
 
-    [ -s "${vconconf}" ] || {
-      echo 'KEYMAP=""' 1>"${vconconf}"
+    [ -s "${kbd_conf}" ] || {
+      : && {
+cat <<_EOF_
+KEYBOARDTYPE="pc"
+LAYOUT=""
+KEYTABLE=""
+MODEL=""
+_EOF_
+      } 1>"${kbd_conf}"
     }
+      
+    . "${kbd_conf}" || exit 1
 
-    . "${vconconf}" || exit 1
-
-    if [ "${keyboard}" != "${KEYMAP:-}" ]
+    if [ "${keyboard}" != "${LAYOUT:-}" ]
     then
 
-      localectl set-keymap "${keyboard}" "${keyboard}" || {
-
-        if egrep '^KEYMAP=' "${vconconf}" 1>/dev/null 2>&1
-        then
-          sed -ri 's/^KEYMAP=.*$/KEYMAP="'"${keyboard}"'"/g' "${vconconf}"
-        else
-          echo 'KEYMAP="'"${keyboard}"'"' 1>>"${keyboard}"
-        fi && {
-          echo
-          echo "[${vconconf}]"
-          cat "${vconconf}" || :
-          echo
-        } &&
-        if [ -d "${xkbdconf%/*}" ]
-        then
-          : && {
-cat <<_EOF_
-# Read and parsed by systemd-localed. It's probably wise not to edit this file
-# manually too freely.
-Section "InputClass"
-        Identifier "system-keyboard"
-        MatchIsKeyboard "on"
-        Option "XkbLayout" "${keyboard}"
-EndSection
-_EOF_
-          } 1>"${xkbdconf}" && {
-            echo
-            echo "[${xkbdconf}]"
-            cat "${xkbdconf}" || :
-            echo
-          }
-        else :
-        fi
-
-      } # localectl set-keymap ...
+      if egrep '^LAYOUT=' "${kbd_conf}" 1>/dev/null 2>&1
+      then
+        sed -ri 's/^LAYOUT=.*$/LAYOUT="'"${keyboard}"'"/g' "${kbd_conf}"
+      else
+        echo 'LAYOUT="'"${keyboard}"'"' 1>>"${kbd_conf}"
+      fi || exit $?
 
     else :
-    fi || exit 1
+    fi &&
+    if [ "${keyboard}" != "${KEYTABLE:-}" ]
+    then
+
+      if egrep '^KEYTABLE=' "${kbd_conf}" 1>/dev/null 2>&1
+      then
+        sed -ri 's/^KEYTABLE=.*$/LAYOUT="'"${keyboard}"'"/g' "${kbd_conf}"
+      else
+        echo 'KEYTABLE="'"${keyboard}"'"' 1>>"${kbd_conf}"
+      fi || exit $?
+
+    else :
+    fi && {
+      echo
+      echo "[${kbd_conf}]"
+      cat "${kbd_conf}" || :
+      echo
+    }
 
   else :
   fi

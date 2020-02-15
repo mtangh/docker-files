@@ -6,7 +6,7 @@ else :
 fi &&
 if [ -n "${NO_SSH_LOGIN:-}" ]
 then
-  echo "Without SSHd, skipping this instruction."
+  echo "Without Open SSHd, skipping this instruction."
 else
 
   : "sshd: Install openssh-server" && {
@@ -23,8 +23,18 @@ else
     }
 
   } &&
-  : "sshd: Enable sshd.service" && {
-    systemctl enable sshd.service || :;
+  : "sshd: Enable sshd" && {
+    case "${CENTOS_VER}" in
+    5*|6*)
+      /sbin/chkconfig --add sshd || :
+      /sbin/chkconfig --levels 2345 sshd on || :
+      ;;
+    7*|8*)
+      systemctl enable sshd.service || :
+      ;;
+    *)
+      ;;
+    esac
   }
 
 fi &&

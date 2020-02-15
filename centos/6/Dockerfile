@@ -1,14 +1,14 @@
 #
-# centos:7
+# centos:6
 #
 #@  DOCKER_CONTAINER=""
-#@  DOCKER_IMAGEPATH="centos:7"
+#@  DOCKER_IMAGEPATH="centos:6"
 #@  DOCKER_BUILDOPTS=""
 #@  DOCKER_BOOT_OPTS=""
 #
 
 # CentOS Version
-ARG CENTOS_VER="7"
+ARG CENTOS_VER="6"
 
 # CentOS rootfs Image Dir
 ARG CENTOSROOT="/centos-image/ROOT"
@@ -189,8 +189,8 @@ LABEL \
  docker.run.confirm-startup=""
 
 
-# CentOS 7 with systemd
-FROM scratch AS systemd
+# CentOS 6 with upstart
+FROM scratch AS upstart
 
 # Env
 ENV container="docker"
@@ -249,12 +249,12 @@ WORKDIR /
 
 # Labels
 LABEL \
- name="CentOS ${CENTOS_VER} with Systemd" \
+ name="CentOS ${CENTOS_VER} with Upstart" \
  vendor="UGOOLE.ORG" \
  maintainer="MT" \
  license="" \
  docker.build.options="" \
- docker.run.options="-d -P -h centos${CENTOS_VER}-systemd --privileged" \
+ docker.run.options="-d -P -h centos${CENTOS_VER}-upstart --privileged" \
  docker.run.confirm-startup=""
 
 # STOP SIGNAL
@@ -354,8 +354,8 @@ ONBUILD \
 WORKDIR /
 
 
-# CentOS 7 with systemd (onbuild)
-FROM systemd AS systemd-onbuild
+# CentOS 6 with upstart (onbuild)
+FROM upstart AS upstart-onbuild
 
 # CentOS Version
 ARG CENTOS_VER
@@ -376,12 +376,12 @@ WORKDIR /
 
 # Labels
 LABEL \
- name="CentOS ${CENTOS_VER} with Systemd (onbuild)" \
+ name="CentOS ${CENTOS_VER} with Upstart (onbuild)" \
  vendor="UGOOLE.ORG" \
  maintainer="MT" \
  license="" \
  docker.build.options="" \
- docker.run.options="-d -P -h centos${CENTOS_VER}-systemd --privileged" \
+ docker.run.options="-d -P -h centos${CENTOS_VER}-upstart --privileged" \
  docker.run.confirm-startup=""
 
 # ONBUILD: root password
@@ -432,7 +432,7 @@ COPY * ./
 ONBUILD \
 RUN \
  set -ux; \
- : "ONBUILD: Export Args." && { \
+ : "ONHUILD: Export Args." && { \
   export CENTOS_VER=$(cat ./CENTOS_VER); \
   export ROOTPSWD; \
   export LANGUAGE KEYBOARD TIMEZONE; \
