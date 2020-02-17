@@ -7,184 +7,40 @@ CDIR=$([ -n "${BASH_SOURCE%/*}" ] && cd "${BASH_SOURCE%/*}"; pwd)
 [ -n "${CENTOS_VER:-}" ] || exit 1
 [ -n "${CENTOSROOT:-}" ] || exit 1
 
-cat <<_EOF_
+cat <<_EOD_
 #*
 #* CENTOS_VER${CENTOS_VER:-}
 #* CENTOSROOT${CENTOSROOT:-}
 #*
-_EOF_
-
-rpm="rpm -v"
-yum="yum -v -y"
-
-rpm_chroot="${rpm} --root ${CENTOSROOT}"
-
-yum_chroot="${yum}"
-yum_chroot="${yum_chroot} --installroot=${CENTOSROOT}"
-yum_chroot="${yum_chroot} --setopt=override_install_langs=en_US.UTF-8"
-yum_chroot="${yum_chroot} --setopt=tsflags=nodocs"
+_EOD_
 
 : "Initialize Chroot Dir." && {
 
   rpm_gpgkey="/etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-${CENTOS_VER}"
 
-  mkdir -p "${CENTOSROOT}" &&
-  ${yum} reinstall --downloadonly --downloaddir . centos-release &&
-  ${rpm_chroot} --initdb &&
-  ${rpm_chroot} --nodeps -ivh centos-release*.rpm &&
-  rm -f centos-release*.rpm &&
-  ${rpm_chroot} --import "${CENTOSROOT}${rpm_gpgkey}" &&
-  ${yum_chroot} install yum
+  mkdir -p "${CENTOSROOT}" && {
+  
+    yum -v -y \
+      reinstall --downloadonly --downloaddir . \
+      centos-release &&
+    rpm -v \
+      --root ${CENTOSROOT} \
+      --initdb &&
+    rpm -v \
+      --root ${CENTOSROOT} \
+      --nodeps -ivh centos-*.rpm &&
+    rpm -v \
+      --root ${CENTOSROOT} \
+      --import "${CENTOSROOT}${rpm_gpgkey}" &&
+    rpm -v -y \
+      --installroot=${CENTOSROOT} \
+      --setopt=override_install_langs=en_US.UTF-8 \
+      --setopt=tsflags=nodocs \
+      install yum
 
-} &&
-: "Package setup" && {
-
-  # /dev files
-  [ -e "${CENTOSROOT}/dev/null" ]    || mknod -m 666 ${CENTOSROOT}/dev/null c 1 3
-  [ -e "${CENTOSROOT}/dev/zero" ]    || mknod -m 666 ${CENTOSROOT}/dev/zero c 1 5
-  [ -e "${CENTOSROOT}/dev/random" ]  || mknod -m 666 ${CENTOSROOT}/dev/random c 1 8
-  [ -e "${CENTOSROOT}/dev/urandom" ] || mknod -m 666 ${CENTOSROOT}/dev/urandom c 1 9
-
-  # Rebuild RPM DB
-  ${rpm_chroot} --rebuilddb
-
-  # Package setup
-  ${yum_chroot} update &&
-  ${yum_chroot} install \
-    bash \
-    bind-utils \
-    iputils \
-    iproute \
-    passwd \
-    rootfiles \
-    tar \
-    vim-minimal \
-    yum-plugin-fastestmirror \
-    yum-plugin-ovl \
-    yum-utils \
-    || exit 1
-
-  # Install EPEL
-  ${yum_chroot} install \
-    epel-release \
-    || exit 1
-
-  # remove stuff we don't need that anaconda insists on
-  # kernel needs to be removed by rpm, because of grubby
-  ${rpm_chroot} -e kernel || :
-
-  # Remove
-  ${yum_chroot} remove \
-    bind-libs \
-    bind-libs-lite \
-    dhclient \
-    dhcp-common \
-    dhcp-libs \
-    dracut-network \
-    e2fsprogs \
-    e2fsprogs-libs \
-    ebtables \
-    ethtool \
-    file \
-    firewalld \
-    firewalld-filesystem \
-    freetype \
-    gettext* \
-    GeoIP \
-    geoipupdate \
-    groff-base \
-    grub2 \
-    grub2-tools \
-    grubby \
-    initscripts \
-    iproute \
-    iptables \
-    kexec-tools \
-    libcroco \
-    libgomp \
-    libmnl \
-    libnetfilter_conntrack \
-    libnfnetlink \
-    libselinux-python \
-    libunistring \
-    linux-firmware \
-    lzo \
-    os-prober \
-    python-decorator \
-    python-slip \
-    python-slip-dbus \
-    qemu-guest-agent \
-    snappy \
-    sysvinit-tools \
-    which \
-    || exit 1
-
-  # yum cleanup
-  ${yum_chroot} update &&
-  ${yum_chroot} clean all &&
-  rm -rf ${CENTOSROOT}/var/cache/yum/* || :
-
-  # Fix /run/lock breakage since it's not tmpfs in docker
-  : "Chroot" && {
-    cp -pf {,"${CENTOSROOT}"}/etc/resolv.conf &&
-    chroot "${CENTOSROOT}" /bin/bash -ux <<'_EOD_'
-: "YUM update and cleanup." && {
-  yum -v -y update && {
-    yum -v -y clean all &&
-    rm -rf ${CENTOSROOT}/var/cache/yum/* || :
-  }
-} &&
-: "Fix /run/lock breakage since it's not tmpfs in docker" && {
-  umount /run || :
-  systemd-tmpfiles --create --boot || :
-} &&
-: "Set the root user." && {
-  # Randomize root password and lock
-  dd if=/dev/urandom count=50 |md5sum |
-  passwd --stdin root &&
-  passwd -l root &&
-  passwd -S root
-} &&
-: "Default Language." && {
-  if [ -s "${langfile:=/etc/locale.conf}" ] &&
-     egrep '^LANG=' "${langfile}" 1>/dev/null 2>&1
-  then sed -ri 's/^LANG=.*$/LANG=en_US.UTF-8/g' "${langfile}"
-  else echo 'LANG=en_US.UTF-8' 1>>"${langfile}"
-  fi || :
-} &&
-: "Remove some things we don't need" && {
-  rm -rf \
-    /boot/* \
-    /etc/firewalld \
-    /etc/sysconfig/network-scripts/ifcfg-* \
-    /usr/lib/locale/locale-archive \
-    /root/* || :
-  rm -rf \
-    /etc/udev/hwdb.bin \
-    /usr/lib/udev/hwdb.d/* || :
-} &&
-: "Make sure login works" && {
-  rm -f /var/run/nologin || :
-} &&
-: "Cleanup all log files" && {
-  for lf in /var/log/*
-  do
-    [ -s "${lf}" ] &&
-    cat /dev/null 1>"${lf}" || :
-  done
-} &&
-: "Cleanup tmp." && {
-  rm -rf {,/var}/tmp/* || :
-} &&
-: "Generate installtime file record." && {
-  date +'%Y%m%dT%H%M%S%:z' 1>/etc/BUILDTIME || :
-} &&
-: "Remove '/etc/resolv.conf'." && {
-  rm -f /etc/resolv.conf || :
-} &&
-[ $? -eq 0 ]
-_EOD_
   } || exit 1
+
+  rm -f centos-*.rpm || :
 
 } &&
 : "Configure YUM and Plugins." && {
@@ -235,6 +91,165 @@ _EOD_
 
   # yum vars
   echo "container" 1>${CENTOSROOT}/etc/yum/vars/infra
+
+} &&
+: "Chroot setup." && {
+
+    cp -pf {,"${CENTOSROOT}"}/etc/resolv.conf &&
+    chroot "${CENTOSROOT}" /bin/bash -ux <<'_EOD_'
+: "Make /dev files." && {
+
+  [ -e "/dev/null" ]    || mknod -m 666 /dev/null c 1 3
+  [ -e "/dev/zero" ]    || mknod -m 666 /dev/zero c 1 5
+  [ -e "/dev/random" ]  || mknod -m 666 /dev/random c 1 8
+  [ -e "/dev/urandom" ] || mknod -m 666 /dev/urandom c 1 9
+
+} &&
+: "Package setup" && {
+
+  # Rebuild RPM DB
+  rpm -v --rebuilddb &&
+  ${yum_chroot} update || exit 1  
+
+  # Package setup
+  yum -v -y install \
+    bash \
+    bind-utils \
+    iputils \
+    iproute \
+    passwd \
+    rootfiles \
+    tar \
+    vim-minimal \
+    yum-plugin-fastestmirror \
+    yum-plugin-ovl \
+    yum-utils \
+    || exit 1
+
+  # Install EPEL
+  yum -v -y install \
+    epel-release \
+    || exit 1
+
+  # remove stuff we don't need that anaconda insists on
+  # kernel needs to be removed by rpm, because of grubby
+  rpm -v -e kernel || :
+
+  # Remove
+  yum -v -y remove \
+    bind-libs \
+    bind-libs-lite \
+    dhclient \
+    dhcp-common \
+    dhcp-libs \
+    dracut-network \
+    e2fsprogs \
+    e2fsprogs-libs \
+    ebtables \
+    ethtool \
+    file \
+    firewalld \
+    firewalld-filesystem \
+    freetype \
+    gettext* \
+    GeoIP \
+    geoipupdate \
+    groff-base \
+    grub2 \
+    grub2-tools \
+    grubby \
+    initscripts \
+    iproute \
+    iptables \
+    kexec-tools \
+    libcroco \
+    libgomp \
+    libmnl \
+    libnetfilter_conntrack \
+    libnfnetlink \
+    libselinux-python \
+    libunistring \
+    linux-firmware \
+    lzo \
+    os-prober \
+    python-decorator \
+    python-slip \
+    python-slip-dbus \
+    qemu-guest-agent \
+    snappy \
+    sysvinit-tools \
+    which \
+    || exit 1
+
+  yum -v -y update && {
+    yum -v -y clean all &&
+    rm -rf ${CENTOSROOT}/var/cache/yum/* || :
+  }
+
+} &&
+: "Fix /run/lock breakage since it's not tmpfs in docker" && {
+
+  umount /run || :
+  systemd-tmpfiles --create --boot || :
+
+} &&
+: "Initialize the root user password." && {
+
+  # Randomize root password and lock
+  dd if=/dev/urandom count=50 |md5sum |
+  passwd --stdin root &&
+  passwd -l root &&
+  passwd -S root
+
+} &&
+: "Default Language." && {
+
+  if [ -s "${langfile:=/etc/locale.conf}" ] &&
+     egrep '^LANG=' "${langfile}" 1>/dev/null 2>&1
+  then sed -ri 's/^LANG=.*$/LANG=en_US.UTF-8/g' "${langfile}"
+  else echo 'LANG=en_US.UTF-8' 1>>"${langfile}"
+  fi || :
+
+} &&
+: "Remove some things we don't need" && {
+
+  rm -rf \
+    /boot/* \
+    /etc/firewalld \
+    /etc/sysconfig/network-scripts/ifcfg-* \
+    /usr/lib/locale/locale-archive \
+    /root/* || :
+  rm -rf \
+    /etc/udev/hwdb.bin \
+    /usr/lib/udev/hwdb.d/* || :
+
+  # Cleanup all log files.
+  for lf in /var/log/*
+  do
+    [ -s "${lf}" ] &&
+    cat /dev/null 1>"${lf}" || :
+  done
+ 
+  # Cleanup /tmp/*.
+  rm -rf {,/var}/tmp/* || :
+
+  # Make sure login works.
+  rm -f /var/run/nologin || :
+
+} &&
+: "Generate installtime file record." && {
+
+  date +'%Y%m%dT%H%M%S%:z' 1>/etc/BUILDTIME || :
+
+} &&
+: "Remove '/etc/resolv.conf'." && {
+
+  rm -f /etc/resolv.conf || :
+
+} &&
+[ $? -eq 0 ]
+_EOD_
+  } || exit 1
 
 } &&
 : "Cleanup." && {
