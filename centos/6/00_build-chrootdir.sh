@@ -113,14 +113,16 @@ yum_chroot="${yum_chroot} --setopt=tsflags=nodocs"
     which \
     || exit 1
 
-  # yum cleanup
-  ${yum_chroot} update &&
-  ${yum_chroot} clean all
-  rm -rf ${CENTOSROOT}/var/cache/yum/*
-
   # Processing after package installation
-  : && {
+  : "Chroot" && {
+    cp -pf {,"${CENTOSROOT}"}/etc/resolv.conf &&
     chroot "${CENTOSROOT}" /bin/bash -ux <<'_EOD_'
+: "YUM update and cleanup." && {
+  yum -v -y update && {
+    yum -v -y clean all &&
+    rm -rf ${CENTOSROOT}/var/cache/yum/* || :
+  }
+} &&
 : "Disable services" && {
   for sn in $(/sbin/chkconfig|cut -f1)
   do
@@ -168,6 +170,9 @@ yum_chroot="${yum_chroot} --setopt=tsflags=nodocs"
 } &&
 : "Generate installtime file record." && {
   date +'%Y%m%dT%H%M%S%:z' 1>/etc/BUILDTIME || :
+} &&
+: "Remove '/etc/resolv.conf'." && {
+  rm -f /etc/resolv.conf || :
 } &&
 [ $? -eq 0 ]
 _EOD_

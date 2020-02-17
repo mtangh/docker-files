@@ -1,7 +1,7 @@
 #!/bin/bash -ux
 
 if [ -n "${NO_LOGMANAGE:-}" ]
-then yum -v -y update || :
+then dnf -v -y update || :
 else :
 fi &&
 if [ -n "${NO_LOGMANAGE:-}" ]
@@ -10,7 +10,7 @@ then
 else
 
   : "logrotate: install logrotate" && {
-    yum -v -y install logrotate
+    dnf -v -y install logrotate
   } &&
   : "logrotate: SetUp systemd files" && {
     systemd_sys_dir="/etc/systemd/system"

@@ -3,9 +3,10 @@
 : "Install upstart" && {
 
   yum -v -y update &&
-  yum -v -y install initscripts MAKEDEV sudo &&
-  yum -v -y clean all
-  rm -rf /var/cache/yum/*
+  yum -v -y install initscripts MAKEDEV sudo && {
+    yum -v -y clean all &&
+    rm -rf /var/cache/yum/* || :
+  }
 
 } &&
 : "Change upstart's scripts" && {
@@ -23,7 +24,7 @@
 : "Disable services" && {
 
   for _service in iptables netfs udev-post
-  do 
+  do
     chkconfig "${_service}" off
   done
 

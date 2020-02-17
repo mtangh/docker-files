@@ -1,7 +1,7 @@
 #!/bin/bash -ux
 
 if [ -n "${NO_SSH_LOGIN:-}" ]
-then yum -v -y update || :
+then dnf -v -y update || :
 else :
 fi &&
 if [ -n "${NO_SSH_LOGIN:-}" ]
@@ -10,7 +10,7 @@ then
 else
 
   : "sshd: Install openssh-server" && {
-     yum -v -y install openssh-server
+     dnf -v -y install openssh-server
   } &&
   : "sshd: Configure sshd_config" && {
 

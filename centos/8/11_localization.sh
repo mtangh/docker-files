@@ -11,7 +11,7 @@ kbdtable="${KBDTABLE:-}"
   then
 
     localecf="/etc/locale.conf"
-    yum_conf="/etc/yum.conf"
+    dnf_conf="/etc/dnf/dnf.conf"
 
     [ -s "${localecf}" ] || {
 cat <_EOF_ 1>"${localecf}"
@@ -48,21 +48,22 @@ _EOF_
         cat "${localecf}" || :
         echo
       } &&
-      if [ -e "${yum_conf}" ]
+      if [ -e "${dnf_conf}" ]
       then
-        cat "${yum_conf}" |
+        cat "${dnf_conf}" |
         egrep '(^[#[:space:]]+|^)override_install_langs=' |
         egrep "[=,]${language}(,.+$|$)" 1>/dev/null 2>&1 || {
           sed -ri \
           's/(^[#[:space:]]+|^)(override_install_langs=.+)$/\2,'"${language}"'/g' \
-          "${yum_conf}" || exit 1
-          yum -v -y update &&
-          yum -v -y clean all
-          rm -rf /var/cache/yum/* || :
+          "${dnf_conf}" || exit 1
+          dnf -v -y update && {
+            dnf -v -y clean all &&
+            rm -rf /var/cache/dnf/* || :
+          }
         } && {
           echo
-          echo "[${yum_conf}]"
-          cat "${yum_conf}" || :
+          echo "[${dnf_conf}]"
+          cat "${dnf_conf}" || :
           echo
         }
       else :

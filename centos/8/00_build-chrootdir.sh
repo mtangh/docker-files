@@ -30,11 +30,10 @@ dnf_chroot="${dnf_chroot} --setopt=tsflags=nodocs"
 
   mkdir -p "${CENTOSROOT}" &&
   ${dnf} reinstall --downloadonly --downloaddir . \
-    centos-release centos-gpg-keys &&
+    centos-release centos-repos centos-gpg-keys &&
   ${rpm_chroot} --initdb &&
-  ${rpm_chroot} --nodeps -ivh \
-    centos-release*.rpm centos-gpg-keys*.rpm &&
-  rm -f centos-release*.rpm centos-gpg-keys*.rpm &&
+  ${rpm_chroot} --nodeps -ivh centos-*.rpm &&
+  rm -f centos-*.rpm &&
   ${rpm_chroot} --import "${CENTOSROOT}${rpm_gpgkey}" &&
   ${dnf_chroot} install dnf
 
@@ -54,23 +53,19 @@ dnf_chroot="${dnf_chroot} --setopt=tsflags=nodocs"
   ${dnf_chroot} update &&
   ${dnf_chroot} install \
     bash \
+    hostname \
     iputils \
     passwd \
     procps-ng \
+    rootfiles \
     tar \
     vim-minimal \
     || exit 1
-#  ${dnf_chroot} install \
-#    bash \
-#    bind-utils \
-#    iputils \
-#    iproute \
-#    passwd \
-#    rootfiles \
-#    tar \
-#    vim-minimal \
-#    yum-utils \
-#    || exit 1
+  ${dnf_chroot} install --best --allowerasing \
+    coreutils-single \
+    glibc-minimal-langpack \
+    libcurl-minimal \
+    || exit 1
 
   # Install EPEL
   ${dnf_chroot} install \
@@ -79,63 +74,60 @@ dnf_chroot="${dnf_chroot} --setopt=tsflags=nodocs"
 
   # remove stuff we don't need that anaconda insists on
   # kernel needs to be removed by rpm, because of grubby
-  ${rpm_chroot} -e kernel || :
+  ${rpm_chroot} -e \
+    kernel \
+    || :
+
+  # remove grub* and grubby
+  ${rpm_chroot} -e \
+    grub2-common \
+    grub2-tools \
+    grub2-tools-minimal \
+    grubby \
+    || exit 1
 
   # Remove
-#  ${dnf_chroot} --skip-broken --nobest remove \
-#    bind-libs \
-#    bind-libs-lite \
-#    dhclient \
-#    dhcp-common \
-#    dhcp-libs \
-#    dracut-network \
-#    e2fsprogs \
-#    e2fsprogs-libs \
-#    ebtables \
-#    ethtool \
-#    file \
-#    firewalld \
-#    firewalld-filesystem \
-#    freetype \
-#    gettext* \
-#    GeoIP \
-#    geoipupdate \
-#    groff-base \
-#    grub2 \
-#    grub2-tools \
-#    grubby \
-#    initscripts \
-#    iproute \
-#    iptables \
-#    kexec-tools \
-#    libcroco \
-#    libgomp \
-#    libmnl \
-#    libnetfilter_conntrack \
-#    libnfnetlink \
-#    libselinux-python \
-#    libunistring \
-#    linux-firmware \
-#    lzo \
-#    os-prober \
-#    python-decorator \
-#    python-slip \
-#    python-slip-dbus \
-#    qemu-guest-agent \
-#    snappy \
-#    sysvinit-tools \
-#    which \
-#    || exit 1
-
-  # yum cleanup
-  ${dnf_chroot} update && {
-    ${dnf_chroot} clean all &&
-    rm -rf ${CENTOSROOT}/var/cache/yum/* || :
-  }
+  ${dnf_chroot} remove \
+    coreutils-common \
+    cracklib-dicts \
+    diffutils \
+    gettext \
+    gettext-libs \
+    glibc-all-langpacks \
+    gnupg2-smime \
+    hardlink \
+    kbd \
+    kpartx \
+    libcroco \
+    libevent \
+    libgomp \
+    libpsl \
+    libsecret \
+    libssh \
+    libssh-config \
+    libxkbcommon \
+    ncurses \
+    openssl \
+    openssl-pkcs11 \
+    os-prober \
+    pigz \
+    rpm-plugin-systemd-inhibit \
+    shared-mime-info \
+    trousers \
+    trousers-lib \
+    which \
+    || exit 1
 
   # Fix /run/lock breakage since it's not tmpfs in docker
-  : && {
-    chroot "${CENTOSROOT}" /bin/bash -ux <<_EOF_
+  : "Chroot" && {
+    cp -pf {,"${CENTOSROOT}"}/etc/resolv.conf &&
+    chroot "${CENTOSROOT}" /bin/bash -ux <<'_EOD_'
+: "DNF update and cleanup." && {
+  dnf -v -y update && {
+    dnf -v -y clean all &&
+    rm -rf /var/cache/dnf/* || :
+  }
+} &&
 : "Fix /run/lock breakage since it's not tmpfs in docker" && {
   umount /run || :
   systemd-tmpfiles --create --boot || :
@@ -150,7 +142,7 @@ dnf_chroot="${dnf_chroot} --setopt=tsflags=nodocs"
 : "Default Language." && {
   if [ -s "${langfile:=/etc/locale.conf}" ] &&
      egrep '^LANG=' "${langfile}" 1>/dev/null 2>&1
-  then sed -ri 's/^LANG=.*\$/LANG=en_US.UTF-8/g' "${langfile}"
+  then sed -ri 's/^LANG=.*$/LANG=en_US.UTF-8/g' "${langfile}"
   else echo 'LANG=en_US.UTF-8' 1>>"${langfile}"
   fi || :
 } &&
@@ -171,8 +163,8 @@ dnf_chroot="${dnf_chroot} --setopt=tsflags=nodocs"
 : "Cleanup all log files" && {
   for lf in /var/log/*
   do
-    [ -s "\${lf}" ] &&
-    cat /dev/null 1>"\${lf}" || :
+    [ -s "${lf}" ] &&
+    cat /dev/null 1>"${lf}" || :
   done
 } &&
 : "Cleanup tmp." && {
@@ -181,59 +173,33 @@ dnf_chroot="${dnf_chroot} --setopt=tsflags=nodocs"
 : "Generate installtime file record." && {
   date +'%Y%m%dT%H%M%S%:z' 1>/etc/BUILDTIME || :
 } &&
-[ \$? -eq 0 ]
-_EOF_
+: "Remove '/etc/resolv.conf'." && {
+  rm -f /etc/resolv.conf || :
+} &&
+[ $? -eq 0 ]
+_EOD_
   } || exit 1
 
 } &&
 : "Configure DNF and Plugins." && {
 
   # Enable dnf plugins
-  dnf_conf="${CENTOSROOT}/etc/dnf/dnf.conf"
-  cat "${dnf_conf}" |
-  sed -re 's/^(#*)plugins=[01]$/plugins=1/g' |
-  sed -re "/^distroverpkg=centos-.*/a override_install_langs=en_US.UTF-8" |
-  sed -re "/^override_install_langs=.*/a tsflags=nodocs" |
-  cat 1>"${dnf_conf}.tmp" &&
-  mv -f "${dnf_conf}"{.tmp,} &&{
+  dnf_config="${CENTOSROOT}/etc/dnf/dnf.conf"
+  cat "${dnf_config}" |
+  sed -re '/^gpgcheck=*/a debuglevel=8' |
+  sed -re '/^debuglevel=*/a errorlevel=8' |
+  sed -re '/^best=.*/a tsflags=nodocs' |
+  sed -re '/^tsflags=.*$/a fastestmirror=1' |
+  cat 1>"${dnf_config}.tmp" &&
+  mv -f "${dnf_config}"{.tmp,} &&{
     echo
-    echo "[${dnf_conf}]"
-    cat ${dnf_conf}
+    echo "[${dnf_config}]"
+    cat ${dnf_config}
     echo
   } || :
 
-  # Modify yum-fastestmirror
-  yum_plgcnf="${CENTOSROOT}/etc/yum/pluginconf.d"
-  yum_fm_cnf="${yum_plgcnf}/fastestmirror.conf"
-  yum_fmserv="${YUM_FAST_MIRROR:-}"
-  yum_dominc="${YUM_FM_DOM_INCL:-.org}"
-  yum_domexc="${YUM_FM_DOM_EXCL:-}"
-  [ -e "${yum_fm_cnf}" ] && {
-    cat "${yum_fm_cnf}" |
-    sed -r \
-      -e 's/^(#*)enabled=[01]$/enabled=1/g' \
-      -e 's/^(#*)verbose=[01]$/verbose=1/g' \
-      -e 's/^(#*)include_only=.*$/include_only='"${yum_dominc}"'/g' |
-    if [ -n "${yum_domexc}" ]
-    then sed -r -e 's/^(#*)exclude=.*$/exclude='"${yum_domexc}"'/g'
-    else cat
-    fi |
-    if [ -n "${yum_fmserv}" ]
-    then sed -r -e '/^include_only=.*$/a prefer='"${yum_fmserv}"
-    else cat
-    fi |
-    cat 1>"${yum_fm_cnf}.tmp" &&
-    mv -f "${yum_fm_cnf}"{.tmp,} && {
-      echo
-      echo "[${yum_fm_cnf}]"
-      cat "${yum_fm_cnf}"
-      echo
-    }
-    [ $? -eq 0 ] || exit 1
-  } || :
-
-  # yum vars
-  echo "container" 1>${CENTOSROOT}/etc/yum/vars/infra
+  # dnf vars
+  echo "container" 1>${CENTOSROOT}/etc/dnf/vars/infra
 
 } &&
 : "Cleanup." && {
@@ -245,7 +211,7 @@ _EOF_
   done
   rm -f {,/var}/tmp/*
   yum -v -y clean all
-  rm -rf /var/cache/yum/*
+  rm -rf /var/cache/dnf/*
 } 2>/dev/null || : &&
 : "Done."
 

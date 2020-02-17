@@ -12,15 +12,15 @@
   if [ -n "${packages}" ]
   then
 
-    yum -v -y update &&
-    yum -v -y install ${packages}
+    dnf -v -y update &&
+    dnf -v -y install ${packages}
 
   else :
   fi || exit 1
 
   [ -n "${packages}" ] && {
-    yum -v -y clean all;
-    rm -rf /var/cache/yum/*
+    dnf -v -y clean all &&
+    rm -rf /var/cache/dnf/*
   } || :
 
 } &&

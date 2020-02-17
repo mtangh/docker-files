@@ -49,15 +49,6 @@ ARG TIMEZONE
 ARG KEYBOARD
 ARG KBDTABLE
 
-# YUM fastestmirror server
-ARG YUM_FAST_MIRROR="www.ftp.ne.jp"
-
-# YUM fastestmirror include domains
-ARG YUM_FM_DOM_INCL=".jp,.org"
-
-# YUM fastestmirror exclude domains
-ARG YUM_FM_DOM_EXCL=""
-
 # Build env
 ENV \
  CENTOS_VER="${CENTOS_VER:-}" \
@@ -69,11 +60,6 @@ ENV \
  TIMEZONE="${TIMEZONE:-}" \
  KEYBOARD="${KEYBOARD:-}" \
  KBDTABLE="${KBDTABLE:-}"
-
-ENV \
- YUM_FAST_MIRROR="${YUM_FAST_MIRROR:-}" \
- YUM_FM_DOM_INCL="${YUM_FM_DOM_INCL:-}" \
- YUM_FM_DOM_EXCL="${YUM_FM_DOM_EXCL:-}"
 
 # Set Workdir
 WORKDIR /root/build
@@ -174,7 +160,7 @@ RUN \
   for lf in /var/log/*; \
   do [ -s "${lf}" ] && cat /dev/null >"${lf}"; done || :; \
   rm -rf {,/var}/tmp/* || :; \
-  yum -v -y clean all; rm -rf /var/cache/yum/* || :; \
+  dnf -v -y clean all; rm -rf /var/cache/dnf/* || :; \
   rm -rf "${work_dir}" || :; \
  } && \
  : "Done.";
@@ -244,7 +230,7 @@ RUN \
   for lf in /var/log/*; \
   do [ -s "${lf}" ] && cat /dev/null >"${lf}"; done || :; \
   rm -rf {,/var}/tmp/* || :; \
-  yum -v -y clean all; rm -rf /var/cache/yum/* || :; \
+  dnf -v -y clean all; rm -rf /var/cache/dnf/* || :; \
   rm -rf "${work_dir}" || :; \
  } && \
  : "Done.";
@@ -351,7 +337,7 @@ RUN \
   for lf in /var/log/*; \
   do [ -s "${lf}" ] && cat /dev/null >"${lf}"; done || :; \
   rm -rf {,/var}/tmp/* || :; \
-  yum -v -y clean all; rm -rf /var/cache/yum/* || :; \
+  dnf -v -y clean all; rm -rf /var/cache/dnf/* || :; \
   rm -rf "${work_dir}" || :; \
  } && \
  : "ONBUILD: Done.";
@@ -458,7 +444,7 @@ RUN \
   for lf in /var/log/*; \
   do [ -s "${lf}" ] && cat /dev/null >"${lf}"; done || :; \
   rm -rf {,/var}/tmp/* || :; \
-  yum -v -y clean all; rm -rf /var/cache/yum/* || :; \
+  dnf -v -y clean all; rm -rf /var/cache/dnf/* || :; \
   rm -rf "${work_dir}" || :; \
  } && \
  : "ONBUILD: Done.";
