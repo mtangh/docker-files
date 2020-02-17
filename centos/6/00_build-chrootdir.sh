@@ -120,11 +120,11 @@ yum_chroot="${yum_chroot} --setopt=tsflags=nodocs"
 
   # Processing after package installation
   : && {
-    chroot "${CENTOSROOT}" /bin/bash -ux <<_EOF_
+    chroot "${CENTOSROOT}" /bin/bash -ux <<'_EOD_'
 : "Disable services" && {
-  for sn in \$(/sbin/chkconfig|cut -f1)
+  for sn in $(/sbin/chkconfig|cut -f1)
   do
-     [ -n "\${sn}" ] && /sbin/chkconfig "\${sn}" off || :
+     [ -n "${sn}" ] && /sbin/chkconfig "${sn}" off || :
   done
   # udev-post
   [ -e "/etc/rc1.d/S26udev-post" ] && {
@@ -141,7 +141,7 @@ yum_chroot="${yum_chroot} --setopt=tsflags=nodocs"
 : "Default Language." && {
   if [ -s "${langfile:=/etc/sysconfig/i18n}" ] &&
      egrep '^LANG=' "${langfile}" 1>/dev/null 2>&1
-  then sed -ri 's/^LANG=.*\$/LANG=en_US.UTF-8/g' "${langfile}"
+  then sed -ri 's/^LANG=.*$/LANG=en_US.UTF-8/g' "${langfile}"
   else echo 'LANG=en_US.UTF-8' 1>>"${langfile}"
   fi || :
 } &&
@@ -159,8 +159,8 @@ yum_chroot="${yum_chroot} --setopt=tsflags=nodocs"
 : "Cleanup all log files" && {
   for lf in /var/log/*
   do
-    [ -s "\${lf}" ] &&
-    cat /dev/null 1>"\${lf}" || :
+    [ -s "${lf}" ] &&
+    cat /dev/null 1>"${lf}" || :
   done
 } &&
 : "Cleanup tmp." && {
@@ -169,8 +169,8 @@ yum_chroot="${yum_chroot} --setopt=tsflags=nodocs"
 : "Generate installtime file record." && {
   date +'%Y%m%dT%H%M%S%:z' 1>/etc/BUILDTIME || :
 } &&
-[ \$? -eq 0 ]
-_EOF_
+[ $? -eq 0 ]
+_EOD_
   } || exit 1
 
 } &&

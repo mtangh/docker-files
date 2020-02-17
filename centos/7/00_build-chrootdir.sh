@@ -126,7 +126,7 @@ yum_chroot="${yum_chroot} --setopt=tsflags=nodocs"
 
   # Fix /run/lock breakage since it's not tmpfs in docker
   : && {
-    chroot "${CENTOSROOT}" /bin/bash -ux <<_EOF_
+    chroot "${CENTOSROOT}" /bin/bash -ux <<'_EOD_'
 : "Fix /run/lock breakage since it's not tmpfs in docker" && {
   umount /run || :
   systemd-tmpfiles --create --boot || :
@@ -141,7 +141,7 @@ yum_chroot="${yum_chroot} --setopt=tsflags=nodocs"
 : "Default Language." && {
   if [ -s "${langfile:=/etc/locale.conf}" ] &&
      egrep '^LANG=' "${langfile}" 1>/dev/null 2>&1
-  then sed -ri 's/^LANG=.*\$/LANG=en_US.UTF-8/g' "${langfile}"
+  then sed -ri 's/^LANG=.*$/LANG=en_US.UTF-8/g' "${langfile}"
   else echo 'LANG=en_US.UTF-8' 1>>"${langfile}"
   fi || :
 } &&
@@ -162,8 +162,8 @@ yum_chroot="${yum_chroot} --setopt=tsflags=nodocs"
 : "Cleanup all log files" && {
   for lf in /var/log/*
   do
-    [ -s "\${lf}" ] &&
-    cat /dev/null 1>"\${lf}" || :
+    [ -s "${lf}" ] &&
+    cat /dev/null 1>"${lf}" || :
   done
 } &&
 : "Cleanup tmp." && {
@@ -172,8 +172,8 @@ yum_chroot="${yum_chroot} --setopt=tsflags=nodocs"
 : "Generate installtime file record." && {
   date +'%Y%m%dT%H%M%S%:z' 1>/etc/BUILDTIME || :
 } &&
-[ \$? -eq 0 ]
-_EOF_
+[ $? -eq 0 ]
+_EOD_
   } || exit 1
 
 } &&

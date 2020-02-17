@@ -15,27 +15,28 @@ cat <<_EOF_
 _EOF_
 
 rpm="rpm -v"
-yum="yum -v -y"
+dnf="dnf -v -y"
 
 rpm_chroot="${rpm} --root ${CENTOSROOT}"
 
-yum_chroot="${yum}"
-yum_chroot="${yum_chroot} --installroot=${CENTOSROOT}"
-yum_chroot="${yum_chroot} --setopt=override_install_langs=en_US.UTF-8"
-yum_chroot="${yum_chroot} --setopt=tsflags=nodocs"
+dnf_chroot="${dnf}"
+dnf_chroot="${dnf_chroot} --installroot=${CENTOSROOT}"
+dnf_chroot="${dnf_chroot} --setopt=tsflags=nodocs"
+#dnf_chroot="${dnf_chroot} --setopt=override_install_langs=en_US.UTF-8"
 
 : "Initialize Chroot Dir." && {
 
   rpm_gpgkey="/etc/pki/rpm-gpg/RPM-GPG-KEY-centosofficial"
 
   mkdir -p "${CENTOSROOT}" &&
-  ${yum} reinstall --downloadonly --downloaddir . centos-release &&
-  ${yum} reinstall --downloadonly --downloaddir . centos-gpg-keys &&
+  ${dnf} reinstall --downloadonly --downloaddir . \
+    centos-release centos-gpg-keys &&
   ${rpm_chroot} --initdb &&
-  ${rpm_chroot} --nodeps -ivh centos-release*.rpm centos-gpg-keys*.rpm &&
+  ${rpm_chroot} --nodeps -ivh \
+    centos-release*.rpm centos-gpg-keys*.rpm &&
   rm -f centos-release*.rpm centos-gpg-keys*.rpm &&
   ${rpm_chroot} --import "${CENTOSROOT}${rpm_gpgkey}" &&
-  ${yum_chroot} install yum
+  ${dnf_chroot} install dnf
 
 } &&
 : "Package setup" && {
@@ -50,9 +51,16 @@ yum_chroot="${yum_chroot} --setopt=tsflags=nodocs"
   ${rpm_chroot} --rebuilddb
 
   # Package setup
-  ${yum_chroot} update &&
-  ${yum_chroot} install procps-ng iputils
-#  ${yum_chroot} install \
+  ${dnf_chroot} update &&
+  ${dnf_chroot} install \
+    bash \
+    iputils \
+    passwd \
+    procps-ng \
+    tar \
+    vim-minimal \
+    || exit 1
+#  ${dnf_chroot} install \
 #    bash \
 #    bind-utils \
 #    iputils \
@@ -65,7 +73,7 @@ yum_chroot="${yum_chroot} --setopt=tsflags=nodocs"
 #    || exit 1
 
   # Install EPEL
-  ${yum_chroot} install \
+  ${dnf_chroot} install \
     epel-release \
     || exit 1
 
@@ -74,7 +82,7 @@ yum_chroot="${yum_chroot} --setopt=tsflags=nodocs"
   ${rpm_chroot} -e kernel || :
 
   # Remove
-#1  ${yum_chroot} --skip-broken --nobest remove \
+#  ${dnf_chroot} --skip-broken --nobest remove \
 #    bind-libs \
 #    bind-libs-lite \
 #    dhclient \
@@ -120,9 +128,10 @@ yum_chroot="${yum_chroot} --setopt=tsflags=nodocs"
 #    || exit 1
 
   # yum cleanup
-  ${yum_chroot} update &&
-  ${yum_chroot} clean all
-  rm -rf ${CENTOSROOT}/var/cache/yum/*
+  ${dnf_chroot} update && {
+    ${dnf_chroot} clean all &&
+    rm -rf ${CENTOSROOT}/var/cache/yum/* || :
+  }
 
   # Fix /run/lock breakage since it's not tmpfs in docker
   : && {
@@ -177,19 +186,19 @@ _EOF_
   } || exit 1
 
 } &&
-: "Configure YUM and Plugins." && {
+: "Configure DNF and Plugins." && {
 
-  # Enable yum plugins
-  yum_conf="${CENTOSROOT}/etc/yum.conf"
-  cat "${yum_conf}" |
+  # Enable dnf plugins
+  dnf_conf="${CENTOSROOT}/etc/dnf/dnf.conf"
+  cat "${dnf_conf}" |
   sed -re 's/^(#*)plugins=[01]$/plugins=1/g' |
   sed -re "/^distroverpkg=centos-.*/a override_install_langs=en_US.UTF-8" |
   sed -re "/^override_install_langs=.*/a tsflags=nodocs" |
-  cat 1>"${yum_conf}.tmp" &&
-  mv -f "${yum_conf}"{.tmp,} &&{
+  cat 1>"${dnf_conf}.tmp" &&
+  mv -f "${dnf_conf}"{.tmp,} &&{
     echo
-    echo "[${yum_conf}]"
-    cat ${yum_conf}
+    echo "[${dnf_conf}]"
+    cat ${dnf_conf}
     echo
   } || :
 
