@@ -12,7 +12,7 @@
 : "Remove systemd files" && {
 
   etc_sysd_dir="/etc/systemd/system"
-  lib_sysd_dir="lib/systemd/system"
+  lib_sysd_dir="/lib/systemd/system"
 
   ( cd "${etc_sysd_dir}" && {
       rm -fv ./*.wants/* || :

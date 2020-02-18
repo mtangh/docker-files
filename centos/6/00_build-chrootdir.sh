@@ -19,18 +19,18 @@ yum_config_update() {
   local yum_fm_cnf="${1:-}"; shift
   [ -s "${yum_config}" ] || return 2
   [ -s "${yum_fm_cnf}" ] || return 2
-  
+
   cat "${yum_config}" |
   sed -re 's/^[#[:space:]]*(plugins)=.*$/\1=1/g' |
   if egrep '^[#[:space:]]*override_.+_langs=' \
     "${yum_config}" 1>/dev/null 2>&1
-  then sed -re "/^distroverpkg=.*/a override_install_langs=en_US.UTF-8"
-  else sed -re "/^[#[:space:]]*(override_.+_langs)=.*$/\1=en_US.UTF-8/g"
+  then sed -re 's/^[#[:space:]]*(override_.+_langs)=.*$/\1=en_US.UTF-8/g'
+  else sed -re '/^[#[:space:]]*distroverpkg=.*/a override_install_langs=en_US.UTF-8'
   fi |
   if egrep '^[#[:space:]]*tsflags=' \
     "${yum_config}" 1>/dev/null 2>&1
-  then sed -re "/^override_.+_langs=.*/a tsflags=nodocs"
-  else sed -re "/^[#[:space:]]*(tsflags)=.*$/\1=nodocs/g"
+  then sed -re 's/^[#[:space:]]*(tsflags)=.*$/\1=nodocs/g'
+  else sed -re '/^override_.+_langs=.*/a tsflags=nodocs'
   fi |
   cat 1>"${yum_config}.tmp" &&
   mv -f "${yum_config}"{.tmp,} &&{
@@ -50,14 +50,14 @@ yum_config_update() {
     cat "${yum_fm_cnf}" |
     sed -r \
       -e 's/^[#[:space:]]*(enabled)=.*$/\1=1/g' \
-      -e 's/^[#[:space:]]*(verbose=.*$/\1=1/g' \
+      -e 's/^[#[:space:]]*(verbose)=.*$/\1=1/g' \
       -e 's/^[#[:space:]]*(inc.*_only)=.*$/\1='"${yum_dominc}"'/g' |
     if [ -n "${yum_domexc}" ]
     then
       if egrep '^[#[:space:]]*exclude=.*$' \
         "${yum_fm_cnf}"  1>/dev/null 2>&1
-      then sed -re '/^[#[:space:]]*verbose=.*$/a exclude='"${yum_domexc}"
-      else sed -re 's/^[#[:space:]]*(exclude)=.*$/\1='"${yum_domexc}"'/g'    else cat
+      then sed -re 's/^[#[:space:]]*(exclude)=.*$/\1='"${yum_domexc}"'/g'
+      else sed -re '/^[#[:space:]]*verbose=.*$/a exclude='"${yum_domexc}"
       fi
     else cat
     fi |
@@ -65,8 +65,8 @@ yum_config_update() {
     then
       if egrep '^[#[:space:]]*prefer=.*$' \
         "${yum_fm_cnf}" 1>/dev/null 2>&1
-      then sed -re '/^[#[:space:]]*inc.+_only=.*$/a prefer='"${yum_fmserv}"
-      else sed -re 's/^[#[:space:]]*(prefer)=.*$/\1='"${yum_fmserv}"'/g'
+      then sed -re 's/^[#[:space:]]*(prefer)=.*$/\1='"${yum_fmserv}"'/g'
+      else sed -re '/^[#[:space:]]*inc.+_only=.*$/a prefer='"${yum_fmserv}"
       fi
     else cat
     fi |
@@ -84,17 +84,23 @@ yum_config_update() {
   return 0
 }
 
-: "Initialize Chroot Dir." && {
+: "Change the config of YUM and plugins" && {
 
-  rpm_gpgkey="/etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-${CENTOS_VER}"
+  yum -v -y install \
+    yum-plugin-fastestmirror || :
 
   yum_config_update \
     "/etc/yum.conf" \
     "/etc/yum/pluginconf.d/fastestmirror.conf" \
     || exit 1
- 
+
+} &&
+: "Initialize Chroot Dir." && {
+
+  rpm_gpgkey="/etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-${CENTOS_VER}"
+
   mkdir -p "${CENTOSROOT}" && {
-  
+
     yum -v -y \
       reinstall --downloadonly --downloaddir . \
       centos-release &&
@@ -263,7 +269,7 @@ yum_config_update() {
     [ -s "${lf}" ] &&
     cat /dev/null 1>"${lf}" || :
   done
- 
+
   # Cleanup /tmp/*.
   rm -rf {,/var}/tmp/* || :
 
@@ -276,14 +282,13 @@ yum_config_update() {
   date +'%Y%m%dT%H%M%S%:z' 1>/etc/BUILDTIME || :
 
 } &&
-: "Remove 'resolv.conf'." && {
+: "Remove '/etc/resolv.conf'." && {
 
   rm -f /etc/resolv.conf || :
 
 } &&
 [ $? -eq 0 ]
 _EOD_
-  } || exit 1
 
 } &&
 : "Cleanup." && {

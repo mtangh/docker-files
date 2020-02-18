@@ -19,21 +19,21 @@ dnf_config_update() {
   [ -s "${dnf_config}" ] || return 2
 
   cat "${dnf_config}" |
-  if egrep '^errorlevel=' "${dnf_config}" 1>/dev/null 2&1
-  then sed -re '/^gpgcheck=.*/a errorlevel=8'
-  else sed -re 's/^[#[:space:]]*(errorlevel)=*$/\1=8/g'
+  if egrep '^errorlevel=' "${dnf_config}" 1>/dev/null 2>&1
+  then sed -re 's/^[#[:space:]]*(errorlevel)=*$/\1=8/g'
+  else sed -re '/^gpgcheck=.*/a errorlevel=8'
   fi |
-  if egrep '^debuglevel=' "${dnf_config}" 1>/dev/null 2&1
-  then sed -re '/^errorlevel=.*/a debuglevel=8'
-  else sed -re 's/^[#[:space:]]*(debuglevel)=.*$/\1=8/g'
+  if egrep '^debuglevel=' "${dnf_config}" 1>/dev/null 2>&1
+  then sed -re 's/^[#[:space:]]*(debuglevel)=.*$/\1=8/g'
+  else sed -re '/^errorlevel=.*/a debuglevel=8'
   fi |
-  if egrep '^tsflags=' "${dnf_config}" 1>/dev/null 2&1
-  then sed -re '/^best=.*/a tsflags=nodocs'
-  else sed -re 's/^[#[:space:]]*(tsflags)=.*$/\1=nodocs/g'
+  if egrep '^tsflags=' "${dnf_config}" 1>/dev/null 2>&1
+  then sed -re 's/^[#[:space:]]*(tsflags)=.*$/\1=nodocs/g'
+  else sed -re '/^best=.*/a tsflags=nodocs'
   fi |
-  if egrep '^fastestmirror=' "${dnf_config}" 1>/dev/null 2&1
-  then sed -re '/^tsflags=.*$/a fastestmirror=True'
-  else sed -re 's/^[#[:space:]]*(fastestmirror)=.*$/\1=True/g'
+  if egrep '^fastestmirror=' "${dnf_config}" 1>/dev/null 2>&1
+  then sed -re 's/^[#[:space:]]*(fastestmirror)=.*$/\1=True/g'
+  else sed -re '/^tsflags=.*$/a fastestmirror=True'
   fi |
   cat 1>"${dnf_config}.tmp" &&
   mv -f "${dnf_config}"{.tmp,} && {
@@ -46,13 +46,16 @@ dnf_config_update() {
   return $?
 }
 
-: "Initialize Chroot Dir." && {
-
-  rpm_gpgkey="/etc/pki/rpm-gpg/RPM-GPG-KEY-centosofficial"
+: "Change the config of DNF" && {
 
   dnf_config_update \
     "/etc/dnf/dnf.conf" \
     || exit 1
+
+} &&
+: "Initialize Chroot Dir." && {
+
+  rpm_gpgkey="/etc/pki/rpm-gpg/RPM-GPG-KEY-centosofficial"
 
   mkdir -p "${CENTOSROOT}" && {
 
@@ -75,11 +78,11 @@ dnf_config_update() {
       install dnf
 
   } || exit 1
-  
-  rm -f centos-*.rpm || :  
+
+  rm -f centos-*.rpm || :
 
 } &&
-: "Change the config of YUM and plugins under CENTOSROOT." && {
+: "Change the config of DNF under CENTOSROOT." && {
 
   dnf_config_update \
     "${CENTOSROOT}/etc/dnf/dnf.conf" \
@@ -228,7 +231,7 @@ dnf_config_update() {
     [ -s "${lf}" ] &&
     cat /dev/null 1>"${lf}" || :
   done
- 
+
   # Cleanup /tmp/*.
   rm -rf {,/var}/tmp/* || :
 
