@@ -21,16 +21,16 @@ yum_config_update() {
   [ -s "${yum_fm_cnf}" ] || return 2
   
   cat "${yum_config}" |
-  sed -re 's/^(#*)plugins=[01]$/plugins=1/g' |
-  if egrep '^override_install_langs=' \
+  sed -re 's/^[#[:space:]]*(plugins)=.*$/\1=1/g' |
+  if egrep '^[#[:space:]]*override_.+_langs=' \
     "${yum_config}" 1>/dev/null 2>&1
   then sed -re "/^distroverpkg=.*/a override_install_langs=en_US.UTF-8"
-  else sed -re "/^override_.+_langs=.*$/override_install_langs=en_US.UTF-8/g"
+  else sed -re "/^[#[:space:]]*(override_.+_langs)=.*$/\1=en_US.UTF-8/g"
   fi |
-  if egrep '^tsflags=' \
+  if egrep '^[#[:space:]]*tsflags=' \
     "${yum_config}" 1>/dev/null 2>&1
   then sed -re "/^override_.+_langs=.*/a tsflags=nodocs"
-  else sed -re "/^tsflags=.*$/tsflags=nodocs/g"
+  else sed -re "/^[#[:space:]]*(tsflags)=.*$/\1=nodocs/g"
   fi |
   cat 1>"${yum_config}.tmp" &&
   mv -f "${yum_config}"{.tmp,} &&{
@@ -49,24 +49,24 @@ yum_config_update() {
   then
     cat "${yum_fm_cnf}" |
     sed -r \
-      -e 's/^(#*)enabled=[01]$/enabled=1/g' \
-      -e 's/^(#*)verbose=[01]$/verbose=1/g' \
-      -e 's/^(#*)include_only=.*$/include_only='"${yum_dominc}"'/g' |
+      -e 's/^[#[:space:]]*(enabled)=.*$/\1=1/g' \
+      -e 's/^[#[:space:]]*(verbose=.*$/\1=1/g' \
+      -e 's/^[#[:space:]]*(inc.*_only)=.*$/\1='"${yum_dominc}"'/g' |
     if [ -n "${yum_domexc}" ]
     then
-      if egrep 's/^(#*)exclude=.*$' \
+      if egrep '^[#[:space:]]*exclude=.*$' \
         "${yum_fm_cnf}"  1>/dev/null 2>&1
-      then sed -re '/^verbose=.*$/a exclude='"${yum_domexc}"
-      else sed -re 's/^(#*)exclude=.*$/exclude='"${yum_domexc}"'/g'    else cat
+      then sed -re '/^[#[:space:]]*verbose=.*$/a exclude='"${yum_domexc}"
+      else sed -re 's/^[#[:space:]]*(exclude)=.*$/\1='"${yum_domexc}"'/g'    else cat
       fi
     else cat
     fi |
     if [ -n "${yum_fmserv}" ]
     then
-      if egrep '^(#*)prefer=' \
+      if egrep '^[#[:space:]]*prefer=.*$' \
         "${yum_fm_cnf}" 1>/dev/null 2>&1
-      then sed -re '/^include_only=.*$/a prefer='"${yum_fmserv}"
-      else sed -re 's/^(#*)prefer=.*$/prefer='"${yum_fmserv}"'/g'
+      then sed -re '/^[#[:space:]]*inc.+_only=.*$/a prefer='"${yum_fmserv}"
+      else sed -re 's/^[#[:space:]]*(prefer)=.*$/\1='"${yum_fmserv}"'/g'
       fi
     else cat
     fi |
@@ -213,7 +213,7 @@ yum_config_update() {
   # Update and Cleanup.
   yum -v -y update && {
     yum -v -y clean all &&
-    rm -rf ${CENTOSROOT}/var/cache/yum/* || :
+    rm -rf /var/cache/yum/* || :
   }
 
 } &&

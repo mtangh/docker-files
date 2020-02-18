@@ -1,47 +1,30 @@
 #
-# httpd-apache_centos7
+# httpd-apache-cos7s
 #
 #@  DOCKER_CONTAINER=""
-#@  DOCKER_IMAGEPATH="httpd-apache_centos7"
+#@  DOCKER_IMAGEPATH="httpd-apache-cos7s"
 #@  DOCKER_BUILDOPTS=""
 #@  DOCKER_BOOT_OPTS=""
 #
 
-# Workdir
-ARG WORK_DIR="httpd-apache-build"
+# RPM Package List
+RPM_PACKAGES=""
 
 # Apache HTTP Server on CentOS7 with Systemd
 FROM centos:7_systemd-onbuild AS latest
 
 # Apache package list
-ARG PACKAGE_LIST=""
-
-# Workdir
-ARG WORK_DIR
+ARG RPM_PACKAGES
 
 # Set Workdir
-WORKDIR /tmp/"${WORK_DIR}"
+WORKDIR /tmp/httpd-apache-build
 
-# COPY shell scripts to Workdir
+# Copy contents to Workdir
 COPY * ./
 
 # SetUp
 RUN \
  set -ux; \
- packages=""; \
- if [ -n "${PACKAGE_LIST:-}" ]; \
- then packages="${PACKAGE_LIST}"; \
- elif [ -f "./packages.txt" -a -s "./packages.txt" ]; \
- then packages=$(echo $(cat "./packages.txt")); \
- else \
-  packages="httpd mod_ssl"; \
-  echo "The Apache Package List is empty, using default: '${packages}''."; \
- fi; \
- : "Install Apache Packages" && { \
-  yum -v -y update && \
-  yum -v -y install ${packages} && \
-  yum -v -y clean all; \
- } && \
  : "Update httpd.conf" && { \
   httpdcnf="/etc/httpd/conf/httpd.conf"; \
   : && { \
@@ -53,9 +36,9 @@ RUN \
   else \
    cat "${httpdcnf}.ORIG" | \
    sed -r \
-    -e 's#^(ServerAdmin)[ ][ ]*.*$#\1 admin@localhost#g' \
-    -e 's#^(ServerTokens)[ ][ ]*.*$#\1 Prod#g' \
-    -e 's#^(ServerSignature)[ ][ ]*.*$#\1 Off#g' \
+    -e 's/^[#[:space:]]*(ServerAdmin)[[:space:]]*.*$/\1 admin@localhost/gi' \
+    -e 's/^[#[:space:]]*(ServerTokens)[[:space:]]*.*$/\1 Prod/gi' \
+    -e 's/^[#[:space:]]*(ServerSignature)[[:space:]]*.*$/\1 Off/gi' \
     1>"${httpdcnf}"; \
   fi && \
   /usr/sbin/httpd -t; \
@@ -64,12 +47,12 @@ RUN \
   systemctl enable httpd; \
  } && \
  : "Cleanup." && { \
-  cd /; \
+  work_dir=$(pwd); cd /; \
   for lf in /var/log/*; \
   do [ -s "${lf}" ] && cat /dev/null >"${lf}"; done || :; \
   rm -rf {,/var}/tmp/* || :; \
   yum -v -y clean all; rm -rf /var/cache/yum/* || :; \
-  rm -rf /tmp/"${WORK_DIR}" || :; \
+  rm -rf "${work_dir}" || :; \
  } && \
  : "Done.";
 
@@ -83,7 +66,7 @@ LABEL \
  maintainer="MT" \
  license="" \
  docker.build.options="" \
- docker.run.options="-d -P -h httpd-apache-cos7sysd --privileged" \
+ docker.run.options="-d -P -h httpd-apache-c7 --privileged" \
  docker.run.confirm-startup=""
 
 # Health check
@@ -95,9 +78,6 @@ CMD \
 
 # Apache HTTP Server on CentOS7 with Systemd (onbuild)
 FROM latest AS latest-onbuild
-
-# Workdir
-ARG WORK_DIR
 
 # Reset Workdir
 WORKDIR /
@@ -114,13 +94,11 @@ LABEL \
 
 # ONBUILD: Set Workdir
 ONBUILD \
-ARG WORK_DIR="${WORK_DIR}"
-ONBUILD \
-WORKDIR /tmp/"${WORK_DIR}"
+WORKDIR /tmp/httpd-apache-build
 
-# ONBUILD: Copy Contents
+# ONBUILD: Copy contents to Workdir
 ONBUILD \
-COPY * /tmp/"${WORK_DIR}"
+COPY * ./
 
 # ONBUILD: SetUp
 ONBUILD \
@@ -136,12 +114,12 @@ RUN \
   echo; \
  }; \
  : "ONBUILD: Cleanup" && { \
-  cd /; \
+  work_dir=$(pwd); cd /; \
   for lf in /var/log/*; \
   do [ -s "${lf}" ] && cat /dev/null >"${lf}"; done || :; \
   rm -rf {,/var}/tmp/* || :; \
   yum -v -y clean all; rm -rf /var/cache/yum/* || :; \
-  rm -rf /tmp/"${WORK_DIR}"/ || :; \
+  rm -rf "${work_dir}" || :; \
  } && \
  echo "ONBUILD - DONE.";
 

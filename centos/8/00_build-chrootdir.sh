@@ -21,19 +21,19 @@ dnf_config_update() {
   cat "${dnf_config}" |
   if egrep '^errorlevel=' "${dnf_config}" 1>/dev/null 2&1
   then sed -re '/^gpgcheck=.*/a errorlevel=8'
-  else sed -re 's/^errorlevel=*$/errorlevel=8/g'
+  else sed -re 's/^[#[:space:]]*(errorlevel)=*$/\1=8/g'
   fi |
   if egrep '^debuglevel=' "${dnf_config}" 1>/dev/null 2&1
   then sed -re '/^errorlevel=.*/a debuglevel=8'
-  else sed -re 's/^debuglevel=.*$/debuglevel=8/g'
+  else sed -re 's/^[#[:space:]]*(debuglevel)=.*$/\1=8/g'
   fi |
   if egrep '^tsflags=' "${dnf_config}" 1>/dev/null 2&1
   then sed -re '/^best=.*/a tsflags=nodocs'
-  else sed -re 's/^tsflags=.*$/tsflags=nodocs/g'
+  else sed -re 's/^[#[:space:]]*(tsflags)=.*$/\1=nodocs/g'
   fi |
   if egrep '^fastestmirror=' "${dnf_config}" 1>/dev/null 2&1
   then sed -re '/^tsflags=.*$/a fastestmirror=True'
-  else sed -re 's/^fastestmirror=.*$/fastestmirror=True/g'
+  else sed -re 's/^[#[:space:]]*(fastestmirror)=.*$/\1=True/g'
   fi |
   cat 1>"${dnf_config}.tmp" &&
   mv -f "${dnf_config}"{.tmp,} && {
