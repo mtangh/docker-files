@@ -14,9 +14,45 @@ cat <<_EOD_
 #*
 _EOD_
 
+dnf_config_update() {
+  local dnf_config="${1:-}"; shift
+  [ -s "${dnf_config}" ] || return 2
+
+  cat "${dnf_config}" |
+  if egrep '^errorlevel=' "${dnf_config}" 1>/dev/null 2&1
+  then sed -re '/^gpgcheck=.*/a errorlevel=8'
+  else sed -re 's/^errorlevel=*$/errorlevel=8/g'
+  fi |
+  if egrep '^debuglevel=' "${dnf_config}" 1>/dev/null 2&1
+  then sed -re '/^errorlevel=.*/a debuglevel=8'
+  else sed -re 's/^debuglevel=.*$/debuglevel=8/g'
+  fi |
+  if egrep '^tsflags=' "${dnf_config}" 1>/dev/null 2&1
+  then sed -re '/^best=.*/a tsflags=nodocs'
+  else sed -re 's/^tsflags=.*$/tsflags=nodocs/g'
+  fi |
+  if egrep '^fastestmirror=' "${dnf_config}" 1>/dev/null 2&1
+  then sed -re '/^tsflags=.*$/a fastestmirror=True'
+  else sed -re 's/^fastestmirror=.*$/fastestmirror=True/g'
+  fi |
+  cat 1>"${dnf_config}.tmp" &&
+  mv -f "${dnf_config}"{.tmp,} && {
+    echo
+    echo "[${dnf_config}]"
+    cat "${dnf_config}"
+    echo
+  } || :
+
+  return $?
+}
+
 : "Initialize Chroot Dir." && {
 
   rpm_gpgkey="/etc/pki/rpm-gpg/RPM-GPG-KEY-centosofficial"
+
+  dnf_config_update \
+    "/etc/dnf/dnf.conf" \
+    || exit 1
 
   mkdir -p "${CENTOSROOT}" && {
 
@@ -43,28 +79,17 @@ _EOD_
   rm -f centos-*.rpm || :  
 
 } &&
-: "Configure DNF and Plugins." && {
+: "Change the config of YUM and plugins under CENTOSROOT." && {
 
-  # Enable dnf plugins
-  dnf_config="${CENTOSROOT}/etc/dnf/dnf.conf"
-  cat "${dnf_config}" |
-  sed -re '/^gpgcheck=*/a debuglevel=8' |
-  sed -re '/^debuglevel=*/a errorlevel=8' |
-  sed -re '/^best=.*/a tsflags=nodocs' |
-  sed -re '/^tsflags=.*$/a fastestmirror=1' |
-  cat 1>"${dnf_config}.tmp" &&
-  mv -f "${dnf_config}"{.tmp,} &&{
-    echo
-    echo "[${dnf_config}]"
-    cat ${dnf_config}
-    echo
-  } || :
+  dnf_config_update \
+    "${CENTOSROOT}/etc/dnf/dnf.conf" \
+    || exit 1
 
   # dnf vars
-  echo "container" 1>${CENTOSROOT}/etc/dnf/vars/infra
+  echo "container" 1>"${CENTOSROOT}/etc/dnf/vars/infra"
 
 } &&
-: "Chroot Setup" && {
+: "Chroot Setup." && {
 
   cp -pf {,"${CENTOSROOT}"}/etc/resolv.conf &&
   chroot "${CENTOSROOT}" /bin/bash -ux <<'_EOD_'
@@ -78,7 +103,7 @@ _EOD_
 } &&
 : "Package setup." && {
 
-  # Rebuild RPM DB
+  # Rebuild RPM DB.
   rpm -v --rebuilddb &&
   dnf -v -y update || exit 1
 
@@ -102,7 +127,7 @@ _EOD_
     libcurl-minimal \
     || exit 1
 
-  # Install EPEL
+  # Install EPEL.
   dnf -v -y install \
     epel-release \
     || exit 1

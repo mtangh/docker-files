@@ -14,10 +14,85 @@ cat <<_EOD_
 #*
 _EOD_
 
+yum_config_update() {
+  local yum_config="${1:-}"; shift
+  local yum_fm_cnf="${1:-}"; shift
+  [ -s "${yum_config}" ] || return 2
+  [ -s "${yum_fm_cnf}" ] || return 2
+  
+  cat "${yum_config}" |
+  sed -re 's/^(#*)plugins=[01]$/plugins=1/g' |
+  if egrep '^override_install_langs=' \
+    "${yum_config}" 1>/dev/null 2>&1
+  then sed -re "/^distroverpkg=.*/a override_install_langs=en_US.UTF-8"
+  else sed -re "/^override_.+_langs=.*$/override_install_langs=en_US.UTF-8/g"
+  fi |
+  if egrep '^tsflags=' \
+    "${yum_config}" 1>/dev/null 2>&1
+  then sed -re "/^override_.+_langs=.*/a tsflags=nodocs"
+  else sed -re "/^tsflags=.*$/tsflags=nodocs/g"
+  fi |
+  cat 1>"${yum_config}.tmp" &&
+  mv -f "${yum_config}"{.tmp,} &&{
+    echo
+    echo "[${yum_config}]"
+    cat ${yum_config}
+    echo
+  } ||
+  return $?
+
+  # Modify yum-plugin-fastestmirror
+  yum_fmserv="${YUM_FAST_MIRROR:-}"
+  yum_dominc="${YUM_FM_DOM_INCL:-.org}"
+  yum_domexc="${YUM_FM_DOM_EXCL:-}"
+  if [ -e "${yum_fm_cnf}" ]
+  then
+    cat "${yum_fm_cnf}" |
+    sed -r \
+      -e 's/^(#*)enabled=[01]$/enabled=1/g' \
+      -e 's/^(#*)verbose=[01]$/verbose=1/g' \
+      -e 's/^(#*)include_only=.*$/include_only='"${yum_dominc}"'/g' |
+    if [ -n "${yum_domexc}" ]
+    then
+      if egrep 's/^(#*)exclude=.*$' \
+        "${yum_fm_cnf}"  1>/dev/null 2>&1
+      then sed -re '/^verbose=.*$/a exclude='"${yum_domexc}"
+      else sed -re 's/^(#*)exclude=.*$/exclude='"${yum_domexc}"'/g'    else cat
+      fi
+    else cat
+    fi |
+    if [ -n "${yum_fmserv}" ]
+    then
+      if egrep '^(#*)prefer=' \
+        "${yum_fm_cnf}" 1>/dev/null 2>&1
+      then sed -re '/^include_only=.*$/a prefer='"${yum_fmserv}"
+      else sed -re 's/^(#*)prefer=.*$/prefer='"${yum_fmserv}"'/g'
+      fi
+    else cat
+    fi |
+    cat 1>"${yum_fm_cnf}.tmp" &&
+    mv -f "${yum_fm_cnf}"{.tmp,} && {
+      echo
+      echo "[${yum_fm_cnf}]"
+      cat "${yum_fm_cnf}"
+      echo
+    }
+  else :
+  fi ||
+  return $?
+
+  return 0
+}
+
 : "Initialize Chroot Dir." && {
 
   rpm_gpgkey="/etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-${CENTOS_VER}"
 
+  yum_config_update \
+    "/etc/yum.conf" \
+    "/etc/yum/pluginconf.d/fastestmirror.conf" \
+    || exit 1
+ 
   mkdir -p "${CENTOSROOT}" && {
   
     yum -v -y \
@@ -32,7 +107,7 @@ _EOD_
     rpm -v \
       --root ${CENTOSROOT} \
       --import "${CENTOSROOT}${rpm_gpgkey}" &&
-    rpm -v -y \
+    yum -v -y \
       --installroot=${CENTOSROOT} \
       --setopt=override_install_langs=en_US.UTF-8 \
       --setopt=tsflags=nodocs \
@@ -43,51 +118,12 @@ _EOD_
   rm -f centos-*.rpm || :
 
 } &&
-: "Configure YUM and Plugins." && {
+: "Change the config of YUM and plugins under CENTOSROOT." && {
 
-  # Enable yum plugins
-  yum_conf="${CENTOSROOT}/etc/yum.conf"
-  cat "${yum_conf}" |
-  sed -re 's/^(#*)plugins=[01]$/plugins=1/g' |
-  sed -re "/^distroverpkg=centos-.*/a override_install_langs=en_US.UTF-8" |
-  sed -re "/^override_install_langs=.*/a tsflags=nodocs" |
-  cat 1>"${yum_conf}.tmp" &&
-  mv -f "${yum_conf}"{.tmp,} &&{
-    echo
-    echo "[${yum_conf}]"
-    cat ${yum_conf}
-    echo
-  } || :
-
-  # Modify yum-fastestmirror
-  yum_plgcnf="${CENTOSROOT}/etc/yum/pluginconf.d"
-  yum_fm_cnf="${yum_plgcnf}/fastestmirror.conf"
-  yum_fmserv="${YUM_FAST_MIRROR:-}"
-  yum_dominc="${YUM_FM_DOM_INCL:-.org}"
-  yum_domexc="${YUM_FM_DOM_EXCL:-}"
-  [ -e "${yum_fm_cnf}" ] && {
-    cat "${yum_fm_cnf}" |
-    sed -r \
-      -e 's/^(#*)enabled=[01]$/enabled=1/g' \
-      -e 's/^(#*)verbose=[01]$/verbose=1/g' \
-      -e 's/^(#*)include_only=.*$/include_only='"${yum_dominc}"'/g' |
-    if [ -n "${yum_domexc}" ]
-    then sed -r -e 's/^(#*)exclude=.*$/exclude='"${yum_domexc}"'/g'
-    else cat
-    fi |
-    if [ -n "${yum_fmserv}" ]
-    then sed -r -e '/^include_only=.*$/a prefer='"${yum_fmserv}"
-    else cat
-    fi |
-    cat 1>"${yum_fm_cnf}.tmp" &&
-    mv -f "${yum_fm_cnf}"{.tmp,} && {
-      echo
-      echo "[${yum_fm_cnf}]"
-      cat "${yum_fm_cnf}"
-      echo
-    }
-    [ $? -eq 0 ] || exit 1
-  } || :
+  yum_config_update \
+    "${CENTOSROOT}/etc/yum.conf" \
+    "${CENTOSROOT}/etc/yum/pluginconf.d/fastestmirror.conf" \
+    || exit 1
 
   # yum vars
   echo "container" 1>${CENTOSROOT}/etc/yum/vars/infra
@@ -105,9 +141,9 @@ _EOD_
   [ -e "/dev/urandom" ] || mknod -m 666 /dev/urandom c 1 9
 
 } &&
-: "Package setup" && {
+: "Package setup." && {
 
-  # Rebuild RPM DB
+  # Rebuild RPM DB.
   rpm -v --rebuilddb &&
   yum -v -y update || exit 1
 
@@ -125,13 +161,13 @@ _EOD_
     yum-utils \
     || exit 1
 
-  # Install EPEL
+  # Install EPEL.
   yum -v -y install \
     epel-release \
     || exit 1
 
   # remove stuff we don't need that anaconda insists on
-  # kernel needs to be removed by rpm, because of grubby
+  # kernel needs to be removed by rpm, because of grubby.
   rpm -v -e kernel || :
 
   # Remove packages as much as possible.
@@ -174,13 +210,14 @@ _EOD_
     which \
     || exit 1
 
+  # Update and Cleanup.
   yum -v -y update && {
     yum -v -y clean all &&
     rm -rf ${CENTOSROOT}/var/cache/yum/* || :
   }
 
 } &&
-: "Disable services" && {
+: "Disable services." && {
 
   for sn in $(/sbin/chkconfig|cut -f1)
   do
@@ -211,7 +248,7 @@ _EOD_
   fi || :
 
 } &&
-: "Remove some things we don't need" && {
+: "Remove some things we don't need." && {
 
   rm -rf \
     /boot/* \
