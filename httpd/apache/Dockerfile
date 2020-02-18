@@ -7,14 +7,11 @@
 #@  DOCKER_BOOT_OPTS=""
 #
 
-# RPM Package List
-RPM_PACKAGES=""
-
 # Apache HTTP Server on CentOS7 with Systemd
 FROM centos:7_systemd-onbuild AS latest
 
-# Apache package list
-ARG RPM_PACKAGES
+# Packages to install
+ARG PACKAGES=""
 
 # Set Workdir
 WORKDIR /tmp/httpd-apache-build
@@ -25,6 +22,20 @@ COPY * ./
 # SetUp
 RUN \
  set -ux; \
+ packages=""; \
+ if [ -n "${PACKAGES:-}" ]; \
+ then packages="${PACKAGES}"; \
+ elif [ -f "./packages.txt" -a -s "./packages.txt" ]; \
+ then packages=$(echo $(cat "./packages.txt")); \
+ else \
+  packages="httpd mod_ssl"; \
+  echo "The Apache Package List is empty, using default: '${packages}''."; \
+ fi; \
+ : "Install" && { \
+  yum -v -y update && \
+  yum -v -y install ${packages} && \
+  yum -v -y clean all; \
+ } && \
  : "Update httpd.conf" && { \
   httpdcnf="/etc/httpd/conf/httpd.conf"; \
   : && { \
@@ -121,7 +132,7 @@ RUN \
   yum -v -y clean all; rm -rf /var/cache/yum/* || :; \
   rm -rf "${work_dir}" || :; \
  } && \
- echo "ONBUILD - DONE.";
+ : "ONBUILD: Done.";
 
 # ONBUILD: Reset Work dir
 ONBUILD \

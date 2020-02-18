@@ -15,6 +15,9 @@ FROM centos:7_systemd-onbuild AS latest
 # CentOS VERSION
 ARG CENTOS_VER
 
+# Packages to install
+ARG PACKAGES=""
+
 # Set Workdir
 WORKDIR /tmp/httpd-nginx-build
 
@@ -27,8 +30,17 @@ RUN \
  ng_rel_url="http://nginx.org/packages/centos/%V/noarch/RPMS"; \
  ng_rel_url="${ng_rel_url}/nginx-release-centos-%V-0.el%V.ngx.noarch.rpm"; \
  ng_rel_url=$(echo "${ng_rel_url}" |sed -re 's/%V/'"${CENTOS_VER}"'/g'); \
+ packages=""; \
+ if [ -n "${PACKAGES:-}" ]; \
+ then packages="${PACKAGES}"; \
+ elif [ -f "./packages.txt" -a -s "./packages.txt" ]; \
+ then packages=$(echo $(cat "./packages.txt")); \
+ else \
+  packages="nginx"; \
+  echo "The Nginx Package List is empty, using default: '${packages}''."; \
+ fi; \
  rpm -Uvh "${ng_rel_url}" && \
- : "Install packages" && { \
+ : "Install" && { \
   [ -e "/etc/yum.repos.d/nginx.repo" ] && { \
    sed -ri 's/^enabled=.+$/enabled=1/g' && \
    yum -v -y update && \
@@ -56,7 +68,7 @@ RUN \
   fi && \
   /usr/sbin/nginx -t; \
  } && \
- : "Update default.conf" && { \
+ : "Update conf.d/default.conf" && { \
   nginxcnf="/etc/nginx/conf.d/default.conf"; \
   : && { \
    [ -e "${nginxcnf}.ORIG" ] || \
@@ -150,7 +162,7 @@ RUN \
   yum -v -y clean all; rm -rf /var/cache/yum/* || :; \
   rm -rf "${work_dir}" || :; \
  } && \
- echo "ONBUILD - DONE.";
+ : "ONBUILD: Done.";
 
 # ONBUILD: Reset Work dir
 ONBUILD \
