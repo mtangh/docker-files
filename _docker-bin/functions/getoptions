@@ -11,10 +11,11 @@ getoptions() {
   local _has_arg=""
   local _varname=""
   local _getopt_ARGV=()
-  [[ "$(caller 0)" =~ ^[0-9]*[\ ][\ ]*main[\ ][\ ]*.*$ ]] ||
-  echo 'local _getopt_ARGV=();'
-  echo 'local _getopt_ARGC=0;'
-  echo 'local _getopt_V="";'
+  [[ "$(caller 0)" =~ ^[0-9]*[\ ][\ ]*main[\ ][\ ]*.*$ ]] || {
+    echo 'local _getopt_ARGV=();'
+    echo 'local _getopt_ARGC=0;'
+    echo 'local _getopt_V="";'
+  }
   while [ $# -gt 0 ]
   do
     _a_value="${_a_value:-${1:-}}"
@@ -59,23 +60,29 @@ getoptions() {
       done 2>/dev/null
       if [ ${_o_found} -eq 0 ]
       then
-        _getopt_ARGV=("${_getopt_ARGV[@]}" "${_a_value}")
+        if [ -n "$(echo ${_getopt_ARGV[@]:-})" ]
+        then _getopt_ARGV=("${_getopt_ARGV[@]}" "${_a_value}")
+        else _getopt_ARGV=("${_a_value}")
+        fi
         _a_value=""
       fi
       ;;
     *)
-      _getopt_ARGV=("${_getopt_ARGV[@]}" "${1:-}")
+      if [ -n "$(echo ${_getopt_ARGV[@]:-})" ]
+      then _getopt_ARGV=("${_getopt_ARGV[@]}" "${1:-}")
+      else _getopt_ARGV=("${1:-}")
+      fi
       _a_value=""
       ;;
     esac
     [ -n "${_a_value}" ] ||
     shift
   done
-  [ -n "${_getopt_ARGV[@]}" ] && {
+  [ -n "$(echo ${_getopt_ARGV[@]:-})" ] && {
     echo 'set '$(__array_to_tuples "${_getopt_ARGV[@]}")';'
     echo '_getopt_ARGV=('$(__array_to_tuples "${_getopt_ARGV[@]}")');'
     echo '_getopt_ARGC='"${#_getopt_ARGV[@]}"';'
-  })
+  }
   return $?
 }
 
@@ -85,20 +92,26 @@ getoptions_end() {
 }
 
 getoptions_has_next() {
-  local _optargs=("${_getopt_ARGV[@]:-${@}}")
-  [ ${#_optargs[@]} -gt 0 ]
+  local _optargs=("${_getopt_ARGV[@]:-$@}")
+  [ -n "$(echo ${_optargs[@]:-})" ]
   return $?
 }
 
 getoptions_shift() {
-  local _optargs=("${_getopt_ARGV[@]:-${@}}")
-  local _optarg0="${_optargs[0]}"
+  local _optargs=("${_getopt_ARGV[@]:-$@}")
+  local _optarg0="${_optargs[0]:-}"
   local _optarg1=("${_optargs[@]:1}")
-  echo 'set '$(__array_to_tuples "${_optarg1[@]}")';'
-  echo '_getopt_ARGV=('$(__array_to_tuples "${_optarg1[@]}")');'
-  echo '_getopt_ARGC='"${#_optarg1[@]}"';'
-  echo '_getopt_V="'"${_optarg0}"'";'
-  [ ${#_optarg1[@]} -gt 0 ]
+  if [ -n "$(echo ${_optarg1[@]:-})" ]
+  then
+    echo 'set '$(__array_to_tuples "${_optarg1[@]:-}")';'
+    echo '_getopt_ARGV=('$(__array_to_tuples "${_optarg1[@]:-}")');'
+    echo '_getopt_ARGC='"${#_optarg1[@]}"';'
+  else
+    echo '_getopt_ARGV=();'
+    echo '_getopt_ARGC=0;'
+  fi
+  echo '_getopt_V="'"${_optarg0:-}"'";'
+  [ -n "$(echo ${_optargs[@]:-})" ]
   return $?
 }
 
@@ -106,8 +119,7 @@ __array_to_tuples() {
   printf '"%s"' "${1:-}"; shift
   while [ $# -gt 0 ]
   do
-    printf ' "%s"' "${1:-}"
-    shift
+    printf ' "%s"' "${1:-}"; shift
   done 2>/dev/null
   echo
   return 0
@@ -139,7 +151,8 @@ __parse_opt_template() {
     _optkeyS="${_optkeyS:-----}"
     _optkeyL="${_optkeyL:-----}"
     _varname="${_varname:-_getopt_$_opt_key}" &&
-    _varname=$(echo "${_varname//-|/__}")
+    _varname=$(echo "${_varname//-/_}")
+    _varname=$(echo "${_varname//|/_}")
   } #2>/dev/null
   _r_value=$?
   echo '_optkeyS="'"${_optkeyS}"'";'

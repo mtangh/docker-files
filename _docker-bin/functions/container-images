@@ -66,8 +66,8 @@ container-image-get() {
     *)
       _found_val=$(
         docker images --format='{{ .ID}} {{ .Repository }}:{{ .Tag }}' |
-        egrep '(^'"${_cimagekey}"'[[space:]]+|[[space:]]+'"${_cimagekey}"'$)' |
-        egrep -v ' <none>:<none>$' |${AWK} ${_cimg_fcls} 2>/dev/null; )
+        egrep '(^'"${_cimagekey}"'[[:space:]]+|[[:space:]]+'"${_cimagekey}"'$)' |
+        egrep -v '[[:space:]]+<none>:<none>$' |${AWK} ${_cimg_fcls} 2>/dev/null; )
       [ -n "${_found_val}" ] && {
         echo "${_found_val}"
         _found_cnt=$(( ${_found_cnt} + 1 ))

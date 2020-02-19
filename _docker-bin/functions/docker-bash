@@ -14,19 +14,14 @@ docker-bash() {
   do
     eval $(getoptions_shift 2>/dev/null)
     case "${_getopt_V:=}" in
-    case "${1:-}" in
     +[0-9]*|@[0-9A-Za-z]*)
-      if [ -z "${_container}" -a -z "${_imagepath}" ]      
-      then
-        _stage_key="${_getopt_V}"
-      else :
-      fi
+      _stage_key="${_getopt_V}"
       ;;
     *)
       if [ -z "${_container}" -a -z "${_imagepath}" ]
       then
-        _container="$(container-get-id ${_getopt_V})" ||
-        _imagepath="$(container-image-get-id ${_getopt_V})"
+        _container=$(container-get-id "${_getopt_V}") ||
+        _imagepath=$(container-image-get-id "${_getopt_V}")
       else
         _shellopts=("${_shellopts[@]}" "${_getopt_V}")
       fi || :
@@ -34,15 +29,24 @@ docker-bash() {
     esac
   done
   eval $(getoptions_end)
+  if [ -z "${_stage_key}" -a -n "${_buildpath}" ]
+  then
+    echo "Choose a stage to run."
+    echo
+    dockerfile-stage-list --format "${_buildpath}" 2>/dev/null
+    echo
+    return 1
+  fi
   if [ -n "${_stage_key}" -a -z "${_container}${_imagepath}" ]
   then
+    _buildpath==$(dockerfile-get-path "${_buildpath}")
     _imagepath=$(
       dockerfile-imagepath-get "${_stage_key}" "${_buildpath}")
+    echo "${_imagepath}"
   fi || :
   if [ -z "${_container}" -a -n "${_imagepath}" ]
   then
-    _container="$(
-      container-get-id ${_imagepath})"
+    _container=$(container-get-id "${_imagepath}")
   fi
   if [ -z "${_container}${_imagepath}" ]
   then

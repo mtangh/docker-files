@@ -42,10 +42,10 @@ RUN \
  rpm -Uvh "${ng_rel_url}" && \
  : "Install" && { \
   [ -e "/etc/yum.repos.d/nginx.repo" ] && { \
-   sed -ri 's/^enabled=.+$/enabled=1/g' && \
+   sed -ri 's/^enabled=.+$/enabled=1/g' /etc/yum.repos.d/nginx.repo && \
    yum -v -y update && \
-   yum -v -y nginx && \
-   yum -v -y clean && { \
+   yum -v -y install ${packages} && \
+   yum -v -y clean all && { \
    rm -rf /var/cache/yum/* || :; }; \
   }; \
  } && \
@@ -60,10 +60,10 @@ RUN \
   else \
    cat "${nginxcnf}.ORIG" | \
    sed -r \
-    -e '/^[[:space:]]*include[[:space:]]+.+mime[.]types;$/i server_tokens off;' \
-    -e 's/^[#[:space:]]*(gzip)[[:space:]]+.*;$/\1 on;/g' \
-    -e '/gzip[[:space:]]/a server_names_hash_bucket_size 128;' \
-    -e 's/^[#[:space:]]*(keepalive_timeout)[[:space:]]+.*;$/\1 15;/g' \
+    -e '/^[[:space:]]*include[[:space:]]+.+mime[.]types;$/i \    server_tokens off;' \
+    -e 's/^([#[:space:]]*gzip)[[:space:]]+.*;$/\1 on;/g' \
+    -e '/gzip[[:space:]]/a \    server_names_hash_bucket_size 128;' \
+    -e 's/^([#[:space:]]*keepalive_timeout)[[:space:]]+.*;$/\1 15;/g' \
     1>"${nginxcnf}"; \
   fi && \
   /usr/sbin/nginx -t; \
@@ -79,7 +79,7 @@ RUN \
   else \
    cat "${nginxcnf}.ORIG" | \
    sed -r \
-    -e 's#^[[:space:]]*(root)[[:space:]]+/.*;$#\1 /var/www/html;#g' \
+    -e 's#^([[:space:]]*root)[[:space:]]+/.*;$#\1 /var/www/html;#g' \
     1>"${nginxcnf}"; \
   fi && \
   /usr/sbin/nginx -t; \

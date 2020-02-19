@@ -74,7 +74,7 @@ dnf_config_update() {
     dnf -v -y \
       --installroot=${CENTOSROOT} \
       --setopt=tsflags=nodocs \
-      -=setopt=fastestmirror=1 \
+      --setopt=fastestmirror=True \
       install dnf
 
   } || exit 1
@@ -251,7 +251,6 @@ dnf_config_update() {
 } &&
 [ $? -eq 0 ]
 _EOD_
-  } || exit 1
 
 } &&
 : "Cleanup." && {
