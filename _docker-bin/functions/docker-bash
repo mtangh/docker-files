@@ -4,35 +4,62 @@
 docker-bash() {
   local _container=""
   local _imagepath=""
+  local _buildpath=""
+  local _stage_key=""
   local _shellpath=""
-  local _shellopts=""
-  case "${1:-}" in
-  +[0-9]*|@[0-9A-Za-z]*)
-    _imagepath="$(dockerfile-imagepath-get ${1:-})" &&
-    shift
-    ;;
-  *)
-    _container="$(container-get-id ${1:-})" ||
-    _imagepath="$(container-image-get-path ${1:-})" || :
-    [ -n "${_container}" -o "${_imagepath}" ] && shift
-    ;;
-  esac
-  if [ -z "${_container}" ]
+  local _shellopts=()
+  eval $(getoptions \
+    "f|file:=_buildpath S|shell:=_shellpath" "${@}")
+  while getoptions_has_next
+  do
+    eval $(getoptions_shift 2>/dev/null)
+    case "${_getopt_V:=}" in
+    case "${1:-}" in
+    +[0-9]*|@[0-9A-Za-z]*)
+      if [ -z "${_container}" -a -z "${_imagepath}" ]      
+      then
+        _stage_key="${_getopt_V}"
+      else :
+      fi
+      ;;
+    *)
+      if [ -z "${_container}" -a -z "${_imagepath}" ]
+      then
+        _container="$(container-get-id ${_getopt_V})" ||
+        _imagepath="$(container-image-get-id ${_getopt_V})"
+      else
+        _shellopts=("${_shellopts[@]}" "${_getopt_V}")
+      fi || :
+      ;;
+    esac
+  done
+  eval $(getoptions_end)
+  if [ -n "${_stage_key}" -a -z "${_container}${_imagepath}" ]
   then
-    _container="$(container-get-id ${_imagepath})" || :
+    _imagepath=$(
+      dockerfile-imagepath-get "${_stage_key}" "${_buildpath}")
+  fi || :
+  if [ -z "${_container}" -a -n "${_imagepath}" ]
+  then
+    _container="$(
+      container-get-id ${_imagepath})"
+  fi
+  if [ -z "${_container}${_imagepath}" ]
+  then
+    cat <<_USAGE_
+Usage: $FUNCNAME [CONTAINER|IMAGE] [BASH-ARG ...]
+       $FUNCNAME [-f /path/to/Dockerfile] [+stage-index|@stage-name] [BASH-ARG ...]
+
+_USAGE_
+    return 2
   fi
   if [ -n "${_container}" ]
   then
-    docker exec -it ${_container} /bin/bash "${@}"
-  elif [ -n "${_imagepath}" ]
-  then
-    docker-run -it --rm ${_imagepath} -- /bin/bash "${@}"
+    docker-exec -it "${_container}" -- \
+      "${_shellpath:-/bin/bash}" "${_shellopts[@]}"
   else
-    cat <<_USAGE_
-Usage: $FUNCNAME [CONTAINER|IMAGE|+stage-index|@stage-name] [BASH-ARG ...]
-
-_USAGE_
-    return 1
+    docker-run -it --rm "${_imagepath}" -- \
+      "${_shellpath:-/bin/bash}" "${_shellopts[@]}"
   fi
   return $?
 }
