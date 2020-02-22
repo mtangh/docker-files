@@ -124,17 +124,16 @@ _USAGE_
     _imagepath=""
     _stagename=""
     if [ "${_targetind:--}" = "-" ]
-    then
-      _targetind=""
+    then _targetind=""
     fi
-    if [ -n "${_targetind}" ]
-    then
-      _stagename=$(dockerfile-stage-get-name "+${_targetind}" "${_buildpath}")
-      _stagename="${_stagename//-/}"
+    if [ -n "${_targetind:--}" ]
+    then _stagename=$(dockerfile-stage-get-name "+${_targetind}" "${_buildpath}")
+    fi
+    if [ "${_stagename:--}" = "-" ]
+    then _stagename=""
     fi
     if [ -z "${_imagepath}" -a -n "${_targetind}" ]
-    then
-      _imagepath=$(dockerfile-imagepath-get "+${_targetind}" "${_buildpath}")
+    then _imagepath=$(dockerfile-imagepath-get "+${_targetind}" "${_buildpath}")
     fi
     if [ -z "${_imagepath}" ]
     then
