@@ -7,7 +7,10 @@
 #@  DOCKER_BUILDOPTS="${DOCKER_BUILDOPTS:-} --build-arg NO_LOGMANAGE=YES"
 #@  DOCKER_BOOT_OPTS=""
 #
-FROM centos:7_systemd-onbuild
+FROM centos7:systemd-onbuild
+
+# Reset Workdir
+WORKDIR /
 
 # Labels
 LABEL \

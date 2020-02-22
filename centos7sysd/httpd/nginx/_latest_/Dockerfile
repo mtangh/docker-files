@@ -10,7 +10,7 @@
 ARG CENTOS_VER="7"
 
 # Apache HTTP Server on CentOS7 with Systemd
-FROM centos:7_systemd-onbuild AS latest
+FROM centos7:systemd-onbuild AS latest
 
 # CentOS VERSION
 ARG CENTOS_VER

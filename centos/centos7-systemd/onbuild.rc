@@ -1,5 +1,0 @@
-# build.rc
-language="${language:-en_US.UTF-8}"
-keyboard="${keyboard:-jp106}"
-timezone="${timezone:-Asia/Tokyo}"
-rootpswd="${rootpswd:-}"

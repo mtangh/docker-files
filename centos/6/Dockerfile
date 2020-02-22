@@ -1,8 +1,8 @@
 #
-# centos:6
+# centos6:*
 #
 #@  DOCKER_CONTAINER=""
-#@  DOCKER_IMAGEPATH="centos:6"
+#@  DOCKER_IMAGEPATH="centos6"
 #@  DOCKER_BUILDOPTS=""
 #@  DOCKER_BOOT_OPTS=""
 #

@@ -1,8 +1,8 @@
 #
-# centos:8
+# centos8:*
 #
 #@  DOCKER_CONTAINER=""
-#@  DOCKER_IMAGEPATH="centos:8"
+#@  DOCKER_IMAGEPATH="centos8"
 #@  DOCKER_BUILDOPTS=""
 #@  DOCKER_BOOT_OPTS=""
 #

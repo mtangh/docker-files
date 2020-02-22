@@ -10,6 +10,9 @@ AWK="${AWK:-$(type -P awk)}"
 SED="${SED:-$(type -P gsed)}"
 SED="${SED:-$(type -P sed)}"
 
+# Root
+DOCKERFILES_ROOT_DIR=$(cd "${DOCKERFUNC_DIR}/.." 1>/dev/null 2>&1; pwd)
+
 # Load the functins
 if [ -n "${DOCKERFUNC_DIR}" -a -d "${DOCKERFUNC_DIR}/functions" ]
 then

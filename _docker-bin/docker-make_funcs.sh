@@ -30,8 +30,15 @@ __echo_end() {
 
 # Section
 __section() {
-  printf ""
-  for i in {1..68};do printf '-';done;echo
+  local _tag="${1:-}"; shift
+  local _len="${1:-67}"; shift
+  : 1>/dev/null 2>&1 && {
+    [ -n "${_tag}" ] && {
+      _len=$(( $_len - ${#_tag} - 2 ))
+    } || :
+    printf ""
+    for i in $(seq 1 ${_len});do printf '-';done;echo
+  } 2>/dev/null
   return 0
 }
 
@@ -39,8 +46,8 @@ __section() {
 __stdout_with_ts() {
   local _tag="${1:-}"
   ${AWK} '{
-  printf("%s: %s: %s%s\n",
-  "'"${BASE:-MAKE}"'",strftime("%Y%m%dT%H%M%S",systime()),"'"${_tag:+${_tag}: }"'",$0);
+  printf("%s: %s%s\n",
+  strftime("%Y%m%dT%H%M%S",systime()),"'"${_tag:+${_tag}: }"'",$0);
   fflush();};' |
   ${SED} -r 's/\x1B\[([0-9]{1,2}(;[0-9]{1,2})*)?m//g'
   return 0

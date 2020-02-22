@@ -81,7 +81,8 @@ _USAGE_
     _imagepath=$(
       if [ -n "${_stage_key}" ]
       then dockerfile-imagepath-get "${_stage_key}" "${_buildpath}"
-      else dockerfile-env_IMAGEPATH "${_buildpath}"
+      else dockerfile-env_IMAGEPATH "${_buildpath}" ||
+           dockerfile-imagepath-from-dir "${_buildpath}"
       fi 2>/dev/null; )
   } || :
   [ -z "${_drun_opts}" ] &&

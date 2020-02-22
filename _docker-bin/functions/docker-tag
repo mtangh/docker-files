@@ -1,0 +1,47 @@
+# docker-images
+
+# docker images
+docker-tag() {
+  local _imgsource=""
+  local _imgtarget=""
+  local _img_untag=0
+  eval $(getoptions "u|untag=_img_untag" "$@")
+  while getoptions_has_next
+  do
+    eval $(getoptions_shift)
+    case "${_getopt_V:=}" in
+    -*)
+      ;;
+    *)
+      if [ -z "${_imgsource}" ]
+      then _imgsource="${_getopt_V:-}"
+      elif [ -z "${_imgtarget}" ]
+      then _imgtarget="${_getopt_V:-}"
+      fi
+      ;;
+    esac
+  done
+  eval $(getoptions_end)
+  if [ -z "${_imgsource}" -o \
+       -z "$(container-image-get-id ${_imgsource:-X} 2>/dev/null)" ]
+  then
+cat <<_EOD_
+Usage: $FUNCNAME SOURCE_IMAGE[:TAG] TARGET_IMAGE[:TAG]
+       $FUNCNAME --untag TARGET_IMAGE[:TAG]
+
+_EOD_
+    return 2
+  fi
+  if [ ${_img_untag} -eq 0 ]
+  then
+    [[ "${_imgtarget}" =~ ^([-_0-9A-Za-z]+)(:[-_0-9A-Za-z]+$) ]] &&
+    [ -z "$(container-image-get-id ${_imgtarget:-X} 2>/dev/null)" ] &&
+    docker tag "${_imgsource}" "${_imgtarget}"
+  else
+    [[ "${_imgsource}" =~ ^([-_0-9A-Za-z]+)(:[-_0-9A-Za-z]+$) ]] &&
+    docker rmi --no-prune "${_imgsource}"
+  fi
+  return $?
+}
+
+# vim: set ff=unix ts=2 sw=2 sts=2 et : This line is VIM modeline

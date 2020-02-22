@@ -129,87 +129,99 @@ __docker_build_wdir="${__docker_build_path%/*}"
 
 # Print build file
 : && {
+
   __section
+
 cat <<'_EOM_'
- 
+
    ____             _               __  __       _
   |  _ \  ___   ___| | _____ _ __  |  \/  | __ _| | _____
   | | | |/ _ \ / __| |/ / _ \ '__| | |\/| |/ _` | |/ / _ \
   | |_| | (_) | (__|   <  __/ |    | |  | | (_| |   <  __/
   |____/ \___/ \___|_|\_\___|_|    |_|  |_|\__,_|_|\_\___|
- 
- 
+
+
 _EOM_
+
   __section
+
 cat <<_EOM_
+#*
 #* Pwd        : $(pwd).
 #* Dockerfile : ${__docker_build_path}.
 #* Context-Dir: ${__docker_build_wdir}.
 #* Build-File : ${__docker_build_file}.
+#*
 _EOM_
-  __section
+
 } |__stdout_with_ts ""
 
 # FIND CONTAINER IDs BY Dockerfile
 [ -r "${__docker_build_path}" ] && {
 
-: && {
+  : && {
+
+    __section "IMG"
+
 cat <<_EOM_
-#* Built Images >>>
+The image to build is as follows:
 _EOM_
-} |__stdout_with_ts ""
 
-  # Each images
-  for _docker_c_image_ent in $(dockerfile-imagepath-get "" "${__docker_build_path}")
-  do
+    # Each images
+    for _docker_c_image_ent in $(dockerfile-imagepath-get "" "${__docker_build_path}")
+    do
 
-    # Reset container ID
-    _docker_containerid=""
+      # Reset container ID
+      _docker_containerid=""
 
-    [ -n "${_docker_c_image_ent}" ] && {
+      [ -n "${_docker_c_image_ent}" ] && {
 
-      container-image-is-runnable "${_docker_c_image_ent}" -f "${__docker_build_path}"
+        container-image-is-runnable "${_docker_c_image_ent}" -f "${__docker_build_path}"
 
-      if [ $? -eq 0 ]
-      then
-        _docker_containerid=$(
-          container-get-id-last -f "${__docker_build_path}" \
-          "${_docker_c_image_ent}")
-        echo "#* + ${_docker_c_image_ent} (Runnable)"
-        if [ -n "${_docker_containerid}" ]
-        then echo "#*   - Container ... Found - ID='${_docker_containerid}'."
-        else echo "#*   - Container ... Not found."
+        if [ $? -eq 0 ]
+        then
+          _docker_containerid=$(
+            container-get-id-last -f "${__docker_build_path}" \
+            "${_docker_c_image_ent}")
+          echo " ${_docker_c_image_ent} (Runnable)"
+          if [ -n "${_docker_containerid}" ]
+          then echo "#*   - Container ... Found - ID='${_docker_containerid}'."
+          else echo "#*   - Container ... Not found."
+          fi
+        else
+          echo " ${_docker_c_image_ent} (Not Runnable)"
         fi
-      else
-        echo "#* + ${_docker_c_image_ent} (Not Runnable)"
-      fi
 
-      # Cleanup ?
-      if [ -n "${_docker_containerid}" ] &&
-         [ ${_docker_rebuild_obj} -ne 0 -o ${_docker_cleanuponly} -ne 0 ]
-      then
+        # Cleanup ?
+        if [ -n "${_docker_containerid}" ] &&
+          [ ${_docker_rebuild_obj} -ne 0 -o ${_docker_cleanuponly} -ne 0 ]
+        then
 
-        # rebuild
-        ( cd "${__docker_build_wdir}" && {
-          echo "#*     docker stop and rm: ID='${_docker_containerid}'."
-          docker-stop "${_docker_containerid}" 1>/dev/null 2>&1 &&
-          echo "#*     docker container ID='${_docker_containerid}' was stoped."
-          docker rm "${_docker_containerid}" 1>/dev/null 2>&1 &&
-          echo "#*     docker container ID='${_docker_containerid}' was removed."
-        }; )
+          # rebuild
+          ( cd "${__docker_build_wdir}" && {
+            echo "#*     docker stop and rm: ID='${_docker_containerid}'."
+            docker-stop "${_docker_containerid}" 1>/dev/null 2>&1 &&
+            echo "#*     docker container ID='${_docker_containerid}' was stoped."
+            docker rm "${_docker_containerid}" 1>/dev/null 2>&1 &&
+            echo "#*     docker container ID='${_docker_containerid}' was removed."
+          }; )
 
-        # Cleanup status
-        EXIT_STATE=$?
+          # Cleanup status
+          EXIT_STATE=$?
 
-        # Cleanup only ?
-        [ ${_docker_cleanuponly} -eq 0 ] || {
-          exit ${EXIT_STATE}
-        }
+          # Cleanup only ?
+          [ ${_docker_cleanuponly} -eq 0 ] || {
+            exit ${EXIT_STATE}
+          }
 
-      fi
+        fi
 
-    } || :
-  done 1> >(__stdout_with_ts "") 2>&1
+      } || :
+    done
+
+    echo
+
+  } 1> >(__stdout_with_ts "IMG") 2>&1
 
 } || :
 
@@ -226,7 +238,8 @@ then
   # Build
   : && {
 
-    __section
+    __section "BUILD"
+
 
     if [ -s "./${__docker_build_file}.build" ]
     then
@@ -279,7 +292,7 @@ _EOM_
       container-image-is-runnable "${_docker_c_image_ent}" -f "${__docker_build_path}" && {
 
         # Separator
-        __section
+        __section "RUN"
 
         # Image
         echo "Image=${_docker_c_image_ent}"
@@ -314,7 +327,7 @@ _EOM_
         [ -n "${_docker_containerid}" ] && {
 
           # Separator
-          __section
+          __section "RUN"
 
           # Print ports
           : && {
@@ -345,7 +358,7 @@ _EOM_
           sleep 1s
 
           # Separator
-          __section
+          __section "RUN"
 
           # Check the status of the command
           : && {

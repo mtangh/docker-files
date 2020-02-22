@@ -79,7 +79,7 @@ getoptions() {
     shift
   done
   [ -n "$(echo ${_getopt_ARGV[@]:-})" ] && {
-    echo 'set '$(__array_to_tuples "${_getopt_ARGV[@]}")';'
+    echo 'set -- '$(__array_to_tuples "${_getopt_ARGV[@]}")';'
     echo '_getopt_ARGV=('$(__array_to_tuples "${_getopt_ARGV[@]}")');'
     echo '_getopt_ARGC='"${#_getopt_ARGV[@]}"';'
   }
@@ -103,7 +103,7 @@ getoptions_shift() {
   local _optarg1=("${_optargs[@]:1}")
   if [ -n "$(echo ${_optarg1[@]:-})" ]
   then
-    echo 'set '$(__array_to_tuples "${_optarg1[@]:-}")';'
+    echo 'set -- '$(__array_to_tuples "${_optarg1[@]:-}")';'
     echo '_getopt_ARGV=('$(__array_to_tuples "${_optarg1[@]:-}")');'
     echo '_getopt_ARGC='"${#_optarg1[@]}"';'
   else

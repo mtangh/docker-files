@@ -130,6 +130,7 @@ _USAGE_
     if [ -n "${_targetind}" ]
     then
       _stagename=$(dockerfile-stage-get-name "+${_targetind}" "${_buildpath}")
+      _stagename="${_stagename//-/}"
     fi
     if [ -z "${_imagepath}" -a -n "${_targetind}" ]
     then
@@ -137,8 +138,9 @@ _USAGE_
     fi
     if [ -z "${_imagepath}" ]
     then
-      _imagepath=$(dockerfile-env_IMAGEPATH "${_buildpath}")
-    fi
+      _imagepath=$(dockerfile-env_IMAGEPATH "${_buildpath}") ||
+      _imagepath=$(dockerfile-imagepath-from-dir "${_buildpath}")
+    fi 2>/dev/null
 #   _labelopts="${_labelopts:+${_labelopts} }--label build-date="'"'$(date +'%Y%m%dT%H:%M%z')'"'
     _labelopts="${_labelopts:+${_labelopts} }--label docker.build.options="'"'"${_buildopts}"'"'
     echo docker build ${_buildopts} ${_labelopts} \
