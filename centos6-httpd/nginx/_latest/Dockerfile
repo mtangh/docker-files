@@ -1,8 +1,8 @@
 #
-# httpd-nginx-cos7s
+# centos7s-httpd-nginx
 #
 #@  DOCKER_CONTAINER=""
-#@  DOCKER_IMAGEPATH="httpd-nginx-cos7s"
+#@  DOCKER_IMAGEPATH=""
 #@  DOCKER_BUILDOPTS=""
 #@  DOCKER_BOOT_OPTS=""
 #

@@ -1,8 +1,8 @@
 #
-# httpd-apache-cos7s
+#  centos7sysd-httpd-apache
 #
 #@  DOCKER_CONTAINER=""
-#@  DOCKER_IMAGEPATH="httpd-apache-cos7s"
+#@  DOCKER_IMAGEPATH=""
 #@  DOCKER_BUILDOPTS=""
 #@  DOCKER_BOOT_OPTS=""
 #
@@ -77,7 +77,7 @@ LABEL \
  maintainer="MT" \
  license="" \
  docker.build.options="" \
- docker.run.options="-d -P -h httpd-apache-c7 --privileged" \
+ docker.run.options="-d -P -h centos7sysd-httpd-apache --privileged" \
  docker.run.confirm-startup=""
 
 # Health check
@@ -100,7 +100,7 @@ LABEL \
  maintainer="MT" \
  license="" \
  docker.build.options="" \
- docker.run.options="-d -P -h httpd-apache-cos7sysd --privileged" \
+ docker.run.options="-d -P -h centos7sysd-httpd-apache --privileged" \
  docker.run.confirm-startup=""
 
 # ONBUILD: Set Workdir

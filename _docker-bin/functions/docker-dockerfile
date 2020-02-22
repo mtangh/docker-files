@@ -98,9 +98,14 @@ dockerfile-stage-list() {
     return 1
   }
   if [ ${_withimage} -eq 0 ]
-  then _imagepath=""
-  else _imagepath=$(dockerfile-env_IMAGEPATH "${_buildpath}" 2>/dev/null)
-  fi
+  then 
+    _imagepath=""
+  else 
+    _imagepath=$(
+      dockerfile-env_IMAGEPATH "${_buildpath}" ||
+      dockerfile-imagepath-from-dir "${_buildpath}" ||
+      :; )
+  fi 2>/dev/null
   if [ ${_formatted} -eq 0 -a ${_withimage} -ne 0 ]
   then
     _prtformat="%s %s %s %s"
@@ -245,7 +250,8 @@ dockerfile-imagepath-get() {
   local _stage_key="${1:-}"; shift
   local _buildpath=$(dockerfile-get-path "${1:-}" 2>/dev/null); shift
   local _multi_stg=0
-  _imagepath=$(dockerfile-env_IMAGEPATH "${_buildpath}" 2>/dev/null) || {
+  _imagepath=$(dockerfile-env_IMAGEPATH "${_buildpath}" 2>/dev/null) ||
+  _imagepath=$(dockerfile-imagepath-from-dir "${_buildpath}" 2>/dev/null) || {
     return 1
   }
   dockerfile-multi-stage "${_buildpath}" 1>/dev/null 2>&1 && {
@@ -289,6 +295,49 @@ dockerfile-imagepath-get() {
     _stagename=$(dockerfile-stage-get-name "${_stage_ind}" "${_buildpath}" 2>/dev/null)
     dockerfile-imagepath-echo "${_imagepath}" "${_stage_ind}" "${_stagename}"
   done
+  return $?
+}
+
+dockerfile-imagepath-from-dir() {
+  local _buildpath=$(dockerfile-get-path "${1:-}" 2>/dev/null); shift
+  local _build_dir=""
+  local _imagepath=""
+  local _imagepart=""
+  local _imagerepo=""
+  local _image_tag=""
+  if [[ "${_buildpath}" =~ ^http(s:|:)//[^/]+/(.+)$ ]]
+  then _build_dir="${BASH_REMACTH[2]%/*}"
+  elif [[ "${_buildpath}" =~ ^(${DOCKERFILESDIR:-X})/(.+)$ ]]
+  then _build_dir="${BASH_REMACTH[2]%/*}"
+  else return 2
+  fi &&
+  [ -n "${_build_dir:-}" ] &&
+  if [[ "${_build_dir:-}" =~ .*/.* ]]
+  then
+    _imagepath="${_build_dir%/*}"
+    _image_tag="${_build_dir##*/}"
+  else
+    _imagepath="${_build_dir}"
+    _image_tag="latest";
+  fi &&
+  [ -n "${_imagepath:-}" ] &&
+  [[ "${_image_tag}" =~ ^_.*_$ ]] && {
+    _image_tag=""
+  } || : &&
+  for _imagepart in $(echo ${_imagepath//\// })
+  do _imagerepo="${_imagerepo:+${_imagerepo}-}${_imagepart}"
+  done &&
+  [ -n "${_imagerepo:-}" ] && {
+    _imagerepo="${_imagepath//[/+#%&@]/-}"
+    _imagerepo="${_imagepath//[.:=]/_}"
+    _imagerepo="${_imagepath// }"
+    _image_tag="${_image_tag//[/+#%&@]/-}"
+    _image_tag="${_image_tag//[.:=]/_}"
+    _image_tag="${_image_tag// }"
+  } &&
+  [ -n "${_imagerepo:-}" ] && {
+    echo "${_imagerepo}${_image_tag:+:${_image_tag}}"
+  }
   return $?
 }
 

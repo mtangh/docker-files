@@ -1,21 +1,25 @@
 #
-# centos7-php:apache-php
+# centos7sysd-httpd-apache-php
 #
 #@  DOCKER_CONTAINER=""
-#@  DOCKER_IMAGE_TAG="centos7-php:apache-php"
+#@  DOCKER_IMAGEPATH=""
 #@  DOCKER_BUILDOPTS=""
 #@  DOCKER_BOOT_OPTS=""
 #
-FROM centos7-httpd:apache
+FROM centos7sysd-httpd-apache:latest AS base
+
+# Reset Work dir
+WORKDIR /
 
 # Labels
 LABEL \
- name="Base image for PHP enabled Apache HTTP Server on CentOS7 with Systemd" \
- maintainer="MT"
-
-# Reset Workdir
-WORKDIR \
- /
+ name="Nginx HTTP Server on CentOS7 with Systemd" \
+ vendor="UGOOLE.ORG" \
+ maintainer="MT" \
+ license="" \
+ docker.build.options="" \
+ docker.run.options="-d -P -h centos7sysd-httpd-nginx --privileged" \
+ docker.run.confirm-startup=""
 
 # Work dir
 ONBUILD \
@@ -61,14 +65,14 @@ RUN \
   }; \
  } && \
  : "ONBUILD: Cleanup" && { \
-  for log in $(find /var/log -type f); \
-  do [ -f "$log" ] && cat /dev/null 1>"$log"; done || :; \
-  for log in {,/root,/tmp,/var/tmp}/*.log; \
-  do rm -f "$log"; done || :; \
-  [ -n "${WORKDIR}" -a -d "${WORKDIR}" ] && { \
-   cd /; rm -rf "${WORKDIR}"; } || :; \
- } 2>/dev/null || :; \
- echo;
+  work_dir=$(pwd); cd /; \
+  for lf in /var/log/*; \
+  do [ -s "${lf}" ] && cat /dev/null >"${lf}"; done || :; \
+  rm -rf {,/var}/tmp/* || :; \
+  yum -v -y clean all; rm -rf /var/cache/yum/* || :; \
+  rm -rf "${work_dir}" || :; \
+ } && \
+ : "ONBUILD: Done.";
 
 # Reset Work dir
 ONBUILD \
