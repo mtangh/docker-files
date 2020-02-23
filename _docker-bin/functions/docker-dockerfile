@@ -267,8 +267,7 @@ dockerfile-imagepath-get() {
     _multi_stg=1
   } || :
   [ ${_multi_stg} -eq 0 ] && {
-    [ -n "${_imagepath}" ] && echo "${_imagepath}"
-    return $?
+    _stage_key="+0"
   } || :
   case "${_stage_key}" in
   +[0-9]*)
@@ -354,13 +353,15 @@ dockerfile-imagepath-echo() {
     [-_0-9A-Za-z]*:[-_0-9A-Za-z]*)
       if [ -n "${_stagename}" ]
       then echo "${_imagepath}${_stagename:+_${_stagename}}"
-      else echo "${_imagepath}${_stage_ind:+_${_stage_ind}}"
+    # else echo "${_imagepath}${_stage_ind:+_${_stage_ind}}"
+      else echo "${_imagepath}"
       fi
       ;;
     [-_0-9A-Za-z]*)
       if [ -n "${_stagename}" ]
       then echo "${_imagepath}${_stagename:+:${_stagename}}"
-      else echo "${_imagepath}${_stage_ind:+:${_stage_ind}}"
+    # else echo "${_imagepath}${_stage_ind:+:${_stage_ind}}"
+      else echo "${_imagepath}"
       fi
       ;;
     *)
