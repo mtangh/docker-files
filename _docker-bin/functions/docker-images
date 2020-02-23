@@ -3,59 +3,64 @@
 # docker images
 docker-images() {
   local _dimageopt=""
-  local _header_id=$(printf "%-8s" ID)
-  local _headerstr=$(printf "\t%-36s\t%-30s\t%s" REPOSITORY:TAG CREATED SIZE)
-  local _formatopt="--format='"'{{ .ID }}\t{{ .Tag |printf "%s:%s" .Repository |printf "%-36s" }}\t{{ .CreatedAt }}\t{{ .Size }}'"'"
+  local _headerstr=""
+  local _formatopt=""
+  local _col_width=$(
+    docker images --format='{{ .Tag |printf "%s:%s" .Repository }}' 2>/dev/null |
+    __adjustcolwidth 24 2>/dev/null)
+  _headerstr=$(printf '%-16s%-'"${_col_width}"'s%-32s%s' "ID" "REPOSITORY:TAG" "CREATED" "SIZE")
+  _formatopt="${_formatopt:-}"'{{ .ID |printf "%-16s" }}'
+  _formatopt="${_formatopt:-}"'{{ .Tag |printf "%s:%s" .Repository |printf "%-'"${_col_width}"'s" }}'
+  _formatopt="${_formatopt:-}"'{{ .CreatedAt |printf "%-32s" }}{{ .Size }}'
+  _formatopt="--format='${_formatopt}'"
   eval $(getoptions "" "$@")
   while getoptions_has_next
   do
     eval $(getoptions_shift)
     case "${_getopt_V:=}" in
     --default)
-      _header_id=""
       _headerstr=""
       _formatopt=""
       ;;
     --id)
-      _header_id=$(printf "%-70s" ID)
-      _headerstr=""
+      _headerstr=$(printf '%-70s' ID)
       _formatopt=""
-      _formatopt="${_formatopt}"'{{ .ID }}'
-      _formatopt="--format='${_formatopt}'"
+      _formatopt="${_formatopt:-}"'{{ .ID }}'
+      _formatopt="--format='${_formatopt:-}'"
       ;;
     --tag*)
-      _header_id=""
-      _headerstr=$(printf "%s" REPOSITORY:TAG)
+      _headerstr=$(printf "%s" "REPOSITORY:TAG")
       _formatopt=""
-      _formatopt="${_formatopt}"'{{ .Tag |printf "%s:%s" .Repository |printf "%-36s" }}'
-      _formatopt="--format='${_formatopt}'"
+      _formatopt="${_formatopt:-}"'{{ .Tag |printf "%s:%s" .Repository |printf "%s" }}'
+      _formatopt="--format='${_formatopt:-}'"
       ;;
     --no-header)
-      _header_id=""
       _headerstr=""
       ;;
     --format*|--help)
       _dimageopt="${_dimageopt:+${_dimageopt} }${_getopt_V}"
-      _header_id=""
       _headerstr=""
       _formatopt=""
       ;;
     --no-trunc)
       _dimageopt="${_dimageopt:+${_dimageopt} }${_getopt_V}"
-      _header_id=$(printf "%-70s" ID)
+      _headerstr=$(printf '%-72s%-'"${_col_width}"'s%-32s%s' "ID" "REPOSITORY:TAG" "CREATED" "SIZE")
+      _formatopt=""
+      _formatopt="${_formatopt:-}"'{{ .ID |printf "%-72s" }}'
+      _formatopt="${_formatopt:-}"'{{ .Tag |printf "%s:%s" .Repository |printf "%-'"${_col_width}"'s" }}'
+      _formatopt="${_formatopt:-}"'{{ .CreatedAt |printf "%-32s" }}{{ .Size }}'
+      _formatopt="--format='${_formatopt:-}'"
       ;;
     --digests)
       _dimageopt="${_dimageopt:+${_dimageopt} }${_getopt_V}"
-      _headerstr=$(printf "\t%-36s\t%-30s\t%-12s\t%s" REPOSITORY:TAG CREATED SIZE DIGEST)
+      _headerstr=$(printf '%-16s%-'"${_col_width}"'s%-32s%-14s%s' "ID" "REPOSITORY:TAG" "CREATED" "SIZE" "DIGEST")
       _formatopt=""
-      _formatopt="${_formatopt}"'{{ .ID }}\t'
-      _formatopt="${_formatopt}"'\t'
-      _formatopt="${_formatopt}"'{{ .Tag |printf "%s:%s" .Repository |printf "%-36s" }}'
-      _formatopt="${_formatopt}"'\t'
-      _formatopt="${_formatopt}"'{{ .CreatedAt }}\t{{ .Size |printf "%-12s" }}'
-      _formatopt="${_formatopt}"'\t'
-      _formatopt="${_formatopt}"'{{ .Digest }}'
-      _formatopt="--format='${_formatopt}'"
+      _formatopt="${_formatopt:-}"'{{ .ID |printf "%-16s" }}'
+      _formatopt="${_formatopt:-}"'{{ .Tag |printf "%s:%s" .Repository |printf "%-'"${_col_width}"'s" }}'
+      _formatopt="${_formatopt:-}"'{{ .CreatedAt |printf "%-32s" }}'
+      _formatopt="${_formatopt:-}"'{{ .Size |printf "%-12s" }}'
+      _formatopt="${_formatopt:-}"'{{ .Digest }}'
+      _formatopt="--format='${_formatopt:-}'"
       ;;
     *)
       _dimageopt="${_dimageopt:+${_dimageopt} }${_getopt_V}"
@@ -63,8 +68,8 @@ docker-images() {
     esac
   done
   eval $(getoptions_end)
-  [ -n "${_header_id}${_headerstr}" ] &&
-  echo "${_header_id}${_headerstr}" || :
+  [ -n "${_headerstr}" ] &&
+  echo "${_headerstr}" || :
   eval $(echo docker images ${_formatopt} ${_dimageopt})
   return $?
 }
