@@ -2,7 +2,7 @@
 # centos7-pgsql:postgresql84
 #
 #@  DOCKER_CONTAINER=""
-#@  DOCKER_IMAGE_TAG="centos7-pgsql:postgresql84"
+#@  DOCKER_IMAGEPATH="centos7-pgsql:postgresql84"
 #@  DOCKER_BUILDOPTS=""
 #@  DOCKER_BUILDOPTS="${DOCKER_BUILDOPTS} --build-arg PGSQLVER=8.4.22"
 #@  DOCKER_BUILDOPTS="${DOCKER_BUILDOPTS} --build-arg PGTAPVER=0.99.0"

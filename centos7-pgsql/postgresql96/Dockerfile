@@ -2,7 +2,7 @@
 # centos7-pgsql:postgresql96
 #
 #@  DOCKER_CONTAINER=""
-#@  DOCKER_IMAGE_TAG="centos7-pgsql:postgresql96"
+#@  DOCKER_IMAGEPATH="centos7-pgsql:postgresql96"
 #@  DOCKER_BUILDOPTS=""
 #@  DOCKER_BUILDOPTS="${DOCKER_BUILDOPTS} --build-arg PGSQLVER=9.6.11"
 #@  DOCKER_BUILDOPTS="${DOCKER_BUILDOPTS} --build-arg PGTAPVER=0.99.0"

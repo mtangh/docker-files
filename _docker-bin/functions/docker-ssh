@@ -60,7 +60,7 @@ docker-ssh() {
   [ -r "${_buildpath}" -a -z "${_imagepath}" ] && {
     [ -z "${_stage_key}" ] &&
     dockerfile-multi-stage "${_buildpath}" 1>/dev/null 2>&1 && {
-      dockerfile-stage-list --format "${_buildpath}" 2>/dev/null
+      dockerfile-stage-list -FI "${_buildpath}" 2>/dev/null
       return 1
     } || :
     _imagepath=$(

@@ -2,7 +2,7 @@
 # centos7-lamp:lamp-default
 #
 #@  DOCKER_CONTAINER=""
-#@  DOCKER_IMAGE_TAG="centos7-lamp:lamp-default"
+#@  DOCKER_IMAGEPATH="centos7-lamp:lamp-default"
 #@  DOCKER_BUILDOPTS=""
 #@  DOCKER_BOOT_OPTS=""
 #

@@ -2,7 +2,7 @@
 # centos6-pgsql:postgresql94
 #
 #@  DOCKER_CONTAINER=""
-#@  DOCKER_IMAGE_TAG="centos6-pgsql:postgresql94"
+#@  DOCKER_IMAGEPATH="centos6-pgsql:postgresql94"
 #@  DOCKER_BUILDOPTS=""
 #@  DOCKER_BUILDOPTS="${DOCKER_BUILDOPTS} --build-arg PGSQLVER=9.4.20"
 #@  DOCKER_BUILDOPTS="${DOCKER_BUILDOPTS} --build-arg PGTAPVER=0.99.0"

@@ -2,7 +2,7 @@
 # centos7-tomcat:tomcat7
 #
 #@  DOCKER_CONTAINER=""
-#@  DOCKER_IMAGE_TAG="centos7-tomcat:tomcat7"
+#@  DOCKER_IMAGEPATH="centos7-tomcat:tomcat7"
 #@  DOCKER_BUILDOPTS=""
 #@  DOCKER_BUILDOPTS="${DOCKER_BUILDOPTS} --build-arg TCPKG_BASE=https://archive.apache.org/dist/tomcat"
 #@  DOCKER_BUILDOPTS="${DOCKER_BUILDOPTS} --build-arg TCPKG_PATH=/tomcat-7/v7.0.92/bin/apache-tomcat-7.0.92.zip"

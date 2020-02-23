@@ -16,24 +16,24 @@ docker-exec() {
       fi
       ;;
     /*|\"/*|\'/*)
-      _cmnd_args="${_cmnd_args:+${_cmnd_args} }\"${1}\""
+      _cmnd_args="${_cmnd_args:+${_cmnd_args} }${1}"
       _endofopts=1
       ;;
     -*)
       if [ ${_endofopts} -eq 0 ]
-      then _exec_opts="${_exec_opts:+${_exec_opts} }${1}"
-      else _cmnd_args="${_cmnd_args:+${_cmnd_args} }${1}"
+      then _exec_opts="${_exec_opts:+${_exec_opts} }${1:-}"
+      else _cmnd_args="${_cmnd_args:+${_cmnd_args} }${1:-}"
       fi
       ;;
     *)
       if [ ${_endofopts} -eq 0 ]
       then
         if [ -z "${_container}" ]
-        then _container="$(container-get-id-all ${1} 2>/dev/null)"
-        else _exec_opts="${_exec_opts:+${_exec_opts} }\"${1}\""
+        then _container="$(container-get-id-all "${1:-}" 2>/dev/null)"
+        else _exec_opts="${_exec_opts:+${_exec_opts} }${1:-}"
         fi
       else
-        _cmnd_args="${_cmnd_args:+${_cmnd_args} }\"${1}\""
+        _cmnd_args="${_cmnd_args:+${_cmnd_args} }${1:-}"
       fi
       ;;
     esac

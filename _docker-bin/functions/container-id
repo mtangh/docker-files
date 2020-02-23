@@ -48,7 +48,8 @@ container-get-id() {
       _container=$(
         docker ps ${_cmnd_opts} \
         --format='{{ .CreatedAt }};{{.ID}};{{.Image}};{{.Names}}' |
-        egrep '(^|[;])'"${_searchval}"'([;].*|$)' |sort -r |
+        egrep '(^|[;])('"${_searchval}"'|'"${_searchval%:latest*}"')([;].*|$)' |
+        sort -r |
         if [ ${_printname} -eq 0 ]
         then ${AWK} -F ';' '{print($2);}'
         else ${AWK} -F ';' '{print($4);}'

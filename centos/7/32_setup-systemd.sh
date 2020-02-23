@@ -34,7 +34,7 @@
     cd ./sysinit.target.wants && {
       for f in ./*
       do
-        [[ "${f}" =~ '^systemd-tmpfiles-setup.*service$' ]] ||
+        [[ "${f}" =~ /systemd-tmpfiles-setup.*service$ ]] ||
         rm -fv "${f}" || :
       done
     } &&

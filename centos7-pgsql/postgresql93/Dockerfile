@@ -2,7 +2,7 @@
 # centos7-pgsql:postgresql93
 #
 #@  DOCKER_CONTAINER=""
-#@  DOCKER_IMAGE_TAG="centos7-pgsql:postgresql93"
+#@  DOCKER_IMAGEPATH="centos7-pgsql:postgresql93"
 #@  DOCKER_BUILDOPTS=""
 #@  DOCKER_BUILDOPTS="${DOCKER_BUILDOPTS} --build-arg PGSQLVER=9.3.25"
 #@  DOCKER_BUILDOPTS="${DOCKER_BUILDOPTS} --build-arg PGTAPVER=0.99.0"

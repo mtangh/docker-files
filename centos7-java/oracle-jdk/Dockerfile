@@ -2,7 +2,7 @@
 # centos7-java:oracle-jdk
 #
 #@  DOCKER_CONTAINER=""
-#@  DOCKER_IMAGE_TAG="centos7-java:oracle-jdk"
+#@  DOCKER_IMAGEPATH="centos7-java:oracle-jdk"
 #@  DOCKER_BUILDOPTS="--build-arg JDK_VERSION="
 #@  DOCKER_BOOT_OPTS=""
 #

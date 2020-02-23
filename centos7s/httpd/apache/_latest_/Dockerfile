@@ -36,6 +36,11 @@ RUN \
   yum -v -y install ${packages} && \
   yum -v -y clean all && { \
   rm -rf /var/cache/yum/* || :; }; \
+  echo "Remove 'welcome'." && { \
+   mv -fv /usr/share/httpd/{noindex/images,icons}/poweredby.png; \
+   rm -fv "/etc/httpd/conf.d/welcome.conf"; \
+   rm -rfv "/usr/share/httpd/noindex"/*; \
+  }; \
  } && \
  : "Update httpd.conf" && { \
   httpdcnf="/etc/httpd/conf/httpd.conf"; \
@@ -48,9 +53,10 @@ RUN \
   else \
    cat "${httpdcnf}.ORIG" | \
    sed -r \
-    -e 's/^[#[:space:]]*(ServerAdmin)[[:space:]]*.*$/\1 admin@localhost/gi' \
-    -e 's/^[#[:space:]]*(ServerTokens)[[:space:]]*.*$/\1 Prod/gi' \
-    -e 's/^[#[:space:]]*(ServerSignature)[[:space:]]*.*$/\1 Off/gi' \
+    -e 's/^[#[:space:]]*(ServerAdmin)[[:space:]]+.*$/\1 admin@localhost/gi' \
+    -e 's/^[#[:space:]]*(ServerTokens)[[:space:]]+.*$/\1 Prod/gi' \
+    -e 's/^[#[:space:]]*(ServerSignature)[[:space:]]+.*$/\1 Off/gi' \
+    -e 's/^[#[:space:]]*(AddDefaultCharset)[[:space:]]+.*$/\1 UTF-8/gi' \
     1>"${httpdcnf}"; \
   fi && \
   /usr/sbin/httpd -t; \

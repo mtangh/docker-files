@@ -31,23 +31,27 @@ docker-bash() {
   eval $(getoptions_end)
   if [ -z "${_stage_key}" -a -n "${_buildpath}" ]
   then
-    echo "Choose a stage to run."
-    echo
-    dockerfile-stage-list --format "${_buildpath}" 2>/dev/null
-    echo
-    return 1
+    if dockerfile-multi-stage "${_buildpath}" 1>/dev/null 2>&1
+    then
+      echo "Choose a stage to run."
+      echo
+      dockerfile-stage-list -FI "${_buildpath}" 2>/dev/null
+      echo
+      return 1
+    else
+      _stage_key="+0"
+    fi
   fi
   if [ -n "${_stage_key}" -a -z "${_container}${_imagepath}" ]
   then
     _buildpath==$(dockerfile-get-path "${_buildpath}")
     _imagepath=$(
       dockerfile-imagepath-get "${_stage_key}" "${_buildpath}")
-    echo "${_imagepath}"
   fi || :
-  if [ -z "${_container}" -a -n "${_imagepath}" ]
+  if [ -z "${_container}" ]
   then
-    _container=$(container-get-id "${_imagepath}")
-  fi
+    _container=$(container-get-id "${_imagepath:-}")
+  fi || :
   if [ -z "${_container}${_imagepath}" ]
   then
     cat <<_USAGE_

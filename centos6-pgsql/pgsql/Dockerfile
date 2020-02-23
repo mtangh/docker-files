@@ -2,7 +2,7 @@
 # centos6-pgsql:pgsql
 #
 #@  DOCKER_CONTAINER=""
-#@  DOCKER_IMAGE_TAG="centos6-pgsql:pgsql"
+#@  DOCKER_IMAGEPATH="centos6-pgsql:pgsql"
 #@  DOCKER_BUILDOPTS=""
 #@  DOCKER_BOOT_OPTS=""
 #

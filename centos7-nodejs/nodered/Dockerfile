@@ -2,7 +2,7 @@
 # centos7-nodejs:nodered
 #
 #@  DOCKER_CONTAINER=""
-#@  DOCKER_IMAGE_TAG="centos7-nodejs:nodered"
+#@  DOCKER_IMAGEPATH="centos7-nodejs:nodered"
 #@  DOCKER_BUILDOPTS=""
 #@  DOCKER_BOOT_OPTS=""
 #

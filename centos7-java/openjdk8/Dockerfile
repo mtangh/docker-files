@@ -2,7 +2,7 @@
 # centos7-java:openjdk8
 #
 #@  DOCKER_CONTAINER=""
-#@  DOCKER_IMAGE_TAG="centos7-java:openjdk8"
+#@  DOCKER_IMAGEPATH="centos7-java:openjdk8"
 #@  DOCKER_BUILDOPTS=""
 #@  DOCKER_BOOT_OPTS=""
 #

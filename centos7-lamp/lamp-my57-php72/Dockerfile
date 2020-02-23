@@ -2,7 +2,7 @@
 # centos7-lamp:lamp-my57-php70
 #
 #@  DOCKER_CONTAINER=""
-#@  DOCKER_IMAGE_TAG="centos7-lamp:lamp-my57-php70"
+#@  DOCKER_IMAGEPATH="centos7-lamp:lamp-my57-php70"
 #@  DOCKER_BUILDOPTS=""
 #@  DOCKER_BOOT_OPTS=""
 #

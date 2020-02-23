@@ -2,7 +2,7 @@
 # centos7-tomcat:tomcat
 #
 #@  DOCKER_CONTAINER=""
-#@  DOCKER_IMAGE_TAG="centos7-tomcat:tomcat"
+#@  DOCKER_IMAGEPATH="centos7-tomcat:tomcat"
 #@  DOCKER_BUILDOPTS=""
 #@  DOCKER_BOOT_OPTS=""
 #

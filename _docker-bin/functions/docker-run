@@ -74,7 +74,7 @@ _USAGE_
     dockerfile-multi-stage "${_buildpath}" 1>/dev/null 2>&1 && {
       echo "Choose a stage to run."
       echo
-      dockerfile-stage-list --format "${_buildpath}" 2>/dev/null
+      dockerfile-stage-list -FI "${_buildpath}" 2>/dev/null
       echo
       return 1
     } || :
