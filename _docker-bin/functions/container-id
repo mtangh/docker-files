@@ -13,11 +13,14 @@ container-get-id() {
   local _found_cnt=0
   local _searchval=""
   eval $(getoptions \
-    "f|file:=_buildpath a|all=_ps_allids l|latest=_ps_latest N|name=_printname n|last:=_ps_last_n" "$@")
+  "f|file:=_buildpath a|all=_ps_allids l|latest=_ps_latest N|name=_printname n|last:=_ps_last_n" "$@")
   while getoptions_has_next
   do
     eval $(getoptions_shift)
     case "${_getopt_V:=}" in
+    +[0-9]*|@[0-9A-Za-z]*)
+      _stage_key="${_getopt_V}"
+      ;;
     -*)
       ;;
     *)
@@ -31,16 +34,16 @@ container-get-id() {
     _find_file=1
     _find_keys=$(echo \
       $(dockerfile-env_CONTAINER "${_buildpath}") \
-      $(dockerfile-imagepath-get "" "${_buildpath}") \
+      $(dockerfile-imagepath-get "${_stage_key:-}" "${_buildpath}") \
       "" )
   }
   [ ${_ps_allids} -ne 0 ] &&
-  _cmnd_opts="${_cmnd_opts:+${_cmnd_opts} }--all"
+  _cmnd_opts="${_cmnd_opts:+${_cmnd_opts} }--all" || :
   [ ${_ps_latest} -ne 0 ] &&
-  _cmnd_opts="${_cmnd_opts:+${_cmnd_opts} }--latest"
+  _cmnd_opts="${_cmnd_opts:+${_cmnd_opts} }--latest" || :
   [ -n "${_ps_last_n}" ] &&
   expr "${_ps_last_n}" + 0 1>/dev/null 2>&1 &&
-  _cmnd_opts="${_cmnd_opts:+${_cmnd_opts} }-n${_ps_last_n}"
+  _cmnd_opts="${_cmnd_opts:+${_cmnd_opts} }-n${_ps_last_n}" || :
   for _searchval in ${_find_keys}
   do
     _container=""

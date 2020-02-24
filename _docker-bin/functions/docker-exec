@@ -3,50 +3,116 @@
 # docker exec
 docker-exec() {
   local _container=""
-  local _exec_opts=""
-  local _cmnd_args=""
+  local _imagepath=""
+  local _buildpath=""
+  local _dcmd_opts=()
+  local _cmnd_args=()
+  local _opts_type=""
   local _endofopts=0
-  while [ $# -gt 0 ]
+  eval $(getoptions "f|file:=_buildpath" "$@")
+  while getoptions_has_next
   do
-    case "${1:-}" in
-    --)
-      if [ ${_endofopts} -eq 0 ]
-      then _endofopts=1
-      else _endofopts=0
-      fi
+    [ ${_endofopts} -eq 0 ] &&
+    _opts_type="e" ||
+    _opts_type="c" || :
+    eval $(getoptions_shift 2>/dev/null)
+    case "${_getopt_V:=}" in
+    --help)
+cat <<_USAGE_
+Usage: $FUNCNAME [OPTIONS] [CONTAINER] [--] COMMAND [ARG...]]
+_USAGE_
+      docker exec --help |egrep -v '^Usage' |tail -n +2
+      echo
+      return 0
       ;;
-    /*|\"/*|\'/*)
-      _cmnd_args="${_cmnd_args:+${_cmnd_args} }${1}"
-      _endofopts=1
+    --)
+      [ ${_endofopts} -eq 0 ] && {
+        _opts_type=""
+        _endofopts=1
+      } || :
       ;;
     -*)
-      if [ ${_endofopts} -eq 0 ]
-      then _exec_opts="${_exec_opts:+${_exec_opts} }${1:-}"
-      else _cmnd_args="${_cmnd_args:+${_cmnd_args} }${1:-}"
-      fi
+      ;;
+    +[0-9]*|@[0-9A-Za-z]*)
+      [ ${_endofopts} -eq 0 ] && {
+        _stage_key="${_getopt_V}"
+        _opta_type=""
+        _endofopts=1
+      } || :
       ;;
     *)
-      if [ ${_endofopts} -eq 0 ]
+      if [ ${_endofopts} -eq 0 -a -z "${_container}" ]
       then
-        if [ -z "${_container}" ]
-        then _container="$(container-get-id-all "${1:-}" 2>/dev/null)"
-        else _exec_opts="${_exec_opts:+${_exec_opts} }${1:-}"
-        fi
-      else
-        _cmnd_args="${_cmnd_args:+${_cmnd_args} }${1:-}"
+        _container=$(
+          container-get-id-all "${_getopt_V}" 2>/dev/null |
+          head -n1) ||
+        [ -n "${_container}" ] && {
+          _opts_type=""
+          _endofopts=1
+        } || :
       fi
       ;;
     esac
-    shift
+    case "${_opts_type:-}" in
+    e)
+      [ -n "${_dcmd_opts[@]}" ] &&
+      _dcmd_opts=("${_dcmd_opts[@]}" "${_getopt_V}") ||
+      _dcmd_opts=("${_getopt_V}") || :
+      ;;
+    c)
+      [ -n "${_cmnd_args[@]}" ] &&
+      _cmnd_args=("${_cmnd_args[@]}" "${_getopt_V}") ||
+      _cmnd_args=("${_getopt_V}") || :
+      ;;
+    *)
+      ;;
+    esac
   done
-  [ -n "${_container}" ] || {
-    _container="$(container-get-id-all |head -n 1)"
-  }
-  [ -n "${_container}" -a -n "${_cmnd_args}" ] || {
+  eval $(getoptions_end)
+  [ -z "${_container}" ] && {
+    _buildpath=$(dockerfile-get-path "${_buildpath:-}")
+  } 2>/dev/null || :
+  if [ -r "${_buildpath}" -a -z "${_container}" ]
+  then
+    [ -z "${_stage_key}" ] &&
+    dockerfile-multi-stage "${_buildpath}" 1>/dev/null 2>&1 && {
+      echo "Choose a stage to run."
+      echo
+      dockerfile-stage-list -FI "${_buildpath}" 2>/dev/null
+      echo
+      return 1
+    } || :
+    _imagepath=$(
+      dockerfile-imagepath-get \
+      "${_stage_key:-+0}" "${_buildpath}" 2>/dev/null)
+    [ -n "${_imagepath}" ] && {
+      _container=$(
+        container-get-id-all "${_imagepath}" 2>/dev/null |
+        head -n 1)      
+    }
+  fi
+  if [ -n "${_imagepath}" -a -z "${_container}" ]
+  then
+    _container=$(
+      container-get-id-all "${_imagepath}" 2>/dev/null) &&
+    if [ -n "${_container}" ] &&
+       [ "$(echo "${_container}"|wc -l)" != "1" ]
+    then
+cat <<_EOD_
+There are multiple instances of image '${_imagepath}'.
+Check the instance to be executed with the 'docker ps'.
+
+_EOD_
+      return 1
+    fi
+  fi || :
+  [ -z "${_container}" -o -z "$(echo ${_cmnd_args[@]})" ] && {
     docker exec --help
+    echo
     return 1
-  }
-  docker exec ${_exec_opts} ${_container} ${_cmnd_args}
+  } || :
+  eval $(
+  echo docker exec "${_dcmd_opts[@]}" ${_container} "${_cmnd_args[@]}")
   return $?
 }
 

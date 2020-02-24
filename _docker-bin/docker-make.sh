@@ -240,7 +240,6 @@ then
 
     __section "BUILD"
 
-
     if [ -s "./${__docker_build_file}.build" ]
     then
 cat <<_EOM_

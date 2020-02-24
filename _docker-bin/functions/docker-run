@@ -7,69 +7,76 @@ docker-run() {
   local _stage_key=""
   local _buildpath=""
   local _opts_path=""
-  local _drun_opts=""
-  local _cmnd_opts=""
+  local _dcmd_opts=()
+  local _cmnd_args=()
+  local _opts_type=""
   local _endofopts=0
   local _dockerret=0
-  if [[ -n "${1:-}" && "${1}" =~ \
-     ^[_0-9A-Za-z][-_/0-9A-Za-z]+(:[_0-9A-Za-z][-_/0-9A-Za-z]+$|$) ]]
-  then
-    _image_tmp=$(container-image-get-path "${1}" 2>/dev/null) &&
-    shift
-  fi
   eval $(getoptions "|image:=_imagepath f|file:=_buildpath" "$@")
   while getoptions_has_next
   do
+    [ ${_endofopts} -eq 0 ] &&
+    _opts_type="r" ||
+    _opts_type="c" || :
     eval $(getoptions_shift 2>/dev/null)
     case "${_getopt_V:=}" in
     --help)
 cat <<_USAGE_
-Usage: $FUNCNAME [OPTIONS] [+stage-index|@stage-name|IMAGE] [-- [COMMAND] [ARG...]]
+Usage: $FUNCNAME [OPTIONS] [+stage-index|@stage-name|IMAGE] [[--] [COMMAND] [ARG...]]
 _USAGE_
       docker run --help |egrep -v '^Usage' |tail -n +2
       echo
       return 0
       ;;
     --)
-      if [ ${_endofopts} -ne 0 ]
-      then _endofopts=0
-      else _endofopts=1
-      fi
+      [ ${_endofopts} -eq 0 ] && {
+        _opts_type=""
+        _endofopts=1
+      } || :
       ;;
     -*)
-      if [ ${_endofopts} -eq 0 ]
-      then _drun_opts="${_drun_opts:+${_drun_opts:-} }${_getopt_V}"
-      else _cmnd_opts="${_cmnd_opts:+${_cmnd_opts:-} }${_getopt_V}"
-      fi
+      ;;
+    +[0-9]*|@[0-9A-Za-z]*)
+      [ ${_endofopts} -eq 0 ] && {
+        _stage_key="${_getopt_V}"
+        _opta_type=""
+        _endofopts=1
+      } || :
       ;;
     *)
-      if [ ${_endofopts} -eq 0 ]
+      if [ ${_endofopts} -eq 0 -a -z "${_imagepath}" ]
       then
-        case "${_getopt_V:=}" in
-        +[0-9]*|@[0-9A-Za-z]*)
-          _stage_key="${_getopt_V}"
-          ;;
-        *)
-          _drun_opts="${_drun_opts:+${_drun_opts:-} }${_getopt_V}" || :
-          ;;
-        esac
-      else
-        _cmnd_opts="${_cmnd_opts:+${_cmnd_opts:-} }${_getopt_V}"
+        _imagepath=$(
+          container-image-get-id "${_getopt_V}" 2>/dev/null |
+          head -n1) ||
+        [ -n "${_imagepath}" ] && {
+          _opts_type=""
+          _endofopts=1
+        } || :
       fi
       ;;
     esac
+    case "${_opts_type:-}" in
+    r)
+      [ -n "${_dcmd_opts[@]}" ] &&
+      _dcmd_opts=("${_dcmd_opts[@]}" "${_getopt_V}") ||
+      _dcmd_opts=("${_getopt_V}") || :
+      ;;
+    c)
+      [ -n "${_cmnd_args[@]}" ] &&
+      _cmnd_args=("${_cmnd_args[@]}" "${_getopt_V}") ||
+      _cmnd_args=("${_getopt_V}") || :
+      ;;
+    *)
+      ;;
+    esac    
   done
   eval $(getoptions_end)
-  _buildpath=$(dockerfile-get-path "${_buildpath:-}" 2>/dev/null )
-  _imagepath="${_image_tmp:-}"
-  [ -n "${_drun_opts}" ] &&
-  [[ "${_drun_opts}" =~ ^((..*)[\ ]+|[\ ]*)([^\ -][^\ ]*)$ ]] && {
-    _drun_opts="${BASH_REMATCH[2]}"
-    [ -n "${BASH_REMATCH[3]}" ] && {
-      _imagepath=$(container-image-get-path "${BASH_REMATCH[3]}" 2>/dev/null)
-    }
-  }
-  [ -r "${_buildpath}" -a -z "${_imagepath}" ] && {
+  [ -z "${_imagepath}" ] && {
+    _buildpath=$(dockerfile-get-path "${_buildpath:-}")
+  } 2>/dev/null || :
+  if [ -r "${_buildpath}" -a -z "${_imagepath}" ]
+  then
     [ -z "${_stage_key}" ] &&
     dockerfile-multi-stage "${_buildpath}" 1>/dev/null 2>&1 && {
       echo "Choose a stage to run."
@@ -79,27 +86,21 @@ _USAGE_
       return 1
     } || :
     _imagepath=$(
-      if [ -n "${_stage_key}" ]
-      then dockerfile-imagepath-get "${_stage_key}" "${_buildpath}"
-      else dockerfile-env_IMAGEPATH "${_buildpath}" ||
-           dockerfile-imagepath-from-dir "${_buildpath}"
-      fi 2>/dev/null; )
-  } || :
-  [ -z "${_drun_opts}" ] &&
-  _drun_opts=$(dockerfile-env_BOOT_OPTS "${_buildpath}") || :
-  [ -n "${_imagepath}" -a -z "${_drun_opts}" ] &&
-  _drun_opts=$(container-image-property_RUN_OPTS "${_imagepath}") || :
-# [ -z "${_cmnd_opts}" ] &&
-# _cmnd_opts="/bin/bash" || :
-  if [ -n "${_imagepath}" ]
-  then
-    echo docker run ${_drun_opts} ${_imagepath} ${_cmnd_opts} &&
-    eval $(echo docker run ${_drun_opts} ${_imagepath} ${_cmnd_opts})
-    _dockerret=$?
-  else
-    docker run --help; echo; _dockerret=1
+    dockerfile-imagepath-get \
+    "${_stage_key:-+0}" "${_buildpath}" 2>/dev/null)
   fi
-  return ${_dockerret}
+  [ -z "$(echo ${_dcmd_opts[@]})" ] &&
+  _dcmd_opts=$(dockerfile-env_BOOT_OPTS "${_buildpath}") || :
+  [ -n "${_imagepath}" -a -z "$(echo ${_dcmd_opts[@]})" ] &&
+  _dcmd_opts=$(container-image-property_RUN_OPTS "${_imagepath}") || :
+  [ -z "${_imagepath}" ] && {
+    docker run --help
+    echo
+    return 1
+  } || :
+  echo docker run ${_dcmd_opts[@]} ${_imagepath} ${_cmnd_args[@]} &&
+  eval $(echo docker run ${_dcmd_opts[@]} ${_imagepath} ${_cmnd_args[@]})
+  return $?
 }
 
 # vim: set ff=unix ts=2 sw=2 sts=2 et : This line is VIM modeline

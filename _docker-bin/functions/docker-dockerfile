@@ -510,7 +510,7 @@ __load_external_env() {
   [ -n "${_opts_name}" -a \
     -f "${_buildpath}.opts" -a \
     -r "${_buildpath}.opts" ] && {
-    _eval_expr=". \"${_buildpath}.opts\" 2>/dev/null && "
+    _eval_expr='. "'"${_buildpath}"'.opts" 2>/dev/null && '
     _eval_expr="${_eval_expr}"'echo "${DOCKER_'"${_opts_name}"':-}";'
     _tmp_value=$(eval ${_eval_expr})
     [ -n "${_tmp_value}" ] &&

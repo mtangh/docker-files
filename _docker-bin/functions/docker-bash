@@ -15,59 +15,85 @@ docker-bash() {
     eval $(getoptions_shift 2>/dev/null)
     case "${_getopt_V:=}" in
     +[0-9]*|@[0-9A-Za-z]*)
-      _stage_key="${_getopt_V}"
+      if [ -z "${_stage_key}${_imagepath}${_container}" ]
+      then 
+        _stage_key="${_getopt_V}"
+      else
+        [ -n "$(echo ${_shellopts[@]})" ] &&
+        _shellopts=("${_shellopts[@]}" "${_getopt_V}") ||
+        _shellopts=("${_getopt_V}")
+      fi
+      ;;
+    --)
+      ;;
+    -*)
       ;;
     *)
-      if [ -z "${_container}" -a -z "${_imagepath}" ]
+      if [ -z "${_stage_key}${_imagepath}${_container}" ]
       then
-        _container=$(container-get-id "${_getopt_V}") ||
-        _imagepath=$(container-image-get-id "${_getopt_V}")
-      else
-        _shellopts=("${_shellopts[@]}" "${_getopt_V}")
+        _imagepath=$(container-image-get-id "${_getopt_V}") ||
+        _container=$(container-get-id-all "${_getopt_V}" |head -n1) || 
+          [ -n "$(echo ${_shellopts[@]})" ] &&
+          _shellopts=("${_shellopts[@]}" "${_getopt_V}") ||
+          _shellopts=("${_getopt_V}")
+        }
+      else      
+        [ -n "$(echo ${_shellopts[@]})" ] &&
+        _shellopts=("${_shellopts[@]}" "${_getopt_V}") ||
+        _shellopts=("${_getopt_V}")
       fi || :
       ;;
     esac
   done
   eval $(getoptions_end)
-  if [ -z "${_stage_key}" -a -n "${_buildpath}" ]
+  [ -z "${_imagepath}${_container}" ] && {
+    _buildpath=$(dockerfile-get-path "${_buildpath:-}")
+  } 2>/dev/null || :
+  if [ -r "${_buildpath}" -a -z "${_imagepath}${_container}" ]
   then
-    if dockerfile-multi-stage "${_buildpath}" 1>/dev/null 2>&1
+    if [ -z "${_stage_key}" ] &&
+       dockerfile-multi-stage "${_buildpath}" 1>/dev/null 2>&1
     then
       echo "Choose a stage to run."
       echo
       dockerfile-stage-list -FI "${_buildpath}" 2>/dev/null
       echo
       return 1
-    else
-      _stage_key="+0"
     fi
-  fi
-  if [ -n "${_stage_key}" -a -z "${_container}${_imagepath}" ]
-  then
-    _buildpath==$(dockerfile-get-path "${_buildpath}")
     _imagepath=$(
-      dockerfile-imagepath-get "${_stage_key}" "${_buildpath}")
+      dockerfile-imagepath-get "${_stage_key:-+0}" "${_buildpath}")
   fi || :
-  if [ -z "${_container}" ]
+  if [ -z "${_imagepath}${_container}" ]
   then
-    _container=$(container-get-id "${_imagepath:-}")
-  fi || :
-  if [ -z "${_container}${_imagepath}" ]
-  then
-    cat <<_USAGE_
+cat <<_USAGE_
 Usage: $FUNCNAME [CONTAINER|IMAGE] [BASH-ARG ...]
        $FUNCNAME [-f /path/to/Dockerfile] [+stage-index|@stage-name] [BASH-ARG ...]
 
 _USAGE_
     return 2
   fi
+  if [ -n "${_imagepath}" -a -z "${_container}" ]
+  then
+    _container=$(
+      container-get-id-all "${_imagepath}" 2>/dev/null) &&
+    if [ -n "${_container}" ] &&
+       [ "$(echo "${_container}"|wc -l)" != "1" ]
+    then
+cat <<_EOD_
+There are multiple instances of image '${_imagepath}'.
+Check the instance to be executed with the 'docker ps'.
+
+_EOD_
+      return 1
+    fi
+  fi || :
   if [ -n "${_container}" ]
   then
-    docker-exec -it "${_container}" -- \
-      "${_shellpath:-/bin/bash}" "${_shellopts[@]}"
+    docker-exec -it "${_container}" \
+    "${_shellpath:-/bin/bash}" "${_shellopts[@]}"
   else
-    docker-run -it --rm "${_imagepath}" -- \
-      "${_shellpath:-/bin/bash}" "${_shellopts[@]}"
+    docker-run -it --rm "${_imagepath}" \
+    "${_shellpath:-/bin/bash}" "${_shellopts[@]}"
   fi
   return $?
 }
