@@ -16,7 +16,8 @@ FROM centos7s-with-ssh:latest AS build
 ARG CENTOS_VER
 
 # Packages to install
-ARG PACKAGES=""
+ARG NGINX_PKG_LIST=""
+ARG NGINX_PKG_FILE="packages.txt"
 
 # Set Workdir
 WORKDIR /tmp/docker-container-build
@@ -29,13 +30,14 @@ RUN \
  set -ux; \
  ng_rel_url="http://nginx.org/packages/centos/%V/noarch/RPMS"; \
  ng_rel_url="${ng_rel_url}/nginx-release-centos-%V-0.el%V.ngx.noarch.rpm"; \
- ng_rel_url=$(echo "${ng_rel_url}" |sed -re 's/%V/'"${CENTOS_VER}"'/g'); \
+ ng_rel_url=$(echo "${ng_rel_url}" |sed -re 's/%V/'"${CENTOS_VER:-}"'/g'); \
  packages=""; \
- if [ -n "${PACKAGES:-}" ]; \
- then packages="${PACKAGES}"; \
- elif [ -f "./packages.txt" -a -s "./packages.txt" ]; \
- then packages=$(echo $(cat "./packages.txt")); \
- else \
+ if [ -n "${NGINX_PKG_LIST:-}" ]; \
+ then packages="${NGINX_PKG_LIST}"; \
+ elif [ -f "${NGINX_PKG_FILE:-}" -a -s "${NGINX_PKG_FILE:-}" ]; \
+ then packages=$(echo $(cat "${NGINX_PKG_FILE}")); \
+ fi; \
+ [ -n "${packages}" ] || { \
   packages="nginx"; \
   echo "The Nginx Package List is empty, using default: '${packages}'."; \
  fi; \
@@ -113,7 +115,7 @@ FROM scratch AS latest
 # COPY From build-stage
 COPY --from=build / /
 
-# Reset Work dir
+# Reset Workdir
 WORKDIR /
 
 # Labels
@@ -189,7 +191,7 @@ RUN \
  } && \
  : "ONBUILD: Done.";
 
-# ONBUILD: Reset Work dir
+# ONBUILD: Reset Workdir
 ONBUILD \
 WORKDIR /
 

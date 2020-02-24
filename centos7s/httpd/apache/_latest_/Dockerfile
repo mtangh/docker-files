@@ -11,7 +11,8 @@
 FROM centos7s-with-ssh:latest AS build
 
 # Packages to install
-ARG PACKAGES=""
+ARG HTTDP_PKG_LIST=""
+ARG HTTDP_PKG_FILE="packages.txt"
 
 # Set Workdir
 WORKDIR /tmp/docker-container-build
@@ -23,14 +24,15 @@ COPY * ./
 RUN \
  set -ux; \
  packages=""; \
- if [ -n "${PACKAGES:-}" ]; \
- then packages="${PACKAGES}"; \
- elif [ -f "./packages.txt" -a -s "./packages.txt" ]; \
- then packages=$(echo $(cat "./packages.txt")); \
- else \
+ if [ -n "${HTTDP_PKG_LIST:-}" ]; \
+ then packages="${HTTDP_PKG_LIST}"; \
+ elif [ -f "${HTTDP_PKG_FILE:-}" -a -s "${HTTDP_PKG_FILE:-}" ]; \
+ then packages=$(echo $(cat "${HTTDP_PKG_FILE}")); \
+ fi; \
+ [ -n "${packages}" ] || { \
   packages="httpd mod_ssl"; \
   echo "The Apache Package List is empty, using default: '${packages}'."; \
- fi; \
+ }; \
  : "Install" && { \
   yum -v -y update && \
   yum -v -y install ${packages} && \
@@ -74,7 +76,7 @@ RUN \
  } && \
  : "Done.";
 
-# Reset Work dir
+# Reset Workdir
 WORKDIR /
 
 # Labels
@@ -169,7 +171,7 @@ RUN \
  } && \
  : "ONBUILD: Done.";
 
-# ONBUILD: Reset Work dir
+# ONBUILD: Reset Workdir
 ONBUILD \
 WORKDIR /
 
