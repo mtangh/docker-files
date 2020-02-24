@@ -157,6 +157,8 @@ yum_config_update() {
   yum -v -y install \
     bash \
     bind-utils \
+    centos-logos \
+    hostname \
     iputils \
     iproute \
     passwd \
@@ -265,6 +267,13 @@ yum_config_update() {
   rm -rf \
     /etc/udev/hwdb.bin \
     /usr/lib/udev/hwdb.d/* || :
+
+  # Truncate "centos-logs" files
+  for clf in $(rpm -ql centos-logos|egrep '[.](jpg|png|svg|tif)$'|sort)
+  do
+    [ -f "${clf}" ] &&
+    cat /dev/null >"${clf}" || :
+  done
 
   # Cleanup all log files.
   for lf in /var/log/*

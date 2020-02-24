@@ -40,7 +40,7 @@ RUN \
  elif [ -f "./packages.txt" -a -s "./packages.txt" ]; \
  then php_packages=$(echo $(cat "./packages.txt")); \
  else \
-  php_packages="php php-devel php-pear"; \
+  php_packages="php php-pear"; \
   php_packages="${php_packages} php-mbstring php-pdo php-gd php-mcrypt php-pecl-zip"; \
   php_packages="${php_packages} php-xml php-json"; \
   echo "The PHP Package List is empty, using default: '${php_packages}''."; \

@@ -157,6 +157,7 @@ yum_config_update() {
   yum -v -y install \
     bash \
     bind-utils \
+    hostname \
     iputils \
     iproute \
     passwd \
@@ -179,7 +180,6 @@ yum_config_update() {
   # Remove packages as much as possible.
   yum -v -y remove \
     bind-license \
-    centos-logos \
     dbus-glib \
     dbus-python \
     device-mapper* \
@@ -252,6 +252,11 @@ yum_config_update() {
   then sed -ri 's/^LANG=.*$/LANG=en_US.UTF-8/g' "${langfile}"
   else echo 'LANG=en_US.UTF-8' 1>>"${langfile}"
   fi || :
+  if [ -s "${langfile}" ] &&
+     egrep '^LC_ALL=' "${langfile}" 1>/dev/null 2>&1
+  then sed -ri 's/^LC_ALL=.*$/LC_ALL=C/g' "${langfile}"
+  else echo 'LC_ALL=C' 1>>"${langfile}"
+  fi || :
 
 } &&
 : "Remove some things we don't need." && {
@@ -262,6 +267,13 @@ yum_config_update() {
     /etc/sysconfig/network-scripts/ifcfg-* \
     /usr/lib/locale/locale-archive \
     /root/* || :
+
+  # Truncate "redhat-logs" files
+  for clf in $(rpm -ql redhat-logos|egrep '[.](jpg|png|svg|tif)$'|sort)
+  do
+    [ -f "${clf}" ] &&
+    cat /dev/null >"${clf}" || :
+  done
 
   # Cleanup all log files.
   for lf in /var/log/*

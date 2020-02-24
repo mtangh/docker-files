@@ -17,8 +17,19 @@
 } &&
 : "Rebuild RPM DB" && {
 
-  rpm -e --nodeps kernel kernel-firmware redhat-logos
+  rpm -e --nodeps kernel
+  rpm -e --nodeps kernel-firmware
   rpm --rebuilddb
+
+} &&
+: "Remove 'redhat-logos' files" && {
+
+  # Truncate "redhat-logs" files
+  for clf in $(rpm -ql redhat-logos|egrep '[.](jpg|png|svg|tif)$'|sort)
+  do
+    [ -f "${clf}" ] &&
+    cat /dev/null >"${clf}" || :
+  done
 
 } &&
 : "Disable services" && {

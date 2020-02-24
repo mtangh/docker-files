@@ -32,7 +32,7 @@ docker-bash() {
       if [ -z "${_stage_key}${_imagepath}${_container}" ]
       then
         _imagepath=$(container-image-get-id "${_getopt_V}") ||
-        _container=$(container-get-id-all "${_getopt_V}" |head -n1) || 
+        _container=$(container-get-id-all "${_getopt_V}" |head -n1) || {
           [ -n "$(echo ${_shellopts[@]})" ] &&
           _shellopts=("${_shellopts[@]}" "${_getopt_V}") ||
           _shellopts=("${_getopt_V}")
