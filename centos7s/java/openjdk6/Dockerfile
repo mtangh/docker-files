@@ -1,8 +1,8 @@
 #
-# centos7s-java-openjdk
+# centos7s-java-openjdk:6
 #
 #@  DOCKER_CONTAINER=""
-#@  DOCKER_IMAGEPATH=""
+#@  DOCKER_IMAGEPATH="centos7s-java-openjdk:6"
 #@  DOCKER_BUILDOPTS=""
 #@  DOCKER_BOOT_OPTS=""
 #
@@ -10,8 +10,8 @@
 # Java-OpenJDK Version
 ARG JAVA_OPENJDK_VER=6
 
-# Build-Stage
-FROM centos7s-java-openjdk:0 AS ${JAVA_OPENJDK_VER}
+# Java-OpenJDK
+FROM centos7s-java-openjdk:0
 
 # OpenJDK Version
 ARG JAVA_OPENJDK_VER
@@ -21,7 +21,7 @@ WORKDIR /
 
 # Labels
 LABEL \
- name="Java-OpenJDK ${JAVA_OPENJDK_VER} on CentOS7 with Systemd"
+ name="Java-OpenJDK ${JAVA_OPENJDK_VER} on CentOS7 with Systemd" \
  vendor="UGOOLE.ORG" \
  maintainer="MT" \
  license="" \

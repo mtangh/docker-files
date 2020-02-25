@@ -181,6 +181,11 @@ dnf_config_update() {
     which \
     || exit 1
 
+  # Package cleanup
+  dnf -v -y remove \
+    $(echo $(dnf -q repoquery --unneeded 2>/dev/null)) \
+    || exit 1
+
   # Update and Cleanup.
   dnf -v -y update && {
     dnf -v -y clean all &&

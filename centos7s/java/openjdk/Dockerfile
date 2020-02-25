@@ -1,19 +1,19 @@
 #
-# centos7s-java-openjdk
+# centos7s-java-openjdk:0
 #
 #@  DOCKER_CONTAINER=""
-#@  DOCKER_IMAGEPATH=""
+#@  DOCKER_IMAGEPATH="centos7s-java-openjdk:0"
 #@  DOCKER_BUILDOPTS=""
 #@  DOCKER_BOOT_OPTS=""
 #
-FROM centos7s-with-ssh:latest AS 0
+FROM centos7s-with-ssh:latest
 
 # Reset Workdir
 WORKDIR /
 
 # Labels
 LABEL \
- name="Base Image for Java-OpenJDK on CentOS7 with Systemd"
+ name="Base Image for Java-OpenJDK on CentOS7 with Systemd" \
  vendor="UGOOLE.ORG" \
  maintainer="MT" \
  license="" \
@@ -42,7 +42,7 @@ RUN \
  packages=""; \
  if [ -n "${OPENJDK_PKG_LIST:-}" ]; \
  then packages="${OPENJDK_PKG_LIST}"; \
- if [ -f "${OPENJDK_PKG_FILE:-}" -a -s "${OPENJDK_PKG_FILE:-}" ]; \
+ elif [ -f "${OPENJDK_PKG_FILE:-}" -a -s "${OPENJDK_PKG_FILE:-}" ]; \
  then packages=$(echo $(cat "${OPENJDK_PKG_FILE}")); \
  fi; \
  [ -n "${packages}" ] || { \
@@ -50,7 +50,8 @@ RUN \
   exit 1; }; \
  : "ONUILD: Install OpenJDK Packages" && { \
   yum -v -y update && \
-  yum -v -y $(echo ${packages}) && \
+  yum -v -y install $(echo ${packages}) && \
+  yum -v -y remove $(echo $(package-cleanup --leaves)) && \
   yum -v -y clean all && { \
   rm -rf /var/cache/yum/* || :; }; \
  } &&\
