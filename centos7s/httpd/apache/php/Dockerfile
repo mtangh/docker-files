@@ -39,12 +39,13 @@ RUN \
  then php_packages="${PHP_PACKAGES}"; \
  elif [ -f "./packages.txt" -a -s "./packages.txt" ]; \
  then php_packages=$(echo $(cat "./packages.txt")); \
- else \
+ fi; \
+ [ -n "${php_packages}" ] || { \
   php_packages="php php-pear"; \
   php_packages="${php_packages} php-mbstring php-pdo php-gd php-mcrypt php-pecl-zip"; \
   php_packages="${php_packages} php-xml php-json"; \
   echo "The PHP Package List is empty, using default: '${php_packages}''."; \
- fi; \
+ }; \
  : "Install" && { \
   yum -v -y update && \
   yum -v -y install ${php_packages} && \
@@ -208,7 +209,7 @@ RUN \
  } && \
  : "ONBUILD: Done.";
 
-# ONBUILD: Reset Work dir
+# ONBUILD: Reset Workdir
 ONBUILD \
 WORKDIR /
 

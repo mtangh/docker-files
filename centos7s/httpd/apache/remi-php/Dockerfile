@@ -35,7 +35,7 @@ RUN \
  } && \
  : "Done.";
 
-# Reset Work dir
+# Reset Workdir
 WORKDIR /
 
 # Labels
@@ -113,19 +113,20 @@ RUN \
  then php_packages="${PHP_PACKAGES}"; \
  elif [ -f "./packages.txt" -a -s "./packages.txt" ]; \
  then php_packages=$(echo $(cat "./packages.txt")); \
- else \
-  php_packages="php php-devel php-pear"; \
+ fi; \
+ [ -n "${php_packages}" ] || { \
+  php_packages="php php-pear"; \
   php_packages="${php_packages} php-mbstring php-pdo php-gd"; \
   php_packages="${php_packages} php-xml php-json php-mcrypt php-pecl-zip"; \
   echo "The REMI-PHP Package List is empty, using default: '${php_packages}'."; \
- fi; \
- : "Install REMI-PHP." && { \
+ }; \
+ : "ONBUILD: Install REMI-PHP." && { \
   yum -v -y update && \
   yum -v -y install --enablerepo=${remi_php_ver} ${php_packages} && \
   yum -v -y clean all && { \
   rm -rf /var/cache/yum/* || :; }; \
  } && \
- : "Update php.ini" && { \
+ : "ONBUILD: Update php.ini" && { \
   phpinicf="/etc/php.ini"; \
   : && { \
    [ -e "${phpinicf}.ORIG" ] || \
@@ -177,7 +178,7 @@ RUN \
   fi && \
   /usr/sbin/httpd -t; \
  } && \
- : "Cleanup." && { \
+ : "ONBUILD: Cleanup." && { \
   work_dir=$(pwd); cd /; \
   for lf in /var/log/*; \
   do [ -s "${lf}" ] && cat /dev/null >"${lf}"; done || :; \
@@ -187,7 +188,7 @@ RUN \
  } && \
  : "Done.";
 
-# ONBUILD: Reset Work dir
+# ONBUILD: Reset Workdir
 ONBUILD \
 WORKDIR /
 
