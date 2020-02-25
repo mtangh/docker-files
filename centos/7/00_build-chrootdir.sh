@@ -225,6 +225,11 @@ yum_config_update() {
     which \
     || exit 1
 
+  # Package cleanup
+  yum -v -y remove \
+    $(echo $(package-cleanup --leaves)) \
+    || exit 1
+
   # Update and Cleanup.
   yum -v -y update && {
     yum -v -y clean all &&

@@ -3,8 +3,9 @@
 : "Install systemd" && {
 
   yum -v -y update &&
-  yum -v -y install systemd-sysv sudo && {
-    yum -v -y clean all &&
+  yum -v -y install systemd-sysv sudo &&
+  yum -v -y remove $(echo $(package-cleanup --leaves)) &&
+  yum -v -y clean all && {
     rm -rf /var/cache/yum/* || :
   }
 
