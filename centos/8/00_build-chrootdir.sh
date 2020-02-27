@@ -149,6 +149,14 @@ dnf_config_update() {
     grubby \
     || exit 1
 
+  # Unprotected
+  if [ -s "${dnf_protect_conf:=/etc/dnf/protected.d/systemd.conf}" ]
+  then
+    cat "${dnf_protect_conf}" |
+    egrep -v '^systemd-udev$' >"${dnf_protect_conf}.tmp" &&
+    mv -f "${dnf_protect_conf}"{.tmp,}
+  fi
+
   # Remove packages as much as possible.
   dnf -v -y remove \
     coreutils-common \
@@ -179,6 +187,11 @@ dnf_config_update() {
     trousers \
     trousers-lib \
     which \
+    || exit 1
+
+  # Remove 'systemd-udev'
+  dnf -v -y remove \
+    systemd-udev \
     || exit 1
 
   # Package cleanup
