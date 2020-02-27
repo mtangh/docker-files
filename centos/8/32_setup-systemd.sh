@@ -4,7 +4,9 @@
 
   dnf -v -y update &&
   dnf -v -y install systemd-sysv sudo && {
-    dnf -v -y remove $(echo $(dnf -q repoquery --unneeded 2>/dev/null)) || :
+    dnf -v -y remove \
+      --exclude=procps-ng \
+      $(echo $(dnf -q repoquery --unneeded 2>/dev/null)) || :
   } &&
   dnf -v -y clean all && {
     rm -rf /var/cache/dnf/* || :

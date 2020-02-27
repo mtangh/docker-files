@@ -116,7 +116,6 @@ dnf_config_update() {
     hostname \
     iputils \
     passwd \
-    procps-ng \
     rootfiles \
     tar \
     vim-minimal \
@@ -159,19 +158,25 @@ dnf_config_update() {
 
   # Remove packages as much as possible.
   dnf -v -y remove \
+    --exclude=procps-ng \
+    brotli \
     coreutils-common \
     cracklib-dicts \
     diffutils \
+    findutils \
     gettext \
     gettext-libs \
     glibc-all-langpacks \
     gnupg2-smime \
     hardlink \
     kbd \
+    kmod \
     kpartx \
     libcroco \
     libevent \
     libgomp \
+    libkcapi \
+    libkcapi-hmaccalc \
     libpsl \
     libsecret \
     libssh \
@@ -187,15 +192,11 @@ dnf_config_update() {
     trousers \
     trousers-lib \
     which \
+    xz \
     || exit 1
 
-  # Remove 'systemd-udev'
   dnf -v -y remove \
-    systemd-udev \
-    || exit 1
-
-  # Package cleanup
-  dnf -v -y remove \
+    --exclude=procps-ng \
     $(echo $(dnf -q repoquery --unneeded 2>/dev/null)) \
     || exit 1
 
@@ -237,11 +238,17 @@ dnf_config_update() {
     /etc/firewalld \
     /etc/sysconfig/network-scripts/ifcfg-* \
     /usr/lib/locale/locale-archive \
+    /usr/share/mime/* \
     /root/* || :
 
   rm -rf \
     /etc/udev/hwdb.bin \
     /usr/lib/udev/hwdb.d/* || :
+
+  for lc in $(ls -1d /usr/share/locale/* |egrep -v '^(en|locale\.alias$)');
+  do
+    echo "${lc}" && rm -rf "${lc}"
+  done
 
   # Cleanup all log files.
   for lf in /var/log/*
