@@ -59,6 +59,11 @@ dnf_config_update() {
 
   mkdir -p "${CENTOSROOT}" && {
 
+    [ -e "${CENTOSROOT}/dev/null" ]    || mknod -m 666 "${CENTOSROOT}/dev/null" c 1 3
+    [ -e "${CENTOSROOT}/dev/zero" ]    || mknod -m 666 "${CENTOSROOT}/dev/zero" c 1 5
+    [ -e "${CENTOSROOT}/dev/random" ]  || mknod -m 666 "${CENTOSROOT}/dev/random" c 1 8
+    [ -e "${CENTOSROOT}/dev/urandom" ] || mknod -m 666 "${CENTOSROOT}/dev/urandom" c 1 9
+
     dnf -v -y \
       reinstall --downloadonly --downloaddir . \
       centos-release centos-repos centos-gpg-keys &&
@@ -148,13 +153,13 @@ dnf_config_update() {
     grubby \
     || exit 1
 
-  # Unprotected
-  if [ -s "${dnf_protect_conf:=/etc/dnf/protected.d/systemd.conf}" ]
-  then
-    cat "${dnf_protect_conf}" |
-    egrep -v '^systemd-udev$' >"${dnf_protect_conf}.tmp" &&
-    mv -f "${dnf_protect_conf}"{.tmp,}
-  fi
+#  # Unprotected
+#  if [ -s "${dnf_protect_conf:=/etc/dnf/protected.d/systemd.conf}" ]
+#  then
+#    cat "${dnf_protect_conf}" |
+#    egrep -v '^systemd-udev$' >"${dnf_protect_conf}.tmp" &&
+#    mv -f "${dnf_protect_conf}"{.tmp,}
+#  fi
 
   # Remove packages as much as possible.
   dnf -v -y remove \
@@ -163,20 +168,16 @@ dnf_config_update() {
     coreutils-common \
     cracklib-dicts \
     diffutils \
-    findutils \
     gettext \
     gettext-libs \
     glibc-all-langpacks \
     gnupg2-smime \
     hardlink \
     kbd \
-    kmod \
     kpartx \
     libcroco \
     libevent \
     libgomp \
-    libkcapi \
-    libkcapi-hmaccalc \
     libpsl \
     libsecret \
     libssh \
@@ -192,13 +193,21 @@ dnf_config_update() {
     trousers \
     trousers-lib \
     which \
-    xz \
     || exit 1
 
-  dnf -v -y remove \
-    --exclude=procps-ng \
-    $(echo $(dnf -q repoquery --unneeded 2>/dev/null)) \
-    || exit 1
+#  dnf -v -y remove \
+#    --exclude=procps-ng \
+#    findutils \
+#    kmod \
+#    libkcapi \
+#    libkcapi-hmaccalc \
+#    xz \
+#    || exit 1
+
+#  dnf -v -y remove \
+#    --exclude=procps-ng \
+#    $(echo $(dnf -q repoquery --unneeded 2>/dev/null)) \
+#    || exit 1
 
   # Update and Cleanup.
   dnf -v -y update && {
@@ -207,10 +216,24 @@ dnf_config_update() {
   }
 
 } &&
-: "Fix /run/lock breakage since it's not tmpfs in docker" && {
+: "Systemd fixes" && {
 
+  # no machine-id by default.
+  :> /etc/machine-id
+
+  # Fix /run/lock breakage since it's not tmpfs in docker
   umount /run || :
   systemd-tmpfiles --create --boot || :
+
+  # mask mounts and login bits
+  systemctl mask \
+    systemd-logind.service \
+    getty.target \
+    console-getty.service \
+    sys-fs-fuse-connections.mount \
+    systemd-remount-fs.service \
+    dev-hugepages.mount \
+    || :
 
 } &&
 : "Initialize the root user password." && {
@@ -233,17 +256,20 @@ dnf_config_update() {
 } &&
 : "Remove some things we don't need." && {
 
-  rm -rf \
+  rm -rfv \
     /boot/* \
     /etc/firewalld \
     /etc/sysconfig/network-scripts/ifcfg-* \
     /usr/lib/locale/locale-archive \
     /usr/share/mime/* \
-    /root/* || :
+    /root/* \
+    || :
 
-  rm -rf \
+  rm -rfv \
     /etc/udev/hwdb.bin \
-    /usr/lib/udev/hwdb.d/* || :
+    /usr/lib/udev/hwdb.d/* \
+    /var/lib/dnf/history.* \
+    || :
 
   for lc in $(ls -1d /usr/share/locale/* |egrep -v '^(en|locale\.alias$)');
   do

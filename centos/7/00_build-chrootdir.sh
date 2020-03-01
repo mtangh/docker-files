@@ -237,8 +237,12 @@ yum_config_update() {
   }
 
 } &&
-: "Fix /run/lock breakage since it's not tmpfs in docker" && {
+: "Systemd fixes" && {
 
+  # no machine-id by default.
+  :> /etc/machine-id
+
+  # Fix /run/lock breakage since it's not tmpfs in docker
   umount /run || :
   systemd-tmpfiles --create --boot || :
 
@@ -263,13 +267,13 @@ yum_config_update() {
 } &&
 : "Remove some things we don't need." && {
 
-  rm -rf \
+  rm -rfv \
     /boot/* \
     /etc/firewalld \
     /etc/sysconfig/network-scripts/ifcfg-* \
     /usr/lib/locale/locale-archive \
     /root/* || :
-  rm -rf \
+  rm -rfv \
     /etc/udev/hwdb.bin \
     /usr/lib/udev/hwdb.d/* || :
 
