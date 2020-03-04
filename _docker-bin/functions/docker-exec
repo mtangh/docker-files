@@ -4,6 +4,7 @@
 docker-exec() {
   local _container=""
   local _imagepath=""
+  local _imageuuid=""
   local _buildpath=""
   local _dcmd_opts=()
   local _cmnd_args=()
@@ -43,9 +44,14 @@ _USAGE_
     *)
       if [ ${_endofopts} -eq 0 -a -z "${_container}" ]
       then
-        _container=$(
-          container-get-id-all "${_getopt_V}" 2>/dev/null |
-          head -n1) ||
+        : && {
+          _imageuuid=$(container-image-get-id "${_getopt_V}")
+          [ -n "${_imageuuid}" ] &&
+          _imagepath=$(container-image-get-path "${_imageuuid}") || :
+          [ -n "${_imageuuid}${_imagepath}" ] &&
+          _container=$(container-get-id-all "${_imagepath:-${_imageuuid}}") ||
+          _container=$(container-get-id-all "${_getopt_V}")
+        } 2>/dev/null || :
         [ -n "${_container}" ] && {
           _opts_type=""
           _endofopts=1
@@ -86,31 +92,33 @@ _USAGE_
       dockerfile-imagepath-get \
       "${_stage_key:-+0}" "${_buildpath}" 2>/dev/null)
     [ -n "${_imagepath}" ] && {
-      _container=$(
-        container-get-id-all "${_imagepath}" 2>/dev/null |
-        head -n 1)      
-    }
+      _imageuuid=$(container-image-get-id "${_imagepath}") ||
+      _imageuuid=""      
+      _container=$(container-get-id-all "${_imagepath}") ||
+      _container=""
+    } 2>/dev/null || :
   fi
   if [ -n "${_imagepath}" -a -z "${_container}" ]
-  then
-    _container=$(
-      container-get-id-all "${_imagepath}" 2>/dev/null) &&
-    if [ -n "${_container}" ] &&
-       [ "$(echo "${_container}"|wc -l)" != "1" ]
-    then
-cat <<_EOD_
-There are multiple instances of image '${_imagepath}'.
-Check the instance to be executed with the 'docker ps'.
-
-_EOD_
-      return 1
-    fi
-  fi || :
+  then _container=$(container-get-id-all "${_imagepath}")
+  fi 2>/dev/null || :
+  if [ -n "${_imageuuid}" -a -z "${_container}" ]
+  then _container=$(container-get-id-all "${_imageuuid}")
+  fi 2>/dev/null || :
   [ -z "${_container}" -o -z "$(echo ${_cmnd_args[@]})" ] && {
     docker exec --help
     echo
     return 1
   } || :
+  if [ "$(echo "${_container}"|wc -l)" != "1" ]
+  then
+cat <<_EOD_
+There are multiple instances of image '${_imagepath}'.
+Check the instance to be executed with the 'docker ps'.
+
+_EOD_
+    return 1
+  fi || :
+  echo docker exec "${_dcmd_opts[@]}" ${_container} "${_cmnd_args[@]}"
   eval $(
   echo docker exec "${_dcmd_opts[@]}" ${_container} "${_cmnd_args[@]}")
   return $?

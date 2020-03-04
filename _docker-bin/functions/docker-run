@@ -3,6 +3,7 @@
 # docker run
 docker-run() {
   local _imagepath=""
+  local _imageuuid=""
   local _image_tmp=""
   local _stage_key=""
   local _buildpath=""
@@ -44,12 +45,12 @@ _USAGE_
       } || :
       ;;
     *)
-      if [ ${_endofopts} -eq 0 -a -z "${_imagepath}" ]
+      if [ ${_endofopts} -eq 0 -a -z "${_imageuuid}" ]
       then
-        _imagepath=$(
+        _imageuuid=$(
           container-image-get-id "${_getopt_V}" 2>/dev/null |
           head -n1) ||
-        [ -n "${_imagepath}" ] && {
+        [ -n "${_imageuuid}" ] && {
           _opts_type=""
           _endofopts=1
         } || :
@@ -72,10 +73,10 @@ _USAGE_
     esac
   done
   eval $(getoptions_end)
-  [ -z "${_imagepath}" ] && {
+  [ -z "${_imageuuid}" ] && {
     _buildpath=$(dockerfile-get-path "${_buildpath:-}")
   } 2>/dev/null || :
-  if [ -r "${_buildpath}" -a -z "${_imagepath}" ]
+  if [ -r "${_buildpath}" -a -z "${_imageuuid}" ]
   then
     [ -z "${_stage_key}" ] &&
     dockerfile-multi-stage "${_buildpath}" 1>/dev/null 2>&1 && {
@@ -88,18 +89,25 @@ _USAGE_
     _imagepath=$(
     dockerfile-imagepath-get \
     "${_stage_key:-+0}" "${_buildpath}" 2>/dev/null)
+    [ -n "${_imagepath}" ] && {
+      _imageuuid=$(container-image-get-id "${_imagepath}") ||
+      _imageuuid=""
+    } 2>/dev/null || :
   fi
-  [ -z "$(echo ${_dcmd_opts[@]})" ] &&
-  _dcmd_opts=$(dockerfile-env_BOOT_OPTS "${_buildpath}") || :
-  [ -n "${_imagepath}" -a -z "$(echo ${_dcmd_opts[@]})" ] &&
-  _dcmd_opts=$(container-image-property_RUN_OPTS "${_imagepath}") || :
-  [ -z "${_imagepath}" ] && {
+  [ -z "${_imageuuid}" ] && {
     docker run --help
     echo
     return 1
   } || :
-  echo docker run ${_dcmd_opts[@]} ${_imagepath} ${_cmnd_args[@]} &&
-  eval $(echo docker run ${_dcmd_opts[@]} ${_imagepath} ${_cmnd_args[@]})
+  [ -z "${_imagepath}" ] && {
+    _imagepath=$(container-image-get-id "${_imageuuid}")
+  } 2>/dev/null || :
+  [ -z "$(echo ${_dcmd_opts[@]})" ] &&
+  _dcmd_opts=$(dockerfile-env_BOOT_OPTS "${_buildpath}") || :
+  [ -n "${_imageuuid}" -a -z "$(echo ${_dcmd_opts[@]})" ] &&
+  _dcmd_opts=$(container-image-property_RUN_OPTS "${_imageuuid}") || :
+  echo docker run ${_dcmd_opts[@]} ${_imagepath:-${_imageuuid}} ${_cmnd_args[@]} &&
+  eval $(echo docker run ${_dcmd_opts[@]} ${_imagepath:-${_imageuuid}} ${_cmnd_args[@]})
   return $?
 }
 

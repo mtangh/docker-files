@@ -153,31 +153,40 @@ dnf_config_update() {
     grubby \
     || exit 1
 
-#  # Unprotected
-#  if [ -s "${dnf_protect_conf:=/etc/dnf/protected.d/systemd.conf}" ]
-#  then
-#    cat "${dnf_protect_conf}" |
-#    egrep -v '^systemd-udev$' >"${dnf_protect_conf}.tmp" &&
-#    mv -f "${dnf_protect_conf}"{.tmp,}
-#  fi
+  # Unprotected
+  if [ -s "${dnf_protect_conf:=/etc/dnf/protected.d/systemd.conf}" ]
+  then
+    cat "${dnf_protect_conf}" |
+    egrep -v '^systemd-udev$' >"${dnf_protect_conf}.tmp" &&
+    mv -f "${dnf_protect_conf}"{.tmp,}
+  fi
 
   # Remove packages as much as possible.
+  dnf -v -y remove \
+    --exclude=procps-ng \
+    systemd-udev \
+    || :
+
   dnf -v -y remove \
     --exclude=procps-ng \
     brotli \
     coreutils-common \
     cracklib-dicts \
     diffutils \
+    findutils \
     gettext \
     gettext-libs \
     glibc-all-langpacks \
     gnupg2-smime \
     hardlink \
     kbd \
+    kmod \
     kpartx \
     libcroco \
     libevent \
     libgomp \
+    libkcapi \
+    libkcapi-hmaccalc \
     libpsl \
     libsecret \
     libssh \
@@ -193,21 +202,13 @@ dnf_config_update() {
     trousers \
     trousers-lib \
     which \
+    xz \
     || exit 1
 
-#  dnf -v -y remove \
-#    --exclude=procps-ng \
-#    findutils \
-#    kmod \
-#    libkcapi \
-#    libkcapi-hmaccalc \
-#    xz \
-#    || exit 1
-
-#  dnf -v -y remove \
-#    --exclude=procps-ng \
-#    $(echo $(dnf -q repoquery --unneeded 2>/dev/null)) \
-#    || exit 1
+  dnf -v -y remove \
+    --exclude=procps-ng \
+    $(echo $(dnf -q repoquery --unneeded 2>/dev/null)) \
+    || exit 1
 
   # Update and Cleanup.
   dnf -v -y update && {

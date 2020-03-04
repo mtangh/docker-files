@@ -249,7 +249,8 @@ LABEL \
  docker.run.confirm-startup=""
 
 # STOP SIGNAL
-STOPSIGNAL SIGINT
+#STOPSIGNAL SIGINT
+STOPSIGNAL SIGRTMIN+3
 
 # Volume
 VOLUME [ "/sys/fs/cgroup" ]
