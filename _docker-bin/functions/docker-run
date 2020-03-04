@@ -100,7 +100,7 @@ _USAGE_
     return 1
   } || :
   [ -z "${_imagepath}" ] && {
-    _imagepath=$(container-image-get-id "${_imageuuid}")
+    _imagepath=$(container-image-get-path "${_imageuuid}")
   } 2>/dev/null || :
   [ -z "$(echo ${_dcmd_opts[@]})" ] &&
   _dcmd_opts=$(dockerfile-env_BOOT_OPTS "${_buildpath}") || :

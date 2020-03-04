@@ -93,7 +93,7 @@ _USAGE_
       "${_stage_key:-+0}" "${_buildpath}" 2>/dev/null)
     [ -n "${_imagepath}" ] && {
       _imageuuid=$(container-image-get-id "${_imagepath}") ||
-      _imageuuid=""      
+      _imageuuid=""
       _container=$(container-get-id-all "${_imagepath}") ||
       _container=""
     } 2>/dev/null || :
@@ -109,7 +109,7 @@ _USAGE_
     echo
     return 1
   } || :
-  if [ "$(echo "${_container}"|wc -l)" != "1" ]
+  if [ "$(echo $(echo "${_container}"|wc -l))" != "1" ]
   then
 cat <<_EOD_
 There are multiple instances of image '${_imagepath}'.
