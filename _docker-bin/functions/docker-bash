@@ -31,12 +31,15 @@ docker-bash() {
     *)
       if [ -z "${_stage_key}${_imagepath}${_container}" ]
       then
-        _imagepath=$(container-image-get-id "${_getopt_V}") ||
-        _container=$(container-get-id-all "${_getopt_V}" |head -n1) || {
-          [ -n "$(echo ${_shellopts[@]})" ] &&
-          _shellopts=("${_shellopts[@]}" "${_getopt_V}") ||
-          _shellopts=("${_getopt_V}")
-        }
+        _imagepath=$(container-image-get-id "${_getopt_V}")
+        if [ -z "${_imagepath:-}" ]
+        then
+          _container=$(container-get-id-all "${_getopt_V}" |head -n1) || {
+            [ -n "$(echo ${_shellopts[@]})" ] &&
+            _shellopts=("${_shellopts[@]}" "${_getopt_V}") ||
+            _shellopts=("${_getopt_V}")
+          }
+        fi
       else
         [ -n "$(echo ${_shellopts[@]})" ] &&
         _shellopts=("${_shellopts[@]}" "${_getopt_V}") ||
@@ -75,7 +78,7 @@ _USAGE_
   if [ -n "${_imagepath}" -a -z "${_container}" ]
   then
     _container=$(
-      container-get-id-all "${_imagepath}" 2>/dev/null) &&
+      container-get-id "${_imagepath}" 2>/dev/null)
     if [ -n "${_container}" ] &&
        [ "$(echo $(echo "${_container}"|wc -l))" != "1" ]
     then
