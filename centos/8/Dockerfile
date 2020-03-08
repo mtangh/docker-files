@@ -252,8 +252,8 @@ LABEL \
 #STOPSIGNAL SIGINT
 STOPSIGNAL SIGRTMIN+3
 
-# Volume
-VOLUME [ "/sys/fs/cgroup" ]
+## Volume
+#VOLUME [ "/sys/fs/cgroup" ]
 
 # Start /sbin/init
 CMD [ "/sbin/init" ]

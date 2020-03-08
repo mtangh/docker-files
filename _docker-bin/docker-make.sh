@@ -200,9 +200,9 @@ _EOM_
           # rebuild
           ( cd "${__docker_build_wdir}" && {
             echo "#*     docker stop and rm: ID='${_docker_containerid}'."
-            docker-stop "${_docker_containerid}" 1>/dev/null 2>&1 &&
+            dockre-stop "${_docker_containerid}" 1>/dev/null 2>&1 &&
             echo "#*     docker container ID='${_docker_containerid}' was stoped."
-            docker rm "${_docker_containerid}" 1>/dev/null 2>&1 &&
+            docker-rm "${_docker_containerid}" 1>/dev/null 2>&1 &&
             echo "#*     docker container ID='${_docker_containerid}' was removed."
           }; )
 
@@ -335,7 +335,7 @@ _EOM_
             # Print
             echo "ID '${_docker_containerid}' was started."
             # Print portmap
-            docker port "${_docker_containerid}" |
+            ${DOCKER_CMD} port "${_docker_containerid}" |
             ${AWK} '{printf("portmap - %s\n",$0);}'
             # End
             __echo_end $?
@@ -370,7 +370,7 @@ _EOM_
             while [ ${retry_cnt} -le ${_retrymax} ]
             do
               eval $(
-              echo docker exec -it "${_docker_containerid}" ${_confirm_start_cmnd}
+              echo ${DOCKER_CMD} exec -it "${_docker_containerid}" ${_confirm_start_cmnd}
               ) 1>/dev/null 2>&1
               # Status of docker exec
               dexec_ret=$?

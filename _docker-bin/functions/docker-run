@@ -25,7 +25,7 @@ docker-run() {
 cat <<_USAGE_
 Usage: $FUNCNAME [OPTIONS] [+stage-index|@stage-name|IMAGE] [[--] [COMMAND] [ARG...]]
 _USAGE_
-      docker run --help |egrep -v '^Usage' |tail -n +2
+      ${DOCKER_CMD} run --help |egrep -v '^Usage' |tail -n +2
       echo
       return 0
       ;;
@@ -95,7 +95,7 @@ _USAGE_
     } 2>/dev/null || :
   fi
   [ -z "${_imageuuid}" ] && {
-    docker run --help
+    ${DOCKER_CMD} run --help
     echo
     return 1
   } || :
@@ -106,8 +106,8 @@ _USAGE_
   _dcmd_opts=$(dockerfile-env_BOOT_OPTS "${_buildpath}") || :
   [ -n "${_imageuuid}" -a -z "$(echo ${_dcmd_opts[@]})" ] &&
   _dcmd_opts=$(container-image-property_RUN_OPTS "${_imageuuid}") || :
-  echo docker run ${_dcmd_opts[@]} ${_imagepath:-${_imageuuid}} ${_cmnd_args[@]} &&
-  eval $(echo docker run ${_dcmd_opts[@]} ${_imagepath:-${_imageuuid}} ${_cmnd_args[@]})
+  echo ${DOCKER_CMD} run ${_dcmd_opts[@]} ${_imagepath:-${_imageuuid}} ${_cmnd_args[@]} &&
+  eval $(echo ${DOCKER_CMD} run ${_dcmd_opts[@]} ${_imagepath:-${_imageuuid}} ${_cmnd_args[@]})
   return $?
 }
 

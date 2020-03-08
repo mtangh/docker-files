@@ -84,7 +84,7 @@ _USAGE_
     then
 cat <<_EOD_
 There are multiple instances of image '${_imagepath}'.
-Check the instance to be executed with the 'docker ps'.
+Check the instance to be executed with the '${DOCKER_CMD} ps'.
 
 _EOD_
       return 1

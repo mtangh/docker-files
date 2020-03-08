@@ -42,7 +42,7 @@ __docker-control-command() {
   eval $(getoptions_end)
   if [ -n "${_ctrl_cmnd}" -a -n "${_container}" ]
   then
-    docker ${_ctrl_cmnd} ${_ctrl_opts} ${_container} 2>/dev/null
+    ${DOCKER_CMD} ${_ctrl_cmnd} ${_ctrl_opts} ${_container} 2>/dev/null
     _dockerret=$?
   else
     _dockerret=1
@@ -84,6 +84,18 @@ docker-kill() {
 # docker rm
 docker-rm() {
   __docker-control-command rm $@
+  return $?
+}
+
+# docker top
+docker-top() {
+  __docker-control-command top $@
+  return $?
+}
+
+# docker port
+docker-port() {
+  __docker-control-command port $@
   return $?
 }
 

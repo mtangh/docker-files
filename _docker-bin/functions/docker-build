@@ -35,7 +35,7 @@ t|tag:=_imagepath
 cat <<_USAGE_
 Usage: $FUNCNAME [OPTIONS] [+stage-index|@stage-name] [PATH]
 _USAGE_
-      docker build --help |egrep -v '^Usage' |tail -n +2
+      ${DOCKER_CMD} build --help |egrep -v '^Usage' |tail -n +2
       echo
       return 0
       ;;
@@ -113,7 +113,7 @@ _USAGE_
   fi
   if [ -z "${_targetlst}" ]
   then
-    docker build --help
+    ${DOCKER_CMD} build --help
     echo
     return 1
   fi
@@ -142,11 +142,11 @@ _USAGE_
     fi 2>/dev/null
 #   _labelopts="${_labelopts:+${_labelopts} }--label build-date="'"'$(date +'%Y%m%dT%H:%M%z')'"'
     _labelopts="${_labelopts:+${_labelopts} }--label docker.build.options="'"'"${_buildopts}"'"'
-    echo docker build ${_buildopts} ${_labelopts} \
+    echo ${DOCKER_CMD} build ${_buildopts} ${_labelopts} \
       ${_imagepath:+-t ${_imagepath}} ${_stagename:+--target=${_stagename}} \
       ${_buildpath:+-f ${_buildpath}} "${_build_dir:-.}" &&
     eval $(echo \
-      docker build ${_buildopts} ${_labelopts} \
+      ${DOCKER_CMD} build ${_buildopts} ${_labelopts} \
       ${_imagepath:+-t ${_imagepath}} ${_stagename:+--target=${_stagename}} \
       ${_buildpath:+-f ${_buildpath}} "${_build_dir:-.}")
     _dockerret=$?

@@ -22,7 +22,7 @@ docker-exec() {
 cat <<_USAGE_
 Usage: $FUNCNAME [OPTIONS] [CONTAINER] [--] COMMAND [ARG...]]
 _USAGE_
-      docker exec --help |egrep -v '^Usage' |tail -n +2
+      ${DOCKER_CMD} exec --help |egrep -v '^Usage' |tail -n +2
       echo
       return 0
       ;;
@@ -105,7 +105,7 @@ _USAGE_
   then _container=$(container-get-id-all "${_imageuuid}")
   fi 2>/dev/null || :
   [ -z "${_container}" -o -z "$(echo ${_cmnd_args[@]})" ] && {
-    docker exec --help
+    ${DOCKER_CMD} exec --help
     echo
     return 1
   } || :
@@ -113,14 +113,14 @@ _USAGE_
   then
 cat <<_EOD_
 There are multiple instances of image '${_imagepath}'.
-Check the instance to be executed with the 'docker ps'.
+Check the instance to be executed with the '${DOCKER_CMD} ps'.
 
 _EOD_
     return 1
   fi || :
-  echo docker exec "${_dcmd_opts[@]}" ${_container} "${_cmnd_args[@]}"
+  echo ${DOCKER_CMD} exec "${_dcmd_opts[@]}" ${_container} "${_cmnd_args[@]}"
   eval $(
-  echo docker exec "${_dcmd_opts[@]}" ${_container} "${_cmnd_args[@]}")
+  echo ${DOCKER_CMD} exec "${_dcmd_opts[@]}" ${_container} "${_cmnd_args[@]}")
   return $?
 }
 

@@ -37,10 +37,10 @@ docker-container-commit() {
     _container=$(container-get-id-all |head -n1)
   }
   [ -n "${_container}" ] || {
-    docker commit --help
+    ${DOCKER_CMD} commit --help
     return 1
   }
-  docker commit ${_cmit_opts} ${_container} ${_imagename}
+  ${DOCKER_CMD} commit ${_cmit_opts} ${_container} ${_imagename}
   return $?
 }
 

@@ -6,7 +6,7 @@ docker-images() {
   local _headerstr=""
   local _formatopt=""
   local _col_width=$(
-    docker images --format='{{ .Tag |printf "%s:%s" .Repository }}' 2>/dev/null |
+    ${DOCKER_CMD} images --format='{{ .Tag |printf "%s:%s" .Repository }}' 2>/dev/null |
     __adjustcolwidth 24 2>/dev/null)
   _headerstr=$(printf '%-16s%-'"${_col_width}"'s%-32s%s' "ID" "REPOSITORY:TAG" "CREATED" "SIZE")
   _formatopt="${_formatopt:-}"'{{ .ID |printf "%-16s" }}'
@@ -70,7 +70,7 @@ docker-images() {
   eval $(getoptions_end)
   [ -n "${_headerstr}" ] &&
   echo "${_headerstr}" || :
-  eval $(echo docker images ${_formatopt} ${_dimageopt})
+  eval $(echo ${DOCKER_CMD} images ${_formatopt} ${_dimageopt})
   return $?
 }
 

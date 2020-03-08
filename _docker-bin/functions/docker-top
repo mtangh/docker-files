@@ -4,7 +4,7 @@
 docker-top() {
   local _container="$(container-get-id)"
   [ -n "$(echo ${_container}${@})" ] &&
-  docker top ${_container} "${@}"
+  ${DOCKER_CMD} top ${_container} "${@}"
   return $?
 }
 

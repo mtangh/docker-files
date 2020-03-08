@@ -49,7 +49,7 @@ container-get-id() {
     _container=""
     [ -n "${_searchval}" ] && {
       _container=$(
-        docker ps ${_cmnd_opts} \
+        ${DOCKER_CMD} ps ${_cmnd_opts} \
         --format='{{ .CreatedAt }};{{.ID}};{{.Image}};{{.Names}}' |
         egrep '(^|[;])('"${_searchval}"'|'"${_searchval%:latest*}"')([;].*|$)' |
         sort -r |
@@ -114,7 +114,7 @@ container-get-name-last() {
 container-is-running() {
   local _container=$(container-get-id-last "${@}")
   [ -n "${_container}" ] && {
-    docker ps -a --format="{{ .ID }}" --filter "status=running" |
+    ${DOCKER_CMD} ps -a --format="{{ .ID }}" --filter "status=running" |
     egrep '^'"${_container}"'$'
   } 1>/dev/null 2>&1
   return $?
@@ -147,7 +147,7 @@ container-get-port() {
   eval $(getoptions_end)
   _container=$(container-get-id ${_cont_opts})
   [ -n "${_container}" ] && {
-    docker port "${_container}" ${_find_port} 2>/dev/null |
+    ${DOCKER_CMD} port "${_container}" ${_find_port} 2>/dev/null |
     while read _portmapln
     do
       [ -n "${_find_port}" ] &&

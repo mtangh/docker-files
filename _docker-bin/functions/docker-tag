@@ -36,10 +36,10 @@ _EOD_
   then
     [[ "${_imgtarget}" =~ ^([-_0-9A-Za-z]+)(:[-_0-9A-Za-z]+$) ]] &&
     [ -z "$(container-image-get-id ${_imgtarget:-X} 2>/dev/null)" ] &&
-    docker tag "${_imgsource}" "${_imgtarget}"
+    ${DOCKER_CMD} tag "${_imgsource}" "${_imgtarget}"
   else
     [[ "${_imgsource}" =~ ^([-_0-9A-Za-z]+)(:[-_0-9A-Za-z]+$) ]] &&
-    docker rmi --no-prune "${_imgsource}"
+    ${DOCKER_CMD} rmi --no-prune "${_imgsource}"
   fi
   return $?
 }

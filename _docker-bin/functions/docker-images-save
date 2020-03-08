@@ -58,7 +58,7 @@ docker-images-save() {
         _savedfile="${_imagepath/\//_}.tgz"
         ;;
       esac
-      docker save "${_cimage_id}" |
+      ${DOCKER_CMD} save "${_cimage_id}" |
       gzip -c 1>"${_store_dir:-.}/${_savedfile}.tgz" 2>/dev/null
     } ||
     _dockerret=$?

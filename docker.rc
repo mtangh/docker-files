@@ -3,6 +3,18 @@ DOCKER_RC_FILE="${BASH_SOURCE##*/}"
 DOCKERFILESDIR=$([ -n "${BASH_SOURCE%/*}" ] && cd "${BASH_SOURCE%/*}" 2>/dev/null; pwd)
 DOCKER_BIN_DIR="${DOCKERFILESDIR}/_docker-bin"
 
+# docker command
+if [ -n "${DOCKER_CMD:=docker}" ]
+then
+  DOCKER_CMD=$(type -P "${DOCKER_CMD}")
+  export DOCKER_CMD
+fi
+if [ -z "${DOCKER_CMD}" ]
+then
+  echo "${DOCKER_RC_FILE}: Command not found '${DOCKER_CMD}'." 1>&2
+  return 1
+fi
+
 # Paths
 if [ -d "${DOCKER_BIN_DIR}" ]
 then
@@ -15,10 +27,8 @@ fi 1>/dev/null 2>&1
 
 # Template
 if [ -d "${DOCKER_BIN_DIR}/templates" ]
-then
-  DOCKER_TMPLDIR="${DOCKER_BIN_DIR}/templates"
-else
-  DOCKER_TMPLDIR=""
+then DOCKER_TMPLDIR="${DOCKER_BIN_DIR}/templates"
+else DOCKER_TMPLDIR=""
 fi
 
 # Functions
