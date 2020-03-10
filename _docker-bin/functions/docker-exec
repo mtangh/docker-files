@@ -19,11 +19,8 @@ docker-exec() {
     eval $(getoptions_shift 2>/dev/null)
     case "${_getopt_V:=}" in
     --help)
-cat <<_USAGE_
-Usage: $FUNCNAME [OPTIONS] [CONTAINER] [--] COMMAND [ARG...]]
-_USAGE_
-      ${DOCKER_CMD} exec --help |egrep -v '^Usage' |tail -n +2
-      echo
+      __docker_help exec \
+      "${FUNCNAME}" "[OPTIONS]" "[CONTAINER]" "[--]" COMMAND "[ARG...]]"
       return 0
       ;;
     --)
@@ -105,8 +102,8 @@ _USAGE_
   then _container=$(container-get-id-all "${_imageuuid}")
   fi 2>/dev/null || :
   [ -z "${_container}" -o -z "$(echo ${_cmnd_args[@]})" ] && {
-    ${DOCKER_CMD} exec --help
-    echo
+    __docker_help exec \
+    "${FUNCNAME}" "[OPTIONS]" "[CONTAINER]" "[--]" COMMAND "[ARG...]]"
     return 1
   } || :
   if [ "$(echo $(echo "${_container}"|wc -l))" != "1" ]

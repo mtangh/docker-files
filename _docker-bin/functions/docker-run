@@ -22,11 +22,8 @@ docker-run() {
     eval $(getoptions_shift 2>/dev/null)
     case "${_getopt_V:=}" in
     --help)
-cat <<_USAGE_
-Usage: $FUNCNAME [OPTIONS] [+stage-index|@stage-name|IMAGE] [[--] [COMMAND] [ARG...]]
-_USAGE_
-      ${DOCKER_CMD} run --help |egrep -v '^Usage' |tail -n +2
-      echo
+      __docker_help run \
+      "${FUNCNAME}" "[OPTIONS]" "[+stage-index|@stage-name|IMAGE]" "[[--] [COMMAND] [ARG...]]"
       return 0
       ;;
     --)
@@ -94,9 +91,9 @@ _USAGE_
       _imageuuid=""
     } 2>/dev/null || :
   fi
-  [ -z "${_imageuuid}" ] && {
-    ${DOCKER_CMD} run --help
-    echo
+  [ -z "${_imageuuid}" ] && {   
+    __docker_help run \
+    "${FUNCNAME}" "[OPTIONS]" "[+stage-index|@stage-name|IMAGE]" "[[--] [COMMAND] [ARG...]]"
     return 1
   } || :
   [ -z "${_imagepath}" ] && {

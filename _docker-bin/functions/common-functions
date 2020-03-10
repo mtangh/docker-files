@@ -1,5 +1,20 @@
 # common-functions
 
+__docker_help() {
+  local _subcmnd="${1:-}"; shift
+  [ $# -gt 0 ] && {
+cat <<_EOD_
+Usage: ${@}
+
+_EOD_
+  } || :
+  ${DOCKER_CMD} "${_subcmnd}" --help |
+  egrep -v '^Usage' |
+  tail -n +2
+  echo
+  return 0
+}
+
 __adjustcolwidth() {
   local _collength=${1:-20}; shift
   local _targetcol=${1:-1}; shift

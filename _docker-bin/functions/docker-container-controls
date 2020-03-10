@@ -3,99 +3,196 @@
 # docker control
 __docker-control-command() {
   local _container=""
-  local _crrl_argv=""
+  local _imageuuid=""
+  local _imagepath=""
+  local _stagekeys=()
+  local _stage_key=""
   local _ctrl_cmnd="${1:-}"; shift
-  local _ctrl_opts=""
-  local _toggleflg=0
-  local _dockerret=0
-  [ $# -le 0 ] && {
-    _container=$(container-get-id-all |head -n1)
+  local _ctrl_args=()
+  local _ctrl_opts=()
+  local _endofopts=0
+  [ -n "${_ctrl_cmnd}" ] || {
+    echo "${FUNCNAME}: sub-command not specified." 1>&2
+    return 1
   }
-  eval $(getoptions "" "$@")
+  eval $(getoptions "f|file:=_buildpath" "$@")
   while getoptions_has_next
   do
-    eval $(getoptions_shift)
+    eval $(getoptions_shift 2>/dev/null)
     case "${_getopt_V:=}" in
+    --help)
+      __docker_help "${_ctrl_cmnd}" \
+      "docker-${_ctrl_cmnd}" "[OPTIONS]" "[CONTAINER|IMAGE] ..." "\n" \
+      "      " \
+      "docker-${_ctrl_cmnd}" "[-f /path/to/Dockerfile] [+stage-index|@stage-name] ..."
+      return 0
+      ;;
     --)
-      if [ ${_toggleflg} -ne 0 ]
-      then _toggleflg=0
-      else _toggleflg=1
-      fi
+      [ ${_endofopts} -eq 0 ] && {
+        _endofopts=1
+      } || :
       ;;
     -*)
-      _ctrl_opts="${_ctrl_opts:+${_ctrl_opts} }${_getopt_V}"
+      if [ ${_endofopts} -eq 0 ]
+      then
+        [ -n "$(echo ${_ctrl_opts[@]})" ] &&
+        _ctrl_opts=("${_ctrl_opts[@]}" "${_getopt_V}") ||
+        _ctrl_opts=("${_getopt_V}") || :
+      else
+        [ -n "$(echo ${_ctrl_args[@]})" ] &&
+        _ctrl_args=("${_ctrl_args[@]}" "${_getopt_V}") ||
+        _ctrl_args=("${_getopt_V}") || :
+      fi
+      ;;
+    +[0-9]*|@[0-9A-Za-z]*)
+      [ -n "$(echo ${_stagekeys[@]})" ] &&
+      _stagekeys=("${_stagekeys[@]}" "${_getopt_V}") ||
+      _stagekeys=("${_getopt_V}") || :
+      _endofopts=1
       ;;
     *)
-      if [ ${_toggleflg} -eq 0 ]
+      _container=""
+      _imageuuid=""
+      _imagepath=""
+      : && {
+        _imageuuid=$(container-image-get-id "${_getopt_V}")
+        [ -n "${_imageuuid}" ] &&
+        _imagepath=$(container-image-get-path "${_imageuuid}") || :
+        [ -n "${_imageuuid}${_imagepath}" ] &&
+        _container=$(container-get-id-all "${_imagepath:-${_imageuuid}}") ||
+        _container=$(container-get-id-all "${_getopt_V}")
+        [ -n "${_container}" ] && {
+          _getopt_V="${_container}"
+          _endofopts=1
+        }
+      } 2>/dev/null || :
+      if [ ${_endofopts} -eq 0 ]
       then
-        _ctrl_argv=$(container-get-id-all "${_getopt_V}")
-        if [ -n "${_ctrl_argv}" ]
-        then _container="${_container:+${_container} }${_ctrl_argv}"
-        else _ctrl_opts="${_ctrl_opts:+${_ctrl_opts} }${_getopt_V}"
-        fi
+        [ -n "$(echo ${_ctrl_opts[@]})" ] &&
+        _ctrl_opts=("${_ctrl_opts[@]}" "${_getopt_V}") ||
+        _ctrl_opts=("${_getopt_V}") || :
       else
-        _ctrl_opts="${_ctrl_opts:+${_ctrl_opts} }${_getopt_V}"
+        [ -n "$(echo ${_ctrl_args[@]})" ] &&
+        _ctrl_args=("${_ctrl_args[@]}" "${_getopt_V}") ||
+        _ctrl_args=("${_getopt_V}") || :
       fi
       ;;
     esac
   done
   eval $(getoptions_end)
-  if [ -n "${_ctrl_cmnd}" -a -n "${_container}" ]
-  then
-    ${DOCKER_CMD} ${_ctrl_cmnd} ${_ctrl_opts} ${_container} 2>/dev/null
-    _dockerret=$?
-  else
-    _dockerret=1
+  [ -z "$(echo ${_ctrl_args[@]})" -o -n "$(echo ${_stagekeys[@]})" ] && {
+    _buildpath=$(dockerfile-get-path "${_buildpath:-}")
+  } 2>/dev/null || :
+  if [ -z "$(echo ${_ctrl_args[@]})" -a -z "${_stagekeys[@]}" ]
+  then _stagekeys=("+0")
   fi
-  return $_dockerret
+  if [ -n "${_stagekeys[@]}" ]
+  then
+    for _stage_key in "${_stagekeys[@]}"
+    do
+      _imagepath=$(
+        dockerfile-imagepath-get \
+        "${_stage_key:-+0}" "${_buildpath}" 2>/dev/null) ||
+      _imagepath="" || :
+      [ -n "${_imagepath}" ] &&
+      _container=$(container-get-id-all "${_imagepath}") ||
+      _container=""
+      [ -n "${_container}" ] && {
+        [ -n "$(echo ${_ctrl_args[@]})" ] &&
+        _ctrl_args=("${_ctrl_args[@]}" "${_container}") ||
+        _ctrl_args=("${_container}") || :
+      } || :
+    done
+  fi
+  [ -n "$(echo ${_ctel_args[@]})" ] || {
+    __docker_help "${_ctrl_cmnd}" \
+    "docker-${_ctrl_cmnd}" "[OPTIONS]" "[CONTAINER|IMAGE|] ..."
+    return 1
+  }
+  echo ${DOCKER_CMD} "${_ctrl_cmnd}" "${_ctrl_opts[@]}" "${_ctrl_args[@]}"
+  eval $(
+  echo ${DOCKER_CMD} "${_ctrl_cmnd}" "${_ctrl_opts[@]}" "${_ctrl_args[@]}"
+  )
+  return $?
 }
 
-# docker start
 docker-start() {
-  __docker-control-command start $@
+  __docker-control-command "${FUNCNAME#*docker-}" "$@"
   return $?
 }
 
-# docker stop
 docker-stop() {
-  __docker-control-command stop $@
+  __docker-control-command "${FUNCNAME#*docker-}" "$@"
   return $?
 }
 
-# docker restart
 docker-restart() {
-  echo "docker-stop: $(docker-stop $@ 2>/dev/null || echo NG.)"
-  echo "docker-start: $(docker-start $@ 2>/dev/null || echo NG.)"
+  __docker-control-command "${FUNCNAME#*docker-}" "$@"
   return $?
 }
 
-# docker attach
-docker-kill() {
-  __docker-control-command attach $@
+docker-wait() {
+  __docker-control-command "${FUNCNAME#*docker-}" "$@"
   return $?
 }
 
-# docker kill
-docker-kill() {
-  __docker-control-command kill $@
+docker-pause() {
+  __docker-control-command "${FUNCNAME#*docker-}" "$@"
   return $?
 }
 
-# docker rm
+docker-unpause() {
+  __docker-control-command "${FUNCNAME#*docker-}" "$@"
+  return $?
+}
+
+docker-attach() {
+  __docker-control-command "${FUNCNAME#*docker-}" "$@"
+  return $?
+}
+
 docker-rm() {
-  __docker-control-command rm $@
+  __docker-control-command "${FUNCNAME#*docker-}" "$@"
   return $?
 }
 
-# docker top
+docker-kill() {
+  __docker-control-command "${FUNCNAME#*docker-}" "$@"
+  return $?
+}
+
+docker-import() {
+  __docker-control-command "${FUNCNAME#*docker-}" "$@"
+  return $?
+}
+
+docker-export() {
+  __docker-control-command "${FUNCNAME#*docker-}" "$@"
+  return $?
+}
+
+docker-update() {
+  __docker-control-command "${FUNCNAME#*docker-}" "$@"
+  return $?
+}
+
+docker-stats() {
+  __docker-control-command "${FUNCNAME#*docker-}" "$@"
+  return $?
+}
+
+docker-logs() {
+  __docker-control-command "${FUNCNAME#*docker-}" "$@"
+  return $?
+}
+
 docker-top() {
-  __docker-control-command top $@
+  __docker-control-command "${FUNCNAME#*docker-}" "$@"
   return $?
 }
 
-# docker port
 docker-port() {
-  __docker-control-command port $@
+  __docker-control-command "${FUNCNAME#*docker-}" "$@"
   return $?
 }
 
