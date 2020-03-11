@@ -20,7 +20,7 @@ docker-exec() {
     case "${_getopt_V:=}" in
     --help)
       __docker_help exec \
-      "${FUNCNAME}" "[OPTIONS]" "[CONTAINER]" "[--]" COMMAND "[ARG...]]"
+      "${FUNCNAME} [OPTIONS] [CONTAINER] [--] COMMAND [ARG...]]"
       return 0
       ;;
     --)
@@ -103,7 +103,7 @@ docker-exec() {
   fi 2>/dev/null || :
   [ -z "${_container}" -o -z "$(echo ${_cmnd_args[@]})" ] && {
     __docker_help exec \
-    "${FUNCNAME}" "[OPTIONS]" "[CONTAINER]" "[--]" COMMAND "[ARG...]]"
+    "${FUNCNAME} [OPTIONS] [CONTAINER] [--] COMMAND [ARG...]]"
     return 1
   } || :
   if [ "$(echo $(echo "${_container}"|wc -l))" != "1" ]
@@ -115,7 +115,7 @@ Check the instance to be executed with the '${DOCKER_CMD} ps'.
 _EOD_
     return 1
   fi || :
-  echo ${DOCKER_CMD} exec "${_dcmd_opts[@]}" ${_container} "${_cmnd_args[@]}"
+  echo ${DOCKER_CMD} exec "${_dcmd_opts[@]}" ${_container} "${_cmnd_args[@]}" 1>&2
   eval $(
   echo ${DOCKER_CMD} exec "${_dcmd_opts[@]}" ${_container} "${_cmnd_args[@]}")
   return $?

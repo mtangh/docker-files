@@ -32,11 +32,8 @@ t|tag:=_imagepath
     eval $(getoptions_shift)
     case "${_getopt_V:=}" in
     --help)
-cat <<_USAGE_
-Usage: $FUNCNAME [OPTIONS] [+stage-index|@stage-name] [PATH]
-_USAGE_
-      ${DOCKER_CMD} build --help |egrep -v '^Usage' |tail -n +2
-      echo
+      __docker_help build \
+      "${FUNCNAME} [OPTIONS] [+stage-index|@stage-name] [PATH]"
       return 0
       ;;
     -*)
@@ -113,8 +110,8 @@ _USAGE_
   fi
   if [ -z "${_targetlst}" ]
   then
-    ${DOCKER_CMD} build --help
-    echo
+    __docker_help build \
+    "${FUNCNAME} [OPTIONS] [+stage-index|@stage-name] [PATH]"
     return 1
   fi
   [ -z "${_buildopts}" ] &&
@@ -144,7 +141,7 @@ _USAGE_
     _labelopts="${_labelopts:+${_labelopts} }--label docker.build.options="'"'"${_buildopts}"'"'
     echo ${DOCKER_CMD} build ${_buildopts} ${_labelopts} \
       ${_imagepath:+-t ${_imagepath}} ${_stagename:+--target=${_stagename}} \
-      ${_buildpath:+-f ${_buildpath}} "${_build_dir:-.}" &&
+      ${_buildpath:+-f ${_buildpath}} "${_build_dir:-.}" 1>&2 &&
     eval $(echo \
       ${DOCKER_CMD} build ${_buildopts} ${_labelopts} \
       ${_imagepath:+-t ${_imagepath}} ${_stagename:+--target=${_stagename}} \

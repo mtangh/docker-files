@@ -23,7 +23,7 @@ docker-run() {
     case "${_getopt_V:=}" in
     --help)
       __docker_help run \
-      "${FUNCNAME}" "[OPTIONS]" "[+stage-index|@stage-name|IMAGE]" "[[--] [COMMAND] [ARG...]]"
+      "${FUNCNAME} [OPTIONS] [+stage-index|@stage-name|IMAGE] [[--] [COMMAND] [ARG...]]"
       return 0
       ;;
     --)
@@ -91,9 +91,9 @@ docker-run() {
       _imageuuid=""
     } 2>/dev/null || :
   fi
-  [ -z "${_imageuuid}" ] && {   
+  [ -z "${_imageuuid}" ] && {
     __docker_help run \
-    "${FUNCNAME}" "[OPTIONS]" "[+stage-index|@stage-name|IMAGE]" "[[--] [COMMAND] [ARG...]]"
+    "${FUNCNAME} [OPTIONS] [+stage-index|@stage-name|IMAGE] [[--] [COMMAND] [ARG...]]"
     return 1
   } || :
   [ -z "${_imagepath}" ] && {
@@ -103,7 +103,7 @@ docker-run() {
   _dcmd_opts=$(dockerfile-env_BOOT_OPTS "${_buildpath}") || :
   [ -n "${_imageuuid}" -a -z "$(echo ${_dcmd_opts[@]})" ] &&
   _dcmd_opts=$(container-image-property_RUN_OPTS "${_imageuuid}") || :
-  echo ${DOCKER_CMD} run ${_dcmd_opts[@]} ${_imagepath:-${_imageuuid}} ${_cmnd_args[@]} &&
+  echo ${DOCKER_CMD} run ${_dcmd_opts[@]} ${_imagepath:-${_imageuuid}} ${_cmnd_args[@]} 1>&2 &&
   eval $(echo ${DOCKER_CMD} run ${_dcmd_opts[@]} ${_imagepath:-${_imageuuid}} ${_cmnd_args[@]})
   return $?
 }

@@ -2,11 +2,14 @@
 
 __docker_help() {
   local _subcmnd="${1:-}"; shift
+  local _usghead="Usage:"
+  local _usgtext=""
   [ $# -gt 0 ] && {
-cat <<_EOD_
-Usage: ${@}
-
-_EOD_
+    for _usgtext in "${@}"
+    do
+      printf "%s %s\n" "${_usghead}" "${_usgtext}"
+      _usghead="      "
+    done
   } || :
   ${DOCKER_CMD} "${_subcmnd}" --help |
   egrep -v '^Usage' |

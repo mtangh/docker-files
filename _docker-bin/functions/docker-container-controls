@@ -22,9 +22,8 @@ __docker-control-command() {
     case "${_getopt_V:=}" in
     --help)
       __docker_help "${_ctrl_cmnd}" \
-      "docker-${_ctrl_cmnd}" "[OPTIONS]" "[CONTAINER|IMAGE] ..." "\n" \
-      "      " \
-      "docker-${_ctrl_cmnd}" "[-f /path/to/Dockerfile] [+stage-index|@stage-name] ..."
+      "docker-${_ctrl_cmnd} [OPTIONS] [CONTAINER|IMAGE] ..." \
+      "docker-${_ctrl_cmnd} [-f /path/to/Dockerfile] [+stage-index|@stage-name] ..."
       return 0
       ;;
     --)
@@ -83,7 +82,7 @@ __docker-control-command() {
   [ -z "$(echo ${_ctrl_args[@]})" -o -n "$(echo ${_stagekeys[@]})" ] && {
     _buildpath=$(dockerfile-get-path "${_buildpath:-}")
   } 2>/dev/null || :
-  if [ -z "$(echo ${_ctrl_args[@]})" -a -z "${_stagekeys[@]}" ]
+  if [ -z "$(echo ${_ctrl_args[@]})" -a -z "$(echo ${_stagekeys[@]})" ]
   then _stagekeys=("+0")
   fi
   if [ -n "${_stagekeys[@]}" ]
@@ -104,12 +103,12 @@ __docker-control-command() {
       } || :
     done
   fi
-  [ -n "$(echo ${_ctel_args[@]})" ] || {
+  [ -n "$(echo ${_ctrl_args[@]})" ] || {
     __docker_help "${_ctrl_cmnd}" \
-    "docker-${_ctrl_cmnd}" "[OPTIONS]" "[CONTAINER|IMAGE|] ..."
+    "docker-${_ctrl_cmnd} [OPTIONS] [CONTAINER|IMAGE] ..."
     return 1
   }
-  echo ${DOCKER_CMD} "${_ctrl_cmnd}" "${_ctrl_opts[@]}" "${_ctrl_args[@]}"
+  echo ${DOCKER_CMD} "${_ctrl_cmnd}" "${_ctrl_opts[@]}" "${_ctrl_args[@]}" 1>&2
   eval $(
   echo ${DOCKER_CMD} "${_ctrl_cmnd}" "${_ctrl_opts[@]}" "${_ctrl_args[@]}"
   )
