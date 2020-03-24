@@ -87,7 +87,8 @@ _EOF_
         mv -f /etc/localtime{,.ORIG}
       } || :
 
-      timedatectl set-timezone Asia/Tokyo || {
+      echo "${timezone}" 1>/etc/sysconfig/clock &&
+      timedatectl set-timezone Asia/Tokyo 2>/dev/null || {
         ln -sf "${zoneinfo}/${timezone}" /etc/localtime
       } && {
         ls -l /etc/localtime*

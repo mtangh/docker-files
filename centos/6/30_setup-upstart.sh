@@ -12,25 +12,33 @@
 } &&
 : "Change upstart's scripts" && {
 
-  sed -ri 's/^/#/g' /etc/init/tty.conf &&
-  sed -ri 's/wn -r now/wn -h now/g' /etc/init/control-alt-delete.conf || :
+  sed -ri 's/^/#/g' \
+    /etc/init/tty.conf &&
+  sed -ri 's/^/#/g' \
+    /etc/init/start-ttys.conf &&
+  sed -ri 's/wn -r now/wn -h now/g' \
+    /etc/init/control-alt-delete.conf || :
 
 } &&
 : "Rebuild RPM DB" && {
 
   rpm -e --nodeps kernel
   rpm -e --nodeps kernel-firmware
+  rpm -e --nodeps redhat-logos
   rpm --rebuilddb
 
 } &&
-: "Remove 'redhat-logos' files" && {
+: "Initialize" && {
 
-  # Truncate "redhat-logs" files
-  for clf in $(rpm -ql redhat-logos|egrep '[.](jpg|png|svg|tif)$'|sort)
-  do
-    [ -f "${clf}" ] &&
-    cat /dev/null >"${clf}" || :
-  done
+  # Touch fstab
+  cat /dev/null 1>/etc/fstab
+
+  # Create '/etc/sysconfig/network'
+  echo "NETWORKING=yes" 1>/etc/sysconfig/network
+
+  # UDEV Off
+  mv -f /sbin/start_udev{,.off} &&
+  ln -sf /bin/true /sbin/start_udev || :
 
 } &&
 : "Disable services" && {
