@@ -1,5 +1,5 @@
 #
-# centos7s-with-ssh
+# centos6u-with-ssh
 #
 #@  DOCKER_CONTAINER=""
 #@  DOCKER_IMAGEPATH=""
@@ -7,18 +7,18 @@
 #@  DOCKER_BUILDOPTS="${DOCKER_BUILDOPTS:-} --build-arg NO_LOGMANAGE=''"
 #@  DOCKER_BOOT_OPTS=""
 #
-FROM centos7:systemd-onbuild AS latest
+FROM centos6:upstart-onbuild AS latest
 
 # Reset Workdir
 WORKDIR /
 
 # Labels
 LABEL \
- name="CentOS 7 with Systemd and SSHd" \
+ name="CentOS 6 with Upstart and SSHd" \
  vendor="UGOOLE.ORG" \
  maintainer="MT" \
  license="" \
  docker.build.options="" \
- docker.run.options="-d -P -h centos7s-with-ssh --privileged" \
+ docker.run.options="-d -P -h centos6u-with-ssh --privileged" \
  docker.run.confirm-startup=""
 
