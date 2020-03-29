@@ -157,7 +157,6 @@ yum_config_update() {
   yum -v -y install \
     bash \
     bind-utils \
-    centos-logos \
     hostname \
     iputils \
     iproute \
@@ -178,6 +177,11 @@ yum_config_update() {
   # remove stuff we don't need that anaconda insists on
   # kernel needs to be removed by rpm, because of grubby.
   rpm -v -e kernel || :
+
+  # Remove logos
+  rpm -v -e --nodeps \
+    centos-logos \
+    || :
 
   # Remove packages as much as possible.
   yum -v -y remove \
@@ -276,13 +280,6 @@ yum_config_update() {
   rm -rfv \
     /etc/udev/hwdb.bin \
     /usr/lib/udev/hwdb.d/* || :
-
-  # Truncate "centos-logs" files
-  for clf in $(rpm -ql centos-logos|egrep '[.](jpg|png|svg|tif)$'|sort)
-  do
-    [ -f "${clf}" ] &&
-    cat /dev/null >"${clf}" || :
-  done
 
   # Cleanup all log files.
   for lf in /var/log/*

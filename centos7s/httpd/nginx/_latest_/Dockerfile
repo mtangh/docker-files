@@ -40,7 +40,7 @@ RUN \
  [ -n "${packages}" ] || { \
   packages="nginx"; \
   echo "The Nginx Package List is empty, using default: '${packages}'."; \
- fi; \
+ }; \
  : "Install" && { \
   rpm -Uvh "${ng_rel_url}" && \
   [ -e "/etc/yum.repos.d/nginx.repo" ] && { \

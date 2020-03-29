@@ -177,6 +177,11 @@ yum_config_update() {
   # kernel needs to be removed by rpm, because of grubby.
   rpm -v -e kernel || :
 
+  # Remove logos
+  rpm -v -e --nodeps \
+    redhat-logos \
+    || :
+
   # Remove packages as much as possible.
   yum -v -y remove \
     bind-license \
@@ -272,13 +277,6 @@ yum_config_update() {
     /etc/sysconfig/network-scripts/ifcfg-* \
     /usr/lib/locale/locale-archive \
     /root/* || :
-
-  # Truncate "redhat-logs" files
-  for clf in $(rpm -ql redhat-logos|egrep '[.](jpg|png|svg|tif)$'|sort)
-  do
-    [ -f "${clf}" ] &&
-    cat /dev/null >"${clf}" || :
-  done
 
   # Cleanup all log files.
   for lf in /var/log/*

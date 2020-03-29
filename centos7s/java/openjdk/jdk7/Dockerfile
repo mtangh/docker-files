@@ -2,13 +2,13 @@
 # centos7s-java-openjdk
 #
 #@  DOCKER_CONTAINER=""
-#@  DOCKER_IMAGEPATH="centos7s-java-openjdk"
+#@  DOCKER_IMAGEPATH="centos7s-java-openjdk:7"
 #@  DOCKER_BUILDOPTS=""
 #@  DOCKER_BOOT_OPTS=""
 #
 
 # Java-OpenJDK Version
-ARG JAVA_OPENJDK_VER=7 AS 7
+ARG JAVA_OPENJDK_VER=7
 
 # Build-Stage
 FROM centos7s-java-openjdk:0

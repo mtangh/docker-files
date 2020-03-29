@@ -2,11 +2,11 @@
 # centos7s-java-openjdk
 #
 #@  DOCKER_CONTAINER=""
-#@  DOCKER_IMAGEPATH="centos7s-java-openjdk"
+#@  DOCKER_IMAGEPATH="centos7s-java-openjdk:0"
 #@  DOCKER_BUILDOPTS=""
 #@  DOCKER_BOOT_OPTS=""
 #
-FROM centos7s-with-ssh:latest AS 0
+FROM centos7s-with-ssh:latest
 
 # Reset Workdir
 WORKDIR /

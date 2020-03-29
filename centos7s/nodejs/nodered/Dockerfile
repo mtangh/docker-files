@@ -91,7 +91,7 @@ RUN \
    mkdir -p "${_nr_homedir}/node_modules"; \
   } && \
   chown "${_nr_usrname}:${_nr_grpname}" "${_nr_homedir}/node_modules" && \
-  chmod 2775 "${_homedir}/node_modules"; \
+  chmod 2775 "${_nr_homedir}/node_modules"; \
  } && \
  : "SetUp systemd file" && { \
   if [ "${_servicefile:=/etc/systemd/system/node-red.service}" ]; \

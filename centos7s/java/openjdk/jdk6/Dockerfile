@@ -11,7 +11,7 @@
 ARG JAVA_OPENJDK_VER=6
 
 # Java-OpenJDK
-FROM centos7s-java-openjdk:0 AS 6
+FROM centos7s-java-openjdk:0
 
 # OpenJDK Version
 ARG JAVA_OPENJDK_VER

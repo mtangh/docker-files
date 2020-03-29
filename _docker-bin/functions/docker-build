@@ -3,6 +3,7 @@
 # docker build
 docker-build() {
   local _imagepath=""
+  local _imagefrom=""
   local _eachstage=0
   local _stage_ind=""
   local _stagename=""
@@ -10,10 +11,11 @@ docker-build() {
   local _buildfile=""
   local _build_dir=""
   local _buildopts=""
+  local _meta_opts=""
+  local _labelopts=""
   local _build_all=0
   local _targetlst=""
   local _targetind=""
-  local _labelopts=""
   local _dockerret=0
   eval $(
 getoptions "
@@ -137,13 +139,31 @@ t|tag:=_imagepath
       _imagepath=$(dockerfile-env_IMAGEPATH "${_buildpath}") ||
       _imagepath=$(dockerfile-imagepath-from-dir "${_buildpath}")
     fi 2>/dev/null
+    [ -n "${_targetind:-}" ] && {
+      _imagefrom=$(dockerfile-stage-get-from "${_targetind:-0}" "${_buildpath}")
+    } 2>/dev/null || :
+    _meta_opts=""
+    [ -n "${_imagepath}" ] &&
+    dockerfile-has-ARG _DOCKER_META_IMAGENAME "${_buildpath:-}" && {
+      _meta_opts="${_meta_opts:+${_meta_opts} }--build-arg _DOCKER_META_IMAGENAME=${_imagepath}"
+    } || :
+    [ -n "${_stagename}" ] &&
+    dockerfile-has-ARG _DOCKER_META_STAGENAME "${_buildpath:-}" && {
+      _meta_opts="${_meta_opts:+${_meta_opts} }--build-arg _DOCKER_META_STAGENAME=${_stagename}"
+    } || :
+    [ -n "${_imagefrom}" ] &&
+    dockerfile-has-ARG _DOCKER_META_IMAGEFROM "${_buildpath:-}" && {
+      _meta_opts="${_meta_opts:+${_meta_opts} }--build-arg _DOCKER_META_IMAGEFROM=${_imagefrom}"
+    } || :
+    _labelopts=""
 #   _labelopts="${_labelopts:+${_labelopts} }--label build-date="'"'$(date +'%Y%m%dT%H:%M%z')'"'
     _labelopts="${_labelopts:+${_labelopts} }--label docker.build.options="'"'"${_buildopts}"'"'
-    echo ${DOCKER_CMD} build ${_buildopts} ${_labelopts} \
+    echo \
+      ${DOCKER_CMD} build ${_buildopts} ${_meta_opts} ${_labelopts} \
       ${_imagepath:+-t ${_imagepath}} ${_stagename:+--target=${_stagename}} \
       ${_buildpath:+-f ${_buildpath}} "${_build_dir:-.}" 1>&2 &&
     eval $(echo \
-      ${DOCKER_CMD} build ${_buildopts} ${_labelopts} \
+      ${DOCKER_CMD} build ${_buildopts} ${_meta_opts} ${_labelopts} \
       ${_imagepath:+-t ${_imagepath}} ${_stagename:+--target=${_stagename}} \
       ${_buildpath:+-f ${_buildpath}} "${_build_dir:-.}")
     _dockerret=$?
