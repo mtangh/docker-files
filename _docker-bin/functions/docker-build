@@ -17,6 +17,7 @@ docker-build() {
   local _targetlst=""
   local _targetind=""
   local _dockerret=0
+  __docker_is_running || return 128
   eval $(
 getoptions "
 f|file:=_buildpath

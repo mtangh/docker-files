@@ -31,7 +31,7 @@ LABEL \
 
 # ONBUILD: Set Workdir
 ONBUILD \
-WORKDIR /tmp/docker-container-build
+WORKDIR /tmp/docker-container-image-build
 
 # Copy contents
 ONBUILD \

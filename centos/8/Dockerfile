@@ -5,6 +5,11 @@
 #@  DOCKER_IMAGEPATH="centos8"
 #@  DOCKER_BUILDOPTS=""
 #@  DOCKER_BOOT_OPTS=""
+#@  DOCKER_PUBLISHED=""
+#@  DOCKER_PUBLISHED="${DOCKER_PUBLISHED} centos8:minimal"
+#@  DOCKER_PUBLISHED="${DOCKER_PUBLISHED} centos8:systemd"
+#@  DOCKER_PUBLISHED="${DOCKER_PUBLISHED} centos8:minimal-onbuild"
+#@  DOCKER_PUBLISHED="${DOCKER_PUBLISHED} centos8:systemd-onbuild"
 #
 
 # CentOS Version
@@ -62,7 +67,7 @@ ENV \
  KBDTABLE="${KBDTABLE:-}"
 
 # Set Workdir
-WORKDIR /root/build
+WORKDIR /tmp/docker-container-image-build
 
 # COPY shell scripts to Workdir
 COPY 00_build-chrootdir.sh ./build-chrootdir.sh
@@ -76,7 +81,7 @@ RUN \
  : "Done.";
 
 ## Set Workdir
-#WORKDIR /root/build/scripts.d
+#WORKDIR /tmp/docker-container-image-build/scripts.d
 #
 ## COPY shell scripts to Workdir
 #COPY 1\[0-9\]_*.sh ./
@@ -146,6 +151,7 @@ COPY \[12\]\[0-9\]_*.sh ./
 
 RUN \
  set -ux; \
+ work_dir=$(pwd); \
  : "Export Args." && { \
   export CENTOS_VER; \
   export ROOTPSWD; \
@@ -155,13 +161,16 @@ RUN \
   for build_sh in ./[0-9][0-9]_*.sh; \
   do /bin/bash -ux "${build_sh}" || exit 1; done; \
  } && \
+ : "DNF Cleanup." && { \
+  dnf -v -y clean all || :; \
+  [ -d "/var/cache/dnf/" ] && \
+  rm -rf /var/cache/dnf/* || :; \
+ } && \
  : "Cleanup." && { \
-  work_dir=$(pwd); cd /; \
-  for lf in /var/log/*; \
+  cd /; \
+  [ -d "/var/log" ] && for lf in /var/log/*; \
   do [ -s "${lf}" ] && cat /dev/null >"${lf}"; done || :; \
-  rm -rf {,/var}/tmp/* || :; \
-  dnf -v -y clean all; rm -rf /var/cache/dnf/* || :; \
-  rm -rf "${work_dir}" || :; \
+  rm -rf {,/var}/tmp/* "${work_dir:-X}" || :; \
  } && \
  : "Done.";
 
@@ -216,6 +225,7 @@ COPY \[13\]\[0-9\]_*.sh ./
 # SetUp
 RUN \
  set -ux; \
+ work_dir=$(pwd); \
  : "Export Args." && { \
   export CENTOS_VER; \
   export ROOTPSWD; \
@@ -225,13 +235,16 @@ RUN \
   for build_sh in ./[0-9][0-9]_*.sh; \
   do /bin/bash -ux "${build_sh}" || exit 1; done; \
  } && \
+ : "DNF Cleanup." && { \
+  dnf -v -y clean all || :; \
+  [ -d "/var/cache/dnf/" ] && \
+  rm -rf /var/cache/dnf/* || :; \
+ } && \
  : "Cleanup." && { \
-  work_dir=$(pwd); cd /; \
-  for lf in /var/log/*; \
+  cd /; \
+  [ -d "/var/log" ] && for lf in /var/log/*; \
   do [ -s "${lf}" ] && cat /dev/null >"${lf}"; done || :; \
-  rm -rf {,/var}/tmp/* || :; \
-  dnf -v -y clean all; rm -rf /var/cache/dnf/* || :; \
-  rm -rf "${work_dir}" || :; \
+  rm -rf {,/var}/tmp/* "${work_dir:-X}" || :; \
  } && \
  : "Done.";
 
@@ -323,6 +336,7 @@ COPY * ./
 ONBUILD \
 RUN \
  set -ux; \
+ work_dir=$(pwd); \
  : "ONBUILD: Export Args." && { \
   export CENTOS_VER=$(cat ./CENTOS_VER); \
   export ROOTPSWD; \
@@ -333,13 +347,16 @@ RUN \
   for build_sh in ./[0-9][0-9]_*.sh; \
   do /bin/bash -ux "${build_sh}" || exit 1; done; \
  } && \
+ : "ONBUILD: DNF Cleanup." && { \
+  dnf -v -y clean all || :; \
+  [ -d "/var/cache/dnf/" ] && \
+  rm -rf /var/cache/dnf/* || :; \
+ } && \
  : "ONBUILD: Cleanup." && { \
-  work_dir=$(pwd); cd /; \
-  for lf in /var/log/*; \
+  cd /; \
+  [ -d "/var/log" ] && for lf in /var/log/*; \
   do [ -s "${lf}" ] && cat /dev/null >"${lf}"; done || :; \
-  rm -rf {,/var}/tmp/* || :; \
-  dnf -v -y clean all; rm -rf /var/cache/dnf/* || :; \
-  rm -rf "${work_dir}" || :; \
+  rm -rf {,/var}/tmp/* "${work_dir:-X}" || :; \
  } && \
  : "ONBUILD: Done.";
 
@@ -428,6 +445,7 @@ COPY * ./
 ONBUILD \
 RUN \
  set -ux; \
+ work_dir=$(pwd); \
  : "ONBUILD: Export Args." && { \
   export CENTOS_VER=$(cat ./CENTOS_VER); \
   export ROOTPSWD; \
@@ -440,13 +458,16 @@ RUN \
   for build_sh in ./[0-9][0-9]_*.sh; \
   do /bin/bash -ux "${build_sh}" || exit 1; done; \
  } && \
+ : "ONBUILD: DNF Cleanup." && { \
+  dnf -v -y clean all || :; \
+  [ -d "/var/cache/dnf/" ] && \
+  rm -rf /var/cache/dnf/* || :; \
+ } && \
  : "ONBUILD: Cleanup." && { \
-  work_dir=$(pwd); cd /; \
-  for lf in /var/log/*; \
+  cd /; \
+  [ -d "/var/log" ] && for lf in /var/log/*; \
   do [ -s "${lf}" ] && cat /dev/null >"${lf}"; done || :; \
-  rm -rf {,/var}/tmp/* || :; \
-  dnf -v -y clean all; rm -rf /var/cache/dnf/* || :; \
-  rm -rf "${work_dir}" || :; \
+  rm -rf {,/var}/tmp/* "${work_dir:-X}" || :; \
  } && \
  : "ONBUILD: Done.";
 

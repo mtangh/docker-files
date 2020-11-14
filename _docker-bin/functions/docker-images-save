@@ -10,6 +10,7 @@ docker-images-save() {
   local _savedfile=""
   local _file_pref=""
   local _dockerret=0
+  __docker_is_running || return 128
   eval $(getoptions "d|:=_store_dir f|:=_buildpath" "$@")
   while getoptions_has_next
   do

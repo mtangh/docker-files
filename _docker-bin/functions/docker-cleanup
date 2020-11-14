@@ -7,6 +7,7 @@ docker-cleanup() {
   local _rmoptions=""
   local _ps_filter="--filter status=created --filter status=dead"
   local _removecnt=0
+  __docker_is_running || return 128
   eval $(getoptions "a|all |force" "$@")
   [ -n "${_getopt_a_all:=}" ] && {
     _ps_filter="${_ps_filter} --filter status=exited"

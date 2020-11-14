@@ -5,6 +5,11 @@
 #@  DOCKER_IMAGEPATH="centos7"
 #@  DOCKER_BUILDOPTS=""
 #@  DOCKER_BOOT_OPTS=""
+#@  DOCKER_PUBLISHED=""
+#@  DOCKER_PUBLISHED="${DOCKER_PUBLISHED} centos7:minimal"
+#@  DOCKER_PUBLISHED="${DOCKER_PUBLISHED} centos7:systemd"
+#@  DOCKER_PUBLISHED="${DOCKER_PUBLISHED} centos7:minimal-onbuild"
+#@  DOCKER_PUBLISHED="${DOCKER_PUBLISHED} centos7:systemd-onbuild"
 #
 
 # CentOS Version
@@ -76,7 +81,7 @@ ENV \
  YUM_FM_DOM_EXCL="${YUM_FM_DOM_EXCL:-}"
 
 # Set Workdir
-WORKDIR /root/build
+WORKDIR /tmp/docker-container-image-build
 
 # COPY shell scripts to Workdir
 COPY 00_build-chrootdir.sh ./build-chrootdir.sh
@@ -90,7 +95,7 @@ RUN \
  : "Done.";
 
 ## Set Workdir
-#WORKDIR /root/build/scripts.d
+#WORKDIR /tmp/docker-container-image-build/scripts.d
 #
 ## COPY shell scripts to Workdir
 #COPY 1\[0-9\]_*.sh ./
@@ -160,6 +165,7 @@ COPY \[12\]\[0-9\]_*.sh ./
 
 RUN \
  set -ux; \
+ work_dir=$(pwd); \
  : "Export Args." && { \
   export CENTOS_VER; \
   export ROOTPSWD; \
@@ -169,13 +175,16 @@ RUN \
   for build_sh in ./[0-9][0-9]_*.sh; \
   do /bin/bash -ux "${build_sh}" || exit 1; done; \
  } && \
+ : "YUM Cleanup." && { \
+  yum -v -y clean all || :; \
+  [ -d "/var/cache/yum/" ] && \
+  rm -rf /var/cache/yum/* || :; \
+ } && \
  : "Cleanup." && { \
-  work_dir=$(pwd); cd /; \
-  for lf in /var/log/*; \
+  cd /; \
+  [ -d "/var/log" ] && for lf in /var/log/*; \
   do [ -s "${lf}" ] && cat /dev/null >"${lf}"; done || :; \
-  rm -rf {,/var}/tmp/* || :; \
-  yum -v -y clean all; rm -rf /var/cache/yum/* || :; \
-  rm -rf "${work_dir}" || :; \
+  rm -rf {,/var}/tmp/* "${work_dir:-X}" || :; \
  } && \
  : "Done.";
 
@@ -230,6 +239,7 @@ COPY \[13\]\[0-9\]_*.sh ./
 # SetUp
 RUN \
  set -ux; \
+ work_dir=$(pwd); \
  : "Export Args." && { \
   export CENTOS_VER; \
   export ROOTPSWD; \
@@ -239,13 +249,16 @@ RUN \
   for build_sh in ./[0-9][0-9]_*.sh; \
   do /bin/bash -ux "${build_sh}" || exit 1; done; \
  } && \
+ : "YUM Cleanup." && { \
+  yum -v -y clean all || :; \
+  [ -d "/var/cache/yum/" ] && \
+  rm -rf /var/cache/yum/* || :; \
+ } && \
  : "Cleanup." && { \
-  work_dir=$(pwd); cd /; \
-  for lf in /var/log/*; \
+  cd /; \
+  [ -d "/var/log" ] && for lf in /var/log/*; \
   do [ -s "${lf}" ] && cat /dev/null >"${lf}"; done || :; \
-  rm -rf {,/var}/tmp/* || :; \
-  yum -v -y clean all; rm -rf /var/cache/yum/* || :; \
-  rm -rf "${work_dir}" || :; \
+  rm -rf {,/var}/tmp/* "${work_dir:-X}" || :; \
  } && \
  : "Done.";
 
@@ -336,6 +349,7 @@ COPY * ./
 ONBUILD \
 RUN \
  set -ux; \
+ work_dir=$(pwd); \
  : "ONBUILD: Export Args." && { \
   export CENTOS_VER=$(cat ./CENTOS_VER); \
   export ROOTPSWD; \
@@ -346,13 +360,16 @@ RUN \
   for build_sh in ./[0-9][0-9]_*.sh; \
   do /bin/bash -ux "${build_sh}" || exit 1; done; \
  } && \
- : "ONBUILD: Cleanup." && { \
-  work_dir=$(pwd); cd /; \
-  for lf in /var/log/*; \
+ : "YUM Cleanup." && { \
+  yum -v -y clean all || :; \
+  [ -d "/var/cache/yum/" ] && \
+  rm -rf /var/cache/yum/* || :; \
+ } && \
+ : "Cleanup." && { \
+  cd /; \
+  [ -d "/var/log" ] && for lf in /var/log/*; \
   do [ -s "${lf}" ] && cat /dev/null >"${lf}"; done || :; \
-  rm -rf {,/var}/tmp/* || :; \
-  yum -v -y clean all; rm -rf /var/cache/yum/* || :; \
-  rm -rf "${work_dir}" || :; \
+  rm -rf {,/var}/tmp/* "${work_dir:-X}" || :; \
  } && \
  : "ONBUILD: Done.";
 
@@ -441,6 +458,7 @@ COPY * ./
 ONBUILD \
 RUN \
  set -ux; \
+ work_dir=$(pwd); \
  : "ONBUILD: Export Args." && { \
   export CENTOS_VER=$(cat ./CENTOS_VER); \
   export ROOTPSWD; \
@@ -453,13 +471,16 @@ RUN \
   for build_sh in ./[0-9][0-9]_*.sh; \
   do /bin/bash -ux "${build_sh}" || exit 1; done; \
  } && \
+ : "ONBUILD: YUM Cleanup." && { \
+  yum -v -y clean all || :; \
+  [ -d "/var/cache/yum/" ] && \
+  rm -rf /var/cache/yum/* || :; \
+ } && \
  : "ONBUILD: Cleanup." && { \
-  work_dir=$(pwd); cd /; \
-  for lf in /var/log/*; \
+  cd /; \
+  [ -d "/var/log" ] && for lf in /var/log/*; \
   do [ -s "${lf}" ] && cat /dev/null >"${lf}"; done || :; \
-  rm -rf {,/var}/tmp/* || :; \
-  yum -v -y clean all; rm -rf /var/cache/yum/* || :; \
-  rm -rf "${work_dir}" || :; \
+  rm -rf {,/var}/tmp/* "${work_dir:-X}" || :; \
  } && \
  : "ONBUILD: Done.";
 

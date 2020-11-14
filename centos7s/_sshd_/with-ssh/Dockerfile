@@ -6,6 +6,7 @@
 #@  DOCKER_BUILDOPTS="${DOCKER_BUILDOPTS:-} --build-arg NO_SSH_LOGIN=''"
 #@  DOCKER_BUILDOPTS="${DOCKER_BUILDOPTS:-} --build-arg NO_LOGMANAGE=''"
 #@  DOCKER_BOOT_OPTS=""
+#@  DOCKER_PUBLISHED=""
 #
 FROM centos7:systemd-onbuild AS latest
 

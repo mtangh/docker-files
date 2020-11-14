@@ -5,6 +5,7 @@
 #@  DOCKER_IMAGEPATH="centos7s-java-openjdk:0"
 #@  DOCKER_BUILDOPTS=""
 #@  DOCKER_BOOT_OPTS=""
+#@  DOCKER_PUBLISHED=""
 #
 FROM centos7s-with-ssh:latest
 
@@ -29,7 +30,7 @@ ARG OPENJDK_PKG_FILE="packages.txt"
 
 # ONBUILD: Set Workdir
 ONBUILD \
-WORKDIR /tmp/docker-container-build
+WORKDIR /tmp/docker-container-image-build
 
 # ONBUILD: Copy contents to Workdir
 ONBUILD \
@@ -38,7 +39,8 @@ COPY * ./
 # ONBUILD: SetUp
 ONBUILD \
 RUN \
- set -x; \
+ set -ux; \
+ work_dir=$(pwd); \
  packages=""; \
  if [ -n "${OPENJDK_PKG_LIST:-}" ]; \
  then packages="${OPENJDK_PKG_LIST}"; \
@@ -55,15 +57,18 @@ RUN \
   yum -v -y clean all && { \
   rm -rf /var/cache/yum/* || :; }; \
  } &&\
- : "ONBUILD: Cleanup" && { \
-  work_dir=$(pwd); cd /; \
-  for lf in /var/log/*; \
-  do [ -s "${lf}" ] && cat /dev/null >"${lf}"; done || :; \
-  rm -rf {,/var}/tmp/* || :; \
-  yum -v -y clean all; rm -rf /var/cache/yum/* || :; \
-  rm -rf "${work_dir}" || :; \
+ : "ONUILD: YUM Cleanup." && { \
+  yum -v -y clean all || :; \
+  [ -d "/var/cache/yum/" ] && \
+  rm -rf /var/cache/yum/* || :; \
  } && \
- : "ONBUILD: Done.";
+ : "ONUILD: Cleanup." && { \
+  cd /; \
+  [ -d "/var/log" ] && for lf in /var/log/*; \
+  do [ -s "${lf}" ] && cat /dev/null >"${lf}"; done || :; \
+  rm -rf {,/var}/tmp/* "${work_dir:-X}" || :; \
+ } && \
+ : "ONUILD: Done.";
 
 # ONBUILD: Reset Workdir
 ONBUILD \

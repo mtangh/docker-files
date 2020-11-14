@@ -5,6 +5,7 @@
 #@  DOCKER_IMAGEPATH=""
 #@  DOCKER_BUILDOPTS=""
 #@  DOCKER_BOOT_OPTS=""
+#@  DOCKER_PUBLISHED=""
 #
 
 # Node-RED on CentOS7 with Systemd
@@ -25,7 +26,7 @@ ARG NODERED_GID=1880
 ARG NODERED_PASSWD="${NODEREDOWNER:-node-red}"
 
 # Set Workdir
-WORKDIR /tmp/docker-container-build
+WORKDIR /tmp/docker-container-image-build
 
 # COPY sysconfig file to /etc/sysconfig
 COPY node-red.sysconfig /etc/sysconfig/node-red
@@ -34,7 +35,8 @@ COPY node-red.service /etc/systemd/system/
 
 # SetUp
 RUN \
- set -x; \
+ set -ux; \
+ work_dir=$(pwd); \
  : "Install node-red" && { \
   npm -g install node-red && \
   npm -g cache clean --force; \
@@ -101,13 +103,16 @@ RUN \
    systemctl enable node-red.service || :; \
   fi; \
  } && \
- : "Cleanup" && { \
-  work_dir=$(pwd); cd /; \
-  for lf in /var/log/*; \
+ : "YUM Cleanup." && { \
+  yum -v -y clean all || :; \
+  [ -d "/var/cache/yum/" ] && \
+  rm -rf /var/cache/yum/* || :; \
+ } && \
+ : "Cleanup." && { \
+  cd /; \
+  [ -d "/var/log" ] && for lf in /var/log/*; \
   do [ -s "${lf}" ] && cat /dev/null >"${lf}"; done || :; \
-  rm -rf {,/var}/tmp/* || :; \
-  yum -v -y clean all; rm -rf /var/cache/yum/* || :; \
-  rm -rf "${work_dir}" || :; \
+  rm -rf {,/var}/tmp/* "${work_dir:-X}" || :; \
  } && \
  : "Done.";
 
@@ -150,7 +155,7 @@ LABEL \
 
 # ONBUILD: Set Workdir
 ONBUILD \
-WORKDIR /tmp/docker-container-build
+WORKDIR /tmp/docker-container-image-build
 
 # ONBUILD: Copy contents
 ONBUILD \
@@ -159,7 +164,8 @@ COPY * ./
 # ONBUILD: SetUp
 ONBUILD \
 RUN \
- set -x; \
+ set -ux; \
+ work_dir=$(pwd); \
  : "ONBUILD: Load sysconfig" && { \
   if [ "${_sysconfig:=/etc/sysconfig/node-red}" ]; \
   then . "${_sysconfig}"; \
@@ -197,15 +203,18 @@ RUN \
     bash ./setup.sh && rm -f ./setup.sh; }; \
   }); \
  }; \
- : "Cleanup" && { \
-  work_dir=$(pwd); cd /; \
-  for lf in /var/log/*; \
-  do [ -s "${lf}" ] && cat /dev/null >"${lf}"; done || :; \
-  rm -rf {,/var}/tmp/* || :; \
-  yum -v -y clean all; rm -rf /var/cache/yum/* || :; \
-  rm -rf "${work_dir}" || :; \
+ : "ONBUILD: YUM Cleanup." && { \
+  yum -v -y clean all || :; \
+  [ -d "/var/cache/yum/" ] && \
+  rm -rf /var/cache/yum/* || :; \
  } && \
- : "Done.";
+ : "ONBUILD: Cleanup." && { \
+  cd /; \
+  [ -d "/var/log" ] && for lf in /var/log/*; \
+  do [ -s "${lf}" ] && cat /dev/null >"${lf}"; done || :; \
+  rm -rf {,/var}/tmp/* "${work_dir:-X}" || :; \
+ } && \
+ : "ONBUILD: Done.";
 
 # ONBUILD: Reset Work dir
 ONBUILD \

@@ -5,6 +5,9 @@
 #@  DOCKER_IMAGEPATH=""
 #@  DOCKER_BUILDOPTS=""
 #@  DOCKER_BOOT_OPTS=""
+#@  DOCKER_PUBLISHED=""
+#@  DOCKER_PUBLISHED="${DOCKER_PUBLISHED} centos7s-httpd-nginx:latest"
+#@  DOCKER_PUBLISHED="${DOCKER_PUBLISHED} centos7s-httpd-nginx:latest-onbuild"
 #
 
 ARG CENTOS_VER="7"
@@ -20,7 +23,7 @@ ARG NGINX_PKG_LIST=""
 ARG NGINX_PKG_FILE="packages.txt"
 
 # Set Workdir
-WORKDIR /tmp/docker-container-build
+WORKDIR /tmp/docker-container-image-build
 
 # Copy contents to Workdir
 COPY * ./
@@ -28,6 +31,7 @@ COPY * ./
 # SetUp
 RUN \
  set -ux; \
+ work_dir=$(pwd); \
  ng_rel_url="http://nginx.org/packages/centos/%V/noarch/RPMS"; \
  ng_rel_url="${ng_rel_url}/nginx-release-centos-%V-0.el%V.ngx.noarch.rpm"; \
  ng_rel_url=$(echo "${ng_rel_url}" |sed -re 's/%V/'"${CENTOS_VER:-}"'/g'); \
@@ -89,13 +93,16 @@ RUN \
  : "Enable nginx service." && { \
   systemctl enable nginx; \
  } && \
+ : "YUM Cleanup." && { \
+  yum -v -y clean all || :; \
+  [ -d "/var/cache/yum/" ] && \
+  rm -rf /var/cache/yum/* || :; \
+ } && \
  : "Cleanup." && { \
-  work_dir=$(pwd); cd /; \
-  for lf in /var/log/*; \
+  cd /; \
+  [ -d "/var/log" ] && for lf in /var/log/*; \
   do [ -s "${lf}" ] && cat /dev/null >"${lf}"; done || :; \
-  rm -rf {,/var}/tmp/* || :; \
-  yum -v -y clean all; rm -rf /var/cache/yum/* || :; \
-  rm -rf "${work_dir}" || :; \
+  rm -rf {,/var}/tmp/* "${work_dir:-X}" || :; \
  } && \
  : "Done.";
 
@@ -162,7 +169,7 @@ LABEL \
 
 # ONBUILD: Set Workdir
 ONBUILD \
-WORKDIR /tmp/docker-container-build
+WORKDIR /tmp/docker-container-image-build
 
 # ONBUILD: Copy contents to Workdir
 ONBUILD \
@@ -172,6 +179,7 @@ COPY * ./
 ONBUILD \
 RUN \
  set -ux; \
+ work_dir=$(pwd); \
  : "ONBUILD: Setup" && { \
   { [ ! -e "./etc.tgz" ] || tar -zxvf "./etc.tgz"; } && \
   { [ ! -d "./etc" ] || (cd "./etc/" && tar -cv . |tar -C /etc -xf - ); } && \
@@ -181,13 +189,16 @@ RUN \
   /usr/sbin/httpd -t && \
   echo; \
  }; \
- : "ONBUILD: Cleanup" && { \
-  work_dir=$(pwd); cd /; \
-  for lf in /var/log/*; \
+ : "ONBUILD: YUM Cleanup." && { \
+  yum -v -y clean all || :; \
+  [ -d "/var/cache/yum/" ] && \
+  rm -rf /var/cache/yum/* || :; \
+ } && \
+ : "ONBUILD: Cleanup." && { \
+  cd /; \
+  [ -d "/var/log" ] && for lf in /var/log/*; \
   do [ -s "${lf}" ] && cat /dev/null >"${lf}"; done || :; \
-  rm -rf {,/var}/tmp/* || :; \
-  yum -v -y clean all; rm -rf /var/cache/yum/* || :; \
-  rm -rf "${work_dir}" || :; \
+  rm -rf {,/var}/tmp/* "${work_dir:-X}" || :; \
  } && \
  : "ONBUILD: Done.";
 

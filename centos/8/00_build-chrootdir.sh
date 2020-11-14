@@ -65,6 +65,10 @@ dnf_config_update() {
     [ -e "${CENTOSROOT}/dev/urandom" ] || mknod -m 666 "${CENTOSROOT}/dev/urandom" c 1 9
 
     dnf -v -y \
+      clean all &&
+    dnf -v -y \
+      update &&
+    dnf -v -y \
       reinstall --downloadonly --downloaddir . \
       centos-release centos-repos centos-gpg-keys &&
     rpm -v \

@@ -518,6 +518,11 @@ dockerfile-env_EXEC_OPTS() {
   return $?
 }
 
+dockerfile-env_PUBLISHED() {
+  dockerfile-env-get DOCKER_PUBLISHED "${@}"
+  return $?
+}
+
 __load_external_env() {
   local _buildpath="${1:-}"; shift
   local _opts_name="${1:-}"; shift

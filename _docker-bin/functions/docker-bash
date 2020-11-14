@@ -8,6 +8,7 @@ docker-bash() {
   local _stage_key=""
   local _shellpath=""
   local _shellopts=()
+  __docker_is_running || return 128
   eval $(getoptions \
     "f|file:=_buildpath S|shell:=_shellpath" "${@}")
   while getoptions_has_next

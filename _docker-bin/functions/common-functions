@@ -1,9 +1,15 @@
 # common-functions
 
+__docker_is_running() {
+  ${DOCKER_CMD} ps 1>/dev/null
+  return $?
+}
+
 __docker_help() {
   local _subcmnd="${1:-}"; shift
   local _usghead="Usage:"
   local _usgtext=""
+  __docker_is_running || return 128
   [ $# -gt 0 ] && {
     for _usgtext in "${@}"
     do

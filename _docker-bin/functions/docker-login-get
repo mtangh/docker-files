@@ -1,0 +1,101 @@
+# docker-login-get
+
+# docker login get
+docker-login-get() {
+  local _get_command=""
+  local _config_json=""
+  local _registryurl=""
+  local _creds_store=""
+  __docker_is_running || return 128
+  case "${1:-}" in
+  user|password|registry|creds-store)
+    _get_command="${1:-}"
+    shift
+    ;;
+  *)
+    echo "${FUNCNAME}: Illegal option." 1>&2
+    return 2
+    ;;
+  esac
+  eval $(getoptions "|config:=_config_json" "$@")
+  while getoptions_has_next
+  do
+    eval $(getoptions_shift)
+    case "${_getopt_V:=}" in
+    -*)
+      ;;
+    *)
+      if [ -z "${_registryurl}" ]
+      then _registryurl="${_getopt_V:-}"
+      fi
+      ;;
+    esac
+  done
+  eval $(getoptions_end)
+  [ -z "${_config_json}" ] && {
+    _config_json="${DOCKER_CONFIG:-$HOME/.docker}/config.json"
+  } 1>/dev/null 2>&1 || :
+  [ "${_get_command}" != "creds-store" ] &&
+  [ "${_get_command}" = "registry" -o -z "${_registryurl}" ] && {
+    _registryurl=$(
+       ${DOCKER_CMD} info |
+       ${AWK} -F": " '$0 ~ /^[ ]*Registry:/ {print($2);}'; )
+  } 1>/dev/null 2>&1 || :
+  [ "${_get_command}" = "registry" ] && {
+    [ -n "${_registryurl}" ] && {
+      echo "${_registryurl}"
+      return 0
+    } ||
+    return 1
+  } || :
+  [ -r "${_config_json}" ] && {
+    _creds_store=$(
+      echo $(cat "${_config_json}") |${SED} -E \
+      's#^.+"credsStore"[ ]*:[ ]*"([^"]+)".+$#\1#gi'; )
+  } 1>/dev/null 2>&1 || :
+  [ "${_get_command}" = "creds-store" ] && {
+    [ -n "${_creds_store}" ] && {
+      echo "${_creds_store}"
+      return 0
+    } ||
+    return 1
+  } || :
+  case "${_creds_store:-}" in
+  osxkeychain)
+    echo "${_registryurl:-X}" |
+    docker-credential-osxkeychain get |
+    if [ "${_get_command}" = "user" ]
+    then ${SED} -E 's/^.+,[ ]*"Username":[ ]*"([^"]+)".+$/\1/gi'
+    elif [ "${_get_command}" = "password" ]
+    then ${SED} -E 's/^.+,[ ]*"Secret":[ ]*"([^"]+)".+$/\1/gi'
+    else :
+    fi
+    ;;
+  *)
+    echo $(cat "${_config_json}") |${SED} -E \
+    's#^.+"'"${_registryurl:-X}"'":[ ]*\{[ ]*"auth":[ ]*"([^"]+)".+$#\1#gi' |
+    base64 -d |
+    if [ "${_get_command}" = "user" ]
+    then ${AWK} -F: '{print($1);}'
+    elif [ "${_get_command}" = "password" ]
+    then ${AWK} -F: '{print($2);}'
+    else :
+    fi
+    ;;
+  esac 2>/dev/null
+  return $?
+}
+
+# docker login get user
+docker-login-get-user() {
+  docker-login-get user "$@"
+  return $?
+}
+
+# docker login get user
+docker-login-get-password() {
+  docker-login-get password "$@"
+  return $?
+}
+
+# vim: set ff=unix ts=2 sw=2 sts=2 et : This line is VIM modeline

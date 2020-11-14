@@ -12,6 +12,7 @@ container-get-id() {
   local _find_keys=""
   local _found_cnt=0
   local _searchval=""
+  __docker_is_running || return 128
   eval $(getoptions \
   "f|file:=_buildpath a|all=_ps_allids l|latest=_ps_latest N|name=_printname n|last:=_ps_last_n" "$@")
   while getoptions_has_next
@@ -113,6 +114,7 @@ container-get-name-last() {
 # container running
 container-is-running() {
   local _container=$(container-get-id-last "${@}")
+  __docker_is_running || return 128
   [ -n "${_container}" ] && {
     ${DOCKER_CMD} ps -a --format="{{ .ID }}" --filter "status=running" |
     egrep '^'"${_container}"'$'
@@ -126,6 +128,7 @@ container-get-port() {
   local _cont_opts=""
   local _find_port=""
   local _portmapln=""
+  __docker_is_running || return 128
   eval $(getoptions "" "$@")
   while getoptions_has_next
   do

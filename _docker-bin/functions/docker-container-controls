@@ -11,6 +11,7 @@ __docker-control-command() {
   local _ctrl_args=()
   local _ctrl_opts=()
   local _endofopts=0
+  __docker_is_running || return 128
   [ -n "${_ctrl_cmnd}" ] || {
     echo "${FUNCNAME}: sub-command not specified." 1>&2
     return 1

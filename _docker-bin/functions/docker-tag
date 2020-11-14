@@ -5,6 +5,7 @@ docker-tag() {
   local _imgsource=""
   local _imgtarget=""
   local _img_untag=0
+  __docker_is_running || return 128
   eval $(getoptions "u|untag=_img_untag" "$@")
   while getoptions_has_next
   do
@@ -34,11 +35,11 @@ _EOD_
   fi
   if [ ${_img_untag} -eq 0 ]
   then
-    [[ "${_imgtarget}" =~ ^([-_0-9A-Za-z]+)(:[-_0-9A-Za-z]+$) ]] &&
+    [[ "${_imgtarget}" =~ (^[-_0-9A-Za-z]+/|^)([-_0-9A-Za-z]+)(:[-_0-9A-Za-z]+$) ]] &&
     [ -z "$(container-image-get-id ${_imgtarget:-X} 2>/dev/null)" ] &&
     ${DOCKER_CMD} tag "${_imgsource}" "${_imgtarget}"
   else
-    [[ "${_imgsource}" =~ ^([-_0-9A-Za-z]+)(:[-_0-9A-Za-z]+$) ]] &&
+    [[ "${_imgsource}" =~ (^[-_0-9A-Za-z]+/|^)([-_0-9A-Za-z]+)(:[-_0-9A-Za-z]+$) ]] &&
     ${DOCKER_CMD} rmi --no-prune "${_imgsource}"
   fi
   return $?

@@ -38,7 +38,7 @@ ENV NODEBREW_ROOT="${NODEBREW_ROOT:-/opt/nodebrew}"
 ENV PATH="${PATH}${NODEBREW_ROOT:+:${NODEBREW_ROOT}/current/bin}"
 
 # Set Workdir
-WORKDIR /tmp/docker-container-build
+WORKDIR /tmp/docker-container-image-build
 
 # SetUp
 RUN \
@@ -90,7 +90,7 @@ RUN \
   node -v && npm -v || :; \
  } && \
  : "Remove YUM packages" && { \
-  yum -v -y remove gcc-c++ perl && { \
+  yum -v -y remove gcc-c++ && { \
    pkg_leaves=$(echo $(package-cleanup --leaves)); \
    [ -n "${pkg_leaves}" ] && \
    yum -v -y remove ${pkg_leaves} || :; \
@@ -113,7 +113,7 @@ WORKDIR /
 
 # Labels
 LABEL \
- name="Node.js on CentOS7 Minimal" \
+ name="Node.js (${NODEJS_VER}) on CentOS7 Minimal" \
  vendor="UGOOLE.ORG" \
  maintainer="MT" \
  license="" \
@@ -129,11 +129,11 @@ FROM stable AS stable-onbuild
 ARG NODEJS_VER
 
 # Set Workdir
-WORKDIR /tmp/docker-container-build
+WORKDIR /tmp/docker-container-image-build
 
 # Labels
 LABEL \
- name="Node.js on CentOS7 Minimal (onbuild)" \
+ name="Node.js (${NODEJS_VER}) on CentOS7 Minimal (onbuild)" \
  vendor="UGOOLE.ORG" \
  maintainer="MT" \
  license="" \
@@ -147,7 +147,7 @@ ARG NODEJS_MODULES=""
 
 # ONBUILD: Set Workdir
 ONBUILD \
-WORKDIR /tmp/docker-container-build
+WORKDIR /tmp/docker-container-image-build
 
 # ONBUILD: Copy contents
 ONBUILD \

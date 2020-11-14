@@ -1,10 +1,11 @@
 #
-# centos7s-java-openjdk
+# centos7s-java-openjdk:11
 #
 #@  DOCKER_CONTAINER=""
 #@  DOCKER_IMAGEPATH="centos7s-java-openjdk:11"
 #@  DOCKER_BUILDOPTS=""
 #@  DOCKER_BOOT_OPTS=""
+#@  DOCKER_PUBLISHED=""
 #
 
 # Java-OpenJDK Version

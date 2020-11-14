@@ -1,47 +1,49 @@
 #
-# $reponame:$tag_name
+# ${reponame}${tag_name:+:$tag_name}
 #
 #@  DOCKER_CONTAINER=""
-#@  DOCKER_IMAGEPATH="$reponame:$tag_name"
+#@  DOCKER_IMAGEPATH="${reponame}${tag_name:+:$tag_name}"
 #@  DOCKER_BUILDOPTS=""
 #@  DOCKER_BOOT_OPTS=""
+#@  DOCKER_PUBLISHED=""
 #
-FROM $base_img
 
-# Maintainer
-MAINTAINER $maintainer
-
-# Labels
-LABEL \
- name="$image_name"
+# ${reponame}${tag_name:+:$tag_name}
+FROM ${base_img}${tag_name:+AS $tag_name}
 
 # Work dir
-ARG \
- WORKDIR=/tmp/workdir
-WORKDIR \
- ${WORKDIR}
+WORKDIR /tmp/build-work
 
 # Run
 RUN \
- set -x;
+ set -x; \
+ work_dir=$(pwd); \
+ : "Build" && { \
+  echo "NOOP"; \
+ } && \
+ : "Cleanup." && { \
+  cd /; \
+  [ -d "/var/log" ] && for lf in /var/log/*; \
+  do [ -s "${lf}" ] && cat /dev/null >"${lf}"; done || :; \
+  rm -rf {,/var}/tmp/* "${work_dir:-X}" || :; \
+ } && \
+ : "Done.";
 
 # Reset Work dir
 WORKDIR /
 
-# Cleanup
-RUN \
- set -x; \
- for log in $(find /var/log -type f 2>/dev/null); \
- do [ -f "$log" ] && cat /dev/null 1>"$log"; done 2>/dev/null || :; \
- for log in {,/root,/tmp,/var/tmp}/*.log; \
- do rm -f "$log"; done 2>/dev/null || :; \
- [ -n "${WORKDIR}" -a -d "${WORKDIR}" ] && { \
- rm -rf "${WORKDIR}"; } || :
-
-# Labels for run
+# Labels
 LABEL \
- docker.run.options="-d -P -h $hostname" \
- docker.run.confirm-startup=""
+ name="${image_name}" \
+ vendor="${vendor}" \
+ maintainer="${maintainer}" \
+ license="${license}" \
+ docker.build.options="${docker_build_options}" \
+ docker.run.options="${docker_run_options}" \
+ docker.run.confirm-startup="${docker_confirm_startup}"
+
+## STOP SIGNAL
+#STOPSIGNAL SIGINT
 
 ## Publish a container's port(s) to the host
 #EXPOSE

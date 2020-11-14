@@ -1,6 +1,0 @@
-# dockerignore
-Dockerfile*
-tmp/
-temp/
-pkg.lst
-*.cfg

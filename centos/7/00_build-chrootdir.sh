@@ -102,6 +102,10 @@ yum_config_update() {
   mkdir -p "${CENTOSROOT}" && {
 
     yum -v -y \
+      clean all &&
+    yum -v -y \
+      update &&
+    yum -v -y \
       reinstall --downloadonly --downloaddir . \
       centos-release &&
     rpm -v \

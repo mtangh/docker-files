@@ -1,0 +1,152 @@
+# docker-pull-and-push
+
+# docker pull
+docker-pull() {
+  local _imagekeys=""
+  local _image_key=""
+  local _iplatform=""
+  local _dpullopts=""
+  local _dpullstat=0
+  local _aloginout=0
+  local _aloginopt=""
+  __docker_is_running || return 128
+  eval $(getoptions \
+    "A|auto-login=_aloginout L|login-opts:=_aloginopt |platform:=_iplatform" \
+    "$@")
+  while getoptions_has_next
+  do
+    eval $(getoptions_shift)
+    case "${_getopt_V:=}" in
+    --help)
+      __docker_help pull \
+      "${FUNCNAME} [-A][-L login-options] [OPTIONS] NAME[:TAG|@DIGEST] ..."
+      return 0
+      ;;
+    --)
+      _endofopts=1
+      ;;
+    -*)
+      [ ${_endofopts:-0} -eq 0 ] &&
+      _dpullopts="${_dpullopts:+$_dpullopts }${_getopt_V:-}" || :
+      [ ${_endofopts:-0} -eq 0 ] ||
+      _imagekeys="${_imagekeys:+$_imagekeys }${_getopt_V:-}" || :
+      ;;
+    *)
+      _imagekeys="${_imagekeys:+$_imagekeys }${_getopt_V:-}"
+      _endofopts=1
+      ;;
+    esac
+  done
+  eval $(getoptions_end)
+  [ ${_aloginout:-0} -eq 0 ] || {
+    docker-login ${_aloginopt:-}
+  } && {
+    [ -n "${_iplatform:-}" ] && {
+      _dpullopts="${_dpullopts:+$_dpullopts }--platform ${_iplatform:-}"
+    } || :
+    for _image_key in ${_imagekeys}
+    do
+      [ -n "${_image_key:-}" ] ||
+        continue
+      echo ${DOCKER_CMD} pull ${_dpullopts} ${_image_key:-}
+      ${DOCKER_CMD} pull ${_dpullopts} "${_image_key:-}" || {
+        _dpullstat=$?
+        break
+      }
+    done
+  } || :
+  [ ${_aloginout:-0} -ne 0 ] && {
+    docker-logout
+  } 1>/dev/null 2>&1 || :
+  return ${_dpullstat}
+}
+
+# docker push
+docker-push() {
+  local _imagekeys=""
+  local _image_key=""
+  local _imagename=""
+  local _imagepath=""
+  local _dpushopts=""
+  local _endofopts=0
+  local _dpushstat=0
+  local _dlogin_id=""
+  local _aloginout=0
+  local _aloginopt=""
+  __docker_is_running || return 128
+  eval $(getoptions \
+    "A|auto-login=_aloginout L|login-opts:=_aloginopt" \
+    "$@")
+  while getoptions_has_next
+  do
+    eval $(getoptions_shift)
+    case "${_getopt_V:=}" in
+    --help)
+      __docker_help push \
+      "${FUNCNAME} [-A][-L login-options] [OPTIONS] NAME[:TAG] ..."
+      return 0
+      ;;
+    --)
+      _endofopts=1
+      ;;
+    -*)
+      [ ${_endofopts:-0} -eq 0 ] &&
+      _dpushopts="${_dpushopts:+$_dpushopts }${_getopt_V:-}" || :
+      [ ${_endofopts:-0} -eq 0 ] ||
+      _imagekeys="${_imagekeys:+$_imagekeys }${_getopt_V:-}" || :
+      ;;
+    *)
+      _imagekeys="${_imagekeys:+$_imagekeys }${_getopt_V:-}"
+      _endofopts=1
+      ;;
+    esac
+  done
+  eval $(getoptions_end)
+  [ -n "${_imagekeys:-}" ] || {
+    _imagekeys=$(dockerfile-env_PUBLISHED)
+  } || :
+  [ -n "${_imagekeys:-}" ] || {
+    _imagekeys=$(container-image-get-path)
+  } || :
+  [ -n "${_imagekeys:-}" ] || {
+    __docker_help push \
+    "${FUNCNAME} [-A][-L login-options] [OPTIONS] NAME[:TAG] ..."
+    return 2
+  } || :
+  [ ${_aloginout:-0} -eq 0 ] || {
+    docker-login ${_aloginopt:-}
+  } && {
+    _dlogin_id=$(docker-login-get-user ${_aloginopt:-})
+    for _image_key in ${_imagekeys}
+    do
+      _imagename=$(container-image-get-path "${_image_key}")
+      _imagepath=""
+      [ -n "${_imagename}" ] || {
+        echo "${FUNCNAME}: Image not found: '${_image_key}'." 1>&2
+        continue
+      } || :
+      case "${_imagename:-}" in
+      */*)
+        _imagepath="${_imagename}"
+        ;;
+      *)
+        _imagepath="${_dlogin_id:+$_dlogin_id/}${_imagename}"
+        container-image-get-path "${_imagepath}" || {
+          docker-tag "${_imagename}" "${_imagepath}"
+        } || :
+        ;;
+      esac
+      echo ${DOCKER_CMD} push ${_dpushopts} ${_imagepath:-}
+      ${DOCKER_CMD} push ${_dpushopts} "${_imagepath:-}" || {
+        _dpushstat=$?
+        break
+      }
+    done
+  } || :
+  [ ${_aloginout:-0} -ne 0 ] && {
+    docker-logout
+  } 1>/dev/null 2>&1 || :
+  return ${_dpushstat}
+}
+
+# vim: set ff=unix ts=2 sw=2 sts=2 et : This line is VIM modeline

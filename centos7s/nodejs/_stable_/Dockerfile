@@ -5,6 +5,7 @@
 #@  DOCKER_IMAGEPATH=""
 #@  DOCKER_BUILDOPTS=""
 #@  DOCKER_BOOT_OPTS=""
+#@  DOCKER_PUBLISHED=""
 #
 
 # Node.js version
@@ -26,7 +27,7 @@ ARG NODEBREW_ROOT
 ARG NODEBREW_URL="http://git.io/nodebrew"
 
 # Node modules
-ARG NODEJS_MODULES="bower grunt-cli gulp"
+ARG NODEJS_MODULES="grunt-cli gulp"
 
 # Node.js Version
 ENV NODEJS_VER="${NODEJS_VER:-stable}"
@@ -38,11 +39,12 @@ ENV NODEBREW_ROOT="${NODEBREW_ROOT:-/opt/nodebrew}"
 ENV PATH="${PATH}${NODEBREW_ROOT:+:${NODEBREW_ROOT}/current/bin}"
 
 # Set Workdir
-WORKDIR /tmp/docker-container-build
+WORKDIR /tmp/docker-container-image-build
 
 # SetUp
 RUN \
- set -x; \
+ set -ux; \
+ work_dir=$(pwd); \
  [ -n "${NODEJS_VER:-}" ] || { \
   echo "'NODEJS_VER' is not set." 1>&2; \
   exit 1; }; \
@@ -90,7 +92,7 @@ RUN \
   node -v && npm -v || :; \
  } && \
  : "Remove YUM packages" && { \
-  yum -v -y remove gcc-c++ perl && { \
+  yum -v -y remove gcc-c++ && { \
    pkg_leaves=$(echo $(package-cleanup --leaves)); \
    [ -n "${pkg_leaves}" ] && \
    yum -v -y remove ${pkg_leaves} || :; \
@@ -98,13 +100,16 @@ RUN \
   yum -v -y update && \
   yum -v -y clean all; \
  } && \
- : "Cleanup" && { \
-  work_dir=$(pwd); cd /; \
-  for lf in /var/log/*; \
+ : "YUM Cleanup." && { \
+  yum -v -y clean all || :; \
+  [ -d "/var/cache/yum/" ] && \
+  rm -rf /var/cache/yum/* || :; \
+ } && \
+ : "Cleanup." && { \
+  cd /; \
+  [ -d "/var/log" ] && for lf in /var/log/*; \
   do [ -s "${lf}" ] && cat /dev/null >"${lf}"; done || :; \
-  rm -rf {,/var}/tmp/* || :; \
-  yum -v -y clean all; rm -rf /var/cache/yum/* || :; \
-  rm -rf "${work_dir}" || :; \
+  rm -rf {,/var}/tmp/* "${work_dir:-X}" || :; \
  } && \
  : "Done.";
 
@@ -113,7 +118,7 @@ WORKDIR /
 
 # Labels
 LABEL \
- name="Node.js on CentOS7 with Systemd" \
+ name="Node.js (${NODEJS_VER}) on CentOS7 with Systemd" \
  vendor="UGOOLE.ORG" \
  maintainer="MT" \
  license="" \
@@ -129,11 +134,11 @@ FROM stable AS stable-onbuild
 ARG NODEJS_VER
 
 # Set Workdir
-WORKDIR /tmp/docker-container-build
+WORKDIR /tmp/docker-container-image-build
 
 # Labels
 LABEL \
- name="Node.js on CentOS7 with Systemd (onbuild)" \
+ name="Node.js (${NODEJS_VER}) on CentOS7 with Systemd (onbuild)" \
  vendor="UGOOLE.ORG" \
  maintainer="MT" \
  license="" \
@@ -147,7 +152,7 @@ ARG NODEJS_MODULES=""
 
 # ONBUILD: Set Workdir
 ONBUILD \
-WORKDIR /tmp/docker-container-build
+WORKDIR /tmp/docker-container-image-build
 
 # ONBUILD: Copy contents
 ONBUILD \
@@ -156,7 +161,8 @@ COPY * ./
 # ONBUILD: SetUp
 ONBUILD \
 RUN \
- set -x; \
+ set -ux; \
+ work_dir=$(pwd); \
  : "ONBUILD: Install additional node modules" && { \
   [ -z "${NODEJS_MODULES:-}" ] || { \
    npm -g install ${NODEJS_MODULES} && \
@@ -168,15 +174,18 @@ RUN \
    /bin/bash ./setup.sh; \
   }; \
  }; \
- : "ONBUILD: Cleanup" && { \
-  work_dir=$(pwd); cd /; \
-  for lf in /var/log/*; \
-  do [ -s "${lf}" ] && cat /dev/null >"${lf}"; done || :; \
-  rm -rf {,/var}/tmp/* || :; \
-  yum -v -y clean all; rm -rf /var/cache/yum/* || :; \
-  rm -rf "${work_dir}" || :; \
+ : "ONBUILD: YUM Cleanup." && { \
+  yum -v -y clean all || :; \
+  [ -d "/var/cache/yum/" ] && \
+  rm -rf /var/cache/yum/* || :; \
  } && \
- : "Done.";
+ : "ONBUILD: Cleanup." && { \
+  cd /; \
+  [ -d "/var/log" ] && for lf in /var/log/*; \
+  do [ -s "${lf}" ] && cat /dev/null >"${lf}"; done || :; \
+  rm -rf {,/var}/tmp/* "${work_dir:-X}" || :; \
+ } && \
+ : "ONBUILD: Done.";
 
 # ONBUILD: Reset Workdir
 ONBUILD \
