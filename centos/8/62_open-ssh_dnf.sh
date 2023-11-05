@@ -1,5 +1,7 @@
 #!/bin/bash -ux
 
+dockeruser="${DOCKERUSER:-dockeruser}"
+
 if [ -n "${NO_SSH_LOGIN:-}" ]
 then
   echo "Without Open SSHd, skipping this instruction."
@@ -8,8 +10,8 @@ fi
 
 : "sshd: Install openssh-server" && {
 
-  yum -v -y update || :
-  yum -v -y install openssh-server
+  dnf -v -y update || :
+  dnf -v -y install openssh-server
 
 } &&
 : "sshd: Configure sshd_config" && {
@@ -25,17 +27,7 @@ fi
 } &&
 : "sshd: Enable sshd" && {
 
-  case "${CENTOS_VER}" in
-  5*|6*)
-    /sbin/chkconfig --add sshd || :
-    /sbin/chkconfig --levels 2345 sshd on || :
-    ;;
-  7*|8*)
-    systemctl enable sshd.service || :
-    ;;
-  *)
-    ;;
-  esac
+  systemctl enable sshd.service || :
 
 } &&
 : "sshd: Install pubkey for default user" && {

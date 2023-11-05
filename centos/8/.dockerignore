@@ -2,3 +2,5 @@
 Dockerfile*
 tmp/
 temp/
+**/.git*
+**/.svn/

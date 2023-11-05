@@ -1,16 +1,16 @@
 #!/bin/bash -ux
-# CentOS built rootfs image
+# AlmaLinux built rootfs image
 THIS="${BASH_SOURCE##*/}"
 BASE="${THIS%.*}"
 CDIR=$([ -n "${BASH_SOURCE%/*}" ] && cd "${BASH_SOURCE%/*}"; pwd)
 
-[ -n "${CENTOS_VER:-}" ] || exit 1
-[ -n "${CENTOSROOT:-}" ] || exit 1
+[ -n "${ALMALINUX_VER:-}" ] || exit 1
+[ -n "${ALMALINUXROOT:-}" ] || exit 1
 
 cat <<_EOD_
 #*
-#* CENTOS_VER${CENTOS_VER:-}
-#* CENTOSROOT${CENTOSROOT:-}
+#* ALMALINUX_VER${ALMALINUX_VER:-}
+#* ALMALINUXROOT${ALMALINUXROOT:-}
 #*
 _EOD_
 
@@ -35,15 +35,16 @@ dnf_config_update() {
   then sed -re 's/^[#[:space:]]*(fastestmirror)=.*$/\1=True/g'
   else sed -re '/^tsflags=.*$/a fastestmirror=True'
   fi |
-  cat 1>"${dnf_config}.tmp" &&
-  mv -f "${dnf_config}"{.tmp,} && {
+  cat 1>"${dnf_config}.tmp" && {
     echo
     echo "[${dnf_config}]"
-    cat "${dnf_config}"
+    diff "${dnf_config}"{,.tmp} || :
     echo
-  } || :
-
+  } &&
+  mv -f "${dnf_config}"{.tmp,} ||
   return $?
+
+  return 0
 }
 
 : "Change the config of DNF" && {
@@ -55,14 +56,9 @@ dnf_config_update() {
 } &&
 : "Initialize Chroot Dir." && {
 
-  rpm_gpgkey="/etc/pki/rpm-gpg/RPM-GPG-KEY-centosofficial"
+  rpm_gpgkey="/etc/pki/rpm-gpg/RPM-GPG-KEY-AlmaLinux"
 
-  mkdir -p "${CENTOSROOT}" && {
-
-    [ -e "${CENTOSROOT}/dev/null" ]    || mknod -m 666 "${CENTOSROOT}/dev/null" c 1 3
-    [ -e "${CENTOSROOT}/dev/zero" ]    || mknod -m 666 "${CENTOSROOT}/dev/zero" c 1 5
-    [ -e "${CENTOSROOT}/dev/random" ]  || mknod -m 666 "${CENTOSROOT}/dev/random" c 1 8
-    [ -e "${CENTOSROOT}/dev/urandom" ] || mknod -m 666 "${CENTOSROOT}/dev/urandom" c 1 9
+  mkdir -p "${ALMALINUXROOT}" && {
 
     dnf -v -y \
       clean all &&
@@ -70,41 +66,41 @@ dnf_config_update() {
       update &&
     dnf -v -y \
       reinstall --downloadonly --downloaddir . \
-      centos-release centos-repos centos-gpg-keys &&
+      almalinux-release &&
     rpm -v \
-      --root ${CENTOSROOT} \
+      --root ${ALMALINUXROOT} \
       --initdb &&
     rpm -v \
-      --root ${CENTOSROOT} \
-      --nodeps -ivh centos-*.rpm &&
+      --root ${ALMALINUXROOT} \
+      --nodeps -ivh almalinux-*.rpm &&
     rpm -v \
-      --root ${CENTOSROOT} \
-      --import "${CENTOSROOT}${rpm_gpgkey}" &&
+      --root ${ALMALINUXROOT} \
+      --import "${ALMALINUXROOT}${rpm_gpgkey}" &&
     dnf -v -y \
-      --installroot=${CENTOSROOT} \
+      --installroot=${ALMALINUXROOT} \
       --setopt=tsflags=nodocs \
       --setopt=fastestmirror=True \
-      install dnf
+      install dnf dnf-data
 
   } || exit 1
 
-  rm -f centos-*.rpm || :
+  rm -f almalinux-*.rpm || :
 
 } &&
-: "Change the config of DNF under CENTOSROOT." && {
+: "Change the config of DNF under ALMALINUXROOT." && {
 
   dnf_config_update \
-    "${CENTOSROOT}/etc/dnf/dnf.conf" \
+    "${ALMALINUXROOT}/etc/dnf/dnf.conf" \
     || exit 1
 
   # dnf vars
-  echo "container" 1>"${CENTOSROOT}/etc/dnf/vars/infra"
+  echo "container" 1>"${ALMALINUXROOT}/etc/dnf/vars/infra"
 
 } &&
 : "Chroot Setup." && {
 
-  cp -pf {,"${CENTOSROOT}"}/etc/resolv.conf &&
-  chroot "${CENTOSROOT}" /bin/bash -ux <<'_EOD_'
+  cp -pf {,"${ALMALINUXROOT}"}/etc/resolv.conf &&
+  chroot "${ALMALINUXROOT}" /bin/bash -ux <<'_EOD_'
 : "Make /dev files." && {
 
   [ -e "/dev/null" ]    || mknod -m 666 /dev/null c 1 3
@@ -126,6 +122,8 @@ dnf_config_update() {
     iputils \
     passwd \
     rootfiles \
+    binutils \
+    sudo \
     tar \
     vim-minimal \
     || exit 1
@@ -175,12 +173,13 @@ dnf_config_update() {
     --exclude=procps-ng \
     brotli \
     coreutils-common \
-    cracklib-dicts \
-    diffutils \
-    findutils \
+    crypto-policies-scripts \
+    dnf-plugins-core \
+    elfutils-debuginfod-client \
     gettext \
     gettext-libs \
     glibc-all-langpacks \
+    glibc-gconv-extra \
     gnupg2-smime \
     hardlink \
     kbd \
@@ -201,12 +200,12 @@ dnf_config_update() {
     openssl-pkcs11 \
     os-prober \
     pigz \
+    platform-python-pip \
     rpm-plugin-systemd-inhibit \
     shared-mime-info \
     trousers \
     trousers-lib \
     which \
-    xz \
     || exit 1
 
   dnf -v -y remove \
@@ -310,15 +309,17 @@ _EOD_
 
 } &&
 : "Cleanup." && {
-  work_dir=$(pwd); cd /
-  for lf in /var/log/*
-  do
-    [ -s "${lf}" ] && cat /dev/null 1>"${lf}"
-  done
-  rm -f {,/var}/tmp/*
-  yum -v -y clean all
-  rm -rf /var/cache/dnf/*
-} 2>/dev/null || : &&
+  work_dir=$(pwd)
+  cd / && {
+    for lf in /var/log/*
+    do
+      [ -f "${lf}" ] && : 1>"${lf}"
+    done
+    rm -f {,/var}/tmp/*
+    dnf -v -y clean all
+    rm -rf /var/cache/dnf/*
+  } 2>/dev/null || :
+} &&
 : "Done."
 
 exit $?

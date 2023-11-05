@@ -3,7 +3,7 @@
 #
 #@  DOCKER_CONTAINER=""
 #@  DOCKER_IMAGEPATH="centos7"
-#@  DOCKER_BUILDOPTS=""
+#@  DOCKER_BUILDOPTS="--platform=linux/amd64"
 #@  DOCKER_BOOT_OPTS=""
 #@  DOCKER_PUBLISHED=""
 #@  DOCKER_PUBLISHED="${DOCKER_PUBLISHED} centos7:minimal"
@@ -18,9 +18,6 @@ ARG CENTOS_VER="7"
 # CentOS rootfs Image Dir
 ARG CENTOSROOT="/centos-image/ROOT"
 
-# root password
-ARG ROOTPSWD=""
-
 # Default Language
 ARG LANGUAGE="en_US.UTF-8"
 
@@ -31,6 +28,21 @@ ARG TIMEZONE="Asia/Tokyo"
 ARG KEYBOARD="jp"
 ARG KBDTABLE="jp106"
 
+# root password
+ARG ROOTPSWD=""
+
+# Default user
+ARG DOCKERUSER="dockeruser"
+ARG DOCKERPSWD=""
+ARG DOCKER_UID="500"
+ARG DOCKER_GRP=""
+ARG DOCKER_GID=""
+ARG DOCKER_ACCOUNTNAME=""
+ARG DOCKER_GROUPS_LIST=""
+ARG DOCKER_USERHOMEDIR=""
+ARG DOCKER_LOGIN_SHELL=""
+ARG DOCKER_ENABLE_SUDO=""
+
 
 # CentOS rootfs
 FROM centos:centos${CENTOS_VER} AS rootfs
@@ -40,19 +52,6 @@ ARG CENTOS_VER
 
 # CentOS rootfs Image
 ARG CENTOSROOT
-
-# root password
-ARG ROOTPSWD
-
-# Default Language
-ARG LANGUAGE
-
-# Default timezone
-ARG TIMEZONE
-
-# Default Keyboard Layout and Key-Table
-ARG KEYBOARD
-ARG KBDTABLE
 
 # YUM fastestmirror server
 ARG YUM_FAST_MIRROR="www.ftp.ne.jp"
@@ -69,13 +68,6 @@ ENV \
  CENTOSROOT="${CENTOSROOT:-}"
 
 ENV \
- ROOTPSWD="${ROOTPSWD:-}" \
- LANGUAGE="${LANGUAGE:-}" \
- TIMEZONE="${TIMEZONE:-}" \
- KEYBOARD="${KEYBOARD:-}" \
- KBDTABLE="${KBDTABLE:-}"
-
-ENV \
  YUM_FAST_MIRROR="${YUM_FAST_MIRROR:-}" \
  YUM_FM_DOM_INCL="${YUM_FM_DOM_INCL:-}" \
  YUM_FM_DOM_EXCL="${YUM_FM_DOM_EXCL:-}"
@@ -84,7 +76,7 @@ ENV \
 WORKDIR /tmp/docker-container-image-build
 
 # COPY shell scripts to Workdir
-COPY 00_build-chrootdir.sh ./build-chrootdir.sh
+COPY "00_build-chrootdir_c${CENTOS_VER}.sh" ./build-chrootdir.sh
 
 # Setup
 RUN \
@@ -93,28 +85,6 @@ RUN \
    /bin/bash -ux ./build-chrootdir.sh; \
  } && \
  : "Done.";
-
-## Set Workdir
-#WORKDIR /tmp/docker-container-image-build/scripts.d
-#
-## COPY shell scripts to Workdir
-#COPY 1\[0-9\]_*.sh ./
-#
-## Setup (Ph2)
-#RUN \
-# set -ux; \
-# : "Chroot to the environment and install some additional tools." && { \
-#  cp -pf {,"${CENTOSROOT}"}/etc/resolv.conf && { \
-#    for build_sh in ./[0-9][0-9]_*.sh; \
-#    do \
-#      [ -e "${build_sh}" ] && \
-#      chroot "${CENTOSROOT}" /bin/bash -ux <"${build_sh}" || \
-#      exit 1; \
-#    done; \
-#  } && \
-#  rm -f "${CENTOSROOT}/etc/resolv.conf" || :; \
-# } && \
-# : "Done.";
 
 # Reset Workdir
 WORKDIR /
@@ -141,9 +111,6 @@ ARG CENTOS_VER
 # CentOS rootfs Image
 ARG CENTOSROOT
 
-# root password
-ARG ROOTPSWD
-
 # Default Language
 ARG LANGUAGE
 
@@ -154,6 +121,21 @@ ARG TIMEZONE
 ARG KEYBOARD
 ARG KBDTABLE
 
+# root password
+ARG ROOTPSWD
+
+# Default user
+ARG DOCKERUSER
+ARG DOCKERPSWD
+ARG DOCKER_UID
+ARG DOCKER_GRP
+ARG DOCKER_GID
+ARG DOCKER_ACCOUNTNAME
+ARG DOCKER_GROUPS_LIST
+ARG DOCKER_USERHOMEDIR
+ARG DOCKER_LOGIN_SHELL
+ARG DOCKER_ENABLE_SUDO
+
 # COPY From root-image
 COPY --from=rootfs "${CENTOSROOT}"/ /
 
@@ -161,18 +143,23 @@ COPY --from=rootfs "${CENTOSROOT}"/ /
 WORKDIR /tmp/build-work
 
 # COPY shell scripts to Workdir
-COPY \[12\]\[0-9\]_*.sh ./
+COPY \[1-4\]\[0-9\]_*.sh ./
 
 RUN \
  set -ux; \
  work_dir=$(pwd); \
  : "Export Args." && { \
   export CENTOS_VER; \
-  export ROOTPSWD; \
   export LANGUAGE TIMEZONE KEYBOARD KBDTABLE; \
+  export ROOTPSWD; \
+  export DOCKERUSER DOCKERPSWD; \
+  export DOCKER_UID DOCKER_GRP DOCKER_GID; \
+  export DOCKER_ACCOUNTNAME DOCKER_GROUPS_LIST; \
+  export DOCKER_USERHOMEDIR DOCKER_LOGIN_SHELL; \
+  export DOCKER_ENABLE_SUDO; \
  }; \
  : "Execute Build Script." && { \
-  for build_sh in ./[0-9][0-9]_*.sh; \
+  for build_sh in ./[0-9A-Z][0-9A-Z]_*.sh; \
   do /bin/bash -ux "${build_sh}" || exit 1; done; \
  } && \
  : "YUM Cleanup." && { \
@@ -183,7 +170,7 @@ RUN \
  : "Cleanup." && { \
   cd /; \
   [ -d "/var/log" ] && for lf in /var/log/*; \
-  do [ -s "${lf}" ] && cat /dev/null >"${lf}"; done || :; \
+  do [ -f "${lf}" -a -s "${lf}" ] && : >"${lf}"; done || :; \
   rm -rf {,/var}/tmp/* "${work_dir:-X}" || :; \
  } && \
  : "Done.";
@@ -202,7 +189,7 @@ LABEL \
  docker.run.confirm-startup=""
 
 
-# CentOS 7 with systemd
+# CentOS with systemd
 FROM scratch AS systemd
 
 # Env
@@ -211,30 +198,14 @@ ENV container="docker"
 # CentOS Version
 ARG CENTOS_VER
 
-# CentOS rootfs Image
-ARG CENTOSROOT
-
-# root password
-ARG ROOTPSWD
-
-# Default Language
-ARG LANGUAGE
-
-# Default timezone
-ARG TIMEZONE
-
-# Default Keyboard Layout and Key-Table
-ARG KEYBOARD
-ARG KBDTABLE
-
-# COPY From root-image
-COPY --from=rootfs "${CENTOSROOT}"/ /
+# COPY From minimal image
+COPY --from=minimal / /
 
 # Set Workdir
-WORKDIR /tmp/build-work
+WORKDIR /tmp/docker-container-image-build
 
 # COPY shell scripts to Workdir
-COPY \[13\]\[0-9\]_*.sh ./
+COPY \[A-Z\]\[0-9A-Z\]_*.sh ./
 
 # SetUp
 RUN \
@@ -242,11 +213,9 @@ RUN \
  work_dir=$(pwd); \
  : "Export Args." && { \
   export CENTOS_VER; \
-  export ROOTPSWD; \
-  export LANGUAGE TIMEZONE KEYBOARD KBDTABLE; \
  }; \
  : "Execute Build Script." && { \
-  for build_sh in ./[0-9][0-9]_*.sh; \
+  for build_sh in ./[0-9A-Z][0-9A-Z]_*.sh; \
   do /bin/bash -ux "${build_sh}" || exit 1; done; \
  } && \
  : "YUM Cleanup." && { \
@@ -257,7 +226,7 @@ RUN \
  : "Cleanup." && { \
   cd /; \
   [ -d "/var/log" ] && for lf in /var/log/*; \
-  do [ -s "${lf}" ] && cat /dev/null >"${lf}"; done || :; \
+  do [ -f "${lf}" -a -s "${lf}" ] && : >"${lf}"; done || :; \
   rm -rf {,/var}/tmp/* "${work_dir:-X}" || :; \
  } && \
  : "Done.";
@@ -285,17 +254,18 @@ VOLUME [ "/sys/fs/cgroup" ]
 CMD [ "/sbin/init" ]
 
 
-# CentOS7 minimal (onbuild)
+# CentOS minimal (onbuild)
 FROM minimal AS minimal-onbuild
 
 # CentOS Version
 ARG CENTOS_VER
 
 # Set Workdir
-WORKDIR /root/onbuild.d
+WORKDIR /.onbuild
 
 # Copy onbuild scripts to Workdir
-COPY \[19\]\[0-9\]_*.sh ./
+COPY \[1-4\]\[0-9\]_*.sh ./
+COPY 9\[0-9\]_*.sh ./
 
 # CentOS Version
 RUN \
@@ -315,10 +285,6 @@ LABEL \
  docker.run.options="" \
  docker.run.confirm-startup=""
 
-# ONBUILD: root password
-ONBUILD \
-ARG ROOTPSWD=""
-
 # ONBUILD: Language
 ONBUILD \
 ARG LANGUAGE=""
@@ -333,13 +299,43 @@ ARG KEYBOARD=""
 ONBUILD \
 ARG KBDTABLE=""
 
+# ONBUILD: root password
+ONBUILD \
+ARG ROOTPSWD=""
+
+# ONBUILD: Default user
+ONBUILD \
+ARG DOCKERUSER=""
+ONBUILD \
+ARG DOCKERPSWD=""
+ONBUILD \
+ARG DOCKER_UID=""
+ONBUILD \
+ARG DOCKER_GRP=""
+ONBUILD \
+ARG DOCKER_GID=""
+ONBUILD \
+ARG DOCKER_ACCOUNTNAME=""
+ONBUILD \
+ARG DOCKER_GROUPS_LIST=""
+ONBUILD \
+ARG DOCKER_USERHOMEDIR=""
+ONBUILD \
+ARG DOCKER_LOGIN_SHELL=""
+ONBUILD \
+ARG DOCKER_ENABLE_SUDO=""
+
 # ONBUILD: Extra RPM Packages
 ONBUILD \
 ARG RPM_PACKAGES=""
 
+# ONBUILD: OnBuild Script
+ONBUILD \
+ARG ONBUILDSCRPT=""
+
 # ONBUILD: Set Workdir
 ONBUILD \
-WORKDIR /root/onbuild.d
+WORKDIR /tmp/docker-container-image-build
 
 # ONBUILD: COPY contents to workdir
 ONBUILD \
@@ -350,15 +346,22 @@ ONBUILD \
 RUN \
  set -ux; \
  work_dir=$(pwd); \
+ scrptdir="/.onbuild"; \
  : "ONBUILD: Export Args." && { \
-  export CENTOS_VER=$(cat ./CENTOS_VER); \
-  export ROOTPSWD; \
+  export CENTOS_VER=$(cat "${scrptdir}/CENTOS_VER"); \
   export LANGUAGE TIMEZONE KEYBOARD KBDTABLE; \
-  export RPM_PACKAGES; \
+  export ROOTPSWD; \
+  export DOCKERUSER DOCKERPSWD; \
+  export DOCKER_UID DOCKER_GRP DOCKER_GID; \
+  export DOCKER_ACCOUNTNAME DOCKER_GROUPS_LIST; \
+  export DOCKER_USERHOMEDIR DOCKER_LOGIN_SHELL; \
+  export DOCKER_ENABLE_SUDO; \
+  export RPM_PACKAGES ONBUILDSCRPT; \
  }; \
  : "ONBUILD: Execute OnBuild Scripts." && { \
-  for build_sh in ./[0-9][0-9]_*.sh; \
-  do /bin/bash -ux "${build_sh}" || exit 1; done; \
+  for build_sh in "${scrptdir}"/[0-9A-Z][0-9A-Z]_*.sh; \
+  do /bin/bash -ux "${build_sh}" || exit 1; done && \
+  rm -rf "${scrptdir}/" || :; \
  } && \
  : "YUM Cleanup." && { \
   yum -v -y clean all || :; \
@@ -368,7 +371,7 @@ RUN \
  : "Cleanup." && { \
   cd /; \
   [ -d "/var/log" ] && for lf in /var/log/*; \
-  do [ -s "${lf}" ] && cat /dev/null >"${lf}"; done || :; \
+  do [ -f "${lf}" -a -s "${lf}" ] && : >"${lf}"; done || :; \
   rm -rf {,/var}/tmp/* "${work_dir:-X}" || :; \
  } && \
  : "ONBUILD: Done.";
@@ -378,17 +381,17 @@ ONBUILD \
 WORKDIR /
 
 
-# CentOS 7 with systemd (onbuild)
+# CentOS with systemd (onbuild)
 FROM systemd AS systemd-onbuild
 
 # CentOS Version
 ARG CENTOS_VER
 
 # Set Workdir
-WORKDIR /root/onbuild.d
+WORKDIR /.onbuild
 
 # Copy onbuild scripts to Workdir
-COPY \[16-9\]\[0-9\]_*.sh ./
+COPY \[1-9\]\[0-9\]_*.sh ./
 
 # CentOS Version
 RUN \
@@ -408,10 +411,6 @@ LABEL \
  docker.run.options="-d -P -h centos${CENTOS_VER}-systemd --privileged" \
  docker.run.confirm-startup=""
 
-# ONBUILD: root password
-ONBUILD \
-ARG ROOTPSWD=""
-
 # ONBUILD: Language
 ONBUILD \
 ARG LANGUAGE=""
@@ -426,13 +425,31 @@ ARG KEYBOARD=""
 ONBUILD \
 ARG KBDTABLE=""
 
-# ONBUILD: Default login
+# ONBUILD: root password
 ONBUILD \
-ARG DOCKER_UID=""
+ARG ROOTPSWD=""
+
+# ONBUILD: Default user
 ONBUILD \
 ARG DOCKERUSER=""
 ONBUILD \
-ARG DOCKERPASS=""
+ARG DOCKERPSWD=""
+ONBUILD \
+ARG DOCKER_UID=""
+ONBUILD \
+ARG DOCKER_GRP=""
+ONBUILD \
+ARG DOCKER_GID=""
+ONBUILD \
+ARG DOCKER_ACCOUNTNAME=""
+ONBUILD \
+ARG DOCKER_GROUPS_LIST=""
+ONBUILD \
+ARG DOCKER_USERHOMEDIR=""
+ONBUILD \
+ARG DOCKER_LOGIN_SHELL=""
+ONBUILD \
+ARG DOCKER_ENABLE_SUDO=""
 
 # ONBUILD: sshd
 ONBUILD \
@@ -446,9 +463,13 @@ ARG NO_LOGMANAGE=""
 ONBUILD \
 ARG RPM_PACKAGES=""
 
+# ONBUILD: OnBuild Script
+ONBUILD \
+ARG ONBUILDSCRPT=""
+
 # ONBUILD: Set Workdir
 ONBUILD \
-WORKDIR /root/onbuild.d
+WORKDIR /tmp/docker-container-image-build
 
 # ONBUILD: COPY contents to workdir
 ONBUILD \
@@ -459,17 +480,22 @@ ONBUILD \
 RUN \
  set -ux; \
  work_dir=$(pwd); \
+ scrptdir="/.onbuild"; \
  : "ONBUILD: Export Args." && { \
-  export CENTOS_VER=$(cat ./CENTOS_VER); \
-  export ROOTPSWD; \
+  export CENTOS_VER=$(cat "${scrptdir}/CENTOS_VER"); \
   export LANGUAGE TIMEZONE KEYBOARD KBDTABLE; \
-  export DOCKER_UID DOCKERUSER DOCKERPASS; \
-  export NO_SSH_LOGIN NO_LOGMANAGE; \
-  export RPM_PACKAGES; \
+  export ROOTPSWD; \
+  export DOCKERUSER DOCKERPSWD; \
+  export DOCKER_UID DOCKER_GRP DOCKER_GID; \
+  export DOCKER_ACCOUNTNAME DOCKER_GROUPS_LIST; \
+  export DOCKER_USERHOMEDIR DOCKER_LOGIN_SHELL; \
+  export DOCKER_ENABLE_SUDO; \
+  export RPM_PACKAGES ONBUILDSCRPT; \
  }; \
  : "ONBUILD: Execute OnBuild Scripts." && { \
-  for build_sh in ./[0-9][0-9]_*.sh; \
-  do /bin/bash -ux "${build_sh}" || exit 1; done; \
+  for build_sh in "${scrptdir}"/[0-9A-Z][0-9A-Z]_*.sh; \
+  do /bin/bash -ux "${build_sh}" || exit 1; done && \
+  rm -rf "${scrptdir}/" || :; \
  } && \
  : "ONBUILD: YUM Cleanup." && { \
   yum -v -y clean all || :; \
@@ -479,7 +505,7 @@ RUN \
  : "ONBUILD: Cleanup." && { \
   cd /; \
   [ -d "/var/log" ] && for lf in /var/log/*; \
-  do [ -s "${lf}" ] && cat /dev/null >"${lf}"; done || :; \
+  do [ -f "${lf}" -a -s "${lf}" ] && : >"${lf}"; done || :; \
   rm -rf {,/var}/tmp/* "${work_dir:-X}" || :; \
  } && \
  : "ONBUILD: Done.";

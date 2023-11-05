@@ -14,9 +14,9 @@ kbdtable="${KBDTABLE:-}"
     dnf_conf="/etc/dnf/dnf.conf"
 
     [ -s "${localecf}" ] || {
-cat <_EOF_ 1>"${localecf}"
+cat <<_EOD_ 1>"${localecf}"
 LANG=
-_EOF_
+_EOD_
     }
 
     . "${localecf}" || exit 1
@@ -119,10 +119,10 @@ _EOF_
 
     [ -s "${vconconf}" ] || {
       : && {
-cat <<_EOF_
+cat <<_EOD_
 KEYMAP=""
 FONT=""
-_EOF_
+_EOD_
       } 1>"${vconconf}"
     }
 
@@ -145,7 +145,7 @@ _EOF_
         if [ -n "${keyboard}" -a -n "${kbdtable}" -a -d "${xkbdconf%/*}" ]
         then
           : && {
-cat <<_EOF_
+cat <<_EOD_
 # Read and parsed by systemd-localed. It's probably wise not to edit this file
 # manually too freely.
 Section "InputClass"
@@ -155,7 +155,7 @@ Section "InputClass"
         ${kbdtable:+Option \"XkbModel\" \"${kbdtable}\"}
         Option "XkbOptions" "terminate:ctrl_alt_bksp"
 EndSection
-_EOF_
+_EOD_
           } 1>"${xkbdconf}" && {
             echo
             echo "[${xkbdconf}]"

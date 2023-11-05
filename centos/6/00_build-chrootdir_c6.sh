@@ -14,6 +14,29 @@ cat <<_EOD_
 #*
 _EOD_
 
+yum_check_obsolate() {
+  local instroot="${1:-}"; shift
+  local alt_host="linuxsoft.cern.ch/centos-vault"
+  local checkpkg="centos-release"
+  local yumcheck="yum info ${checkpkg}"
+  local yumrepod="/etc/yum.repos.d"
+  [ -d "${instroot:-X}" ] && {
+    yumcheck="yum --installroot=${instroot} info ${checkpkg}"
+    yumrepod="${instroot}${yumrepod}"
+  } || :
+  ${yumcheck} 1>/dev/null || {
+    ( cd "${yumrepod}" && {
+      sed -ri 's|^(mirrorlist=)|#\1|g' ./*.repo &&
+      sed -ri 's|^#(baseurl=http://)[^/]+/|\1'"${alt_host}"'/|g' ./*.repo &&
+      cat ./*.repo &&
+      : "done"
+    }; ) &&
+    ${yumcheck} 1>/dev/null
+  } ||
+  return $?
+  return 0
+}
+
 yum_config_update() {
   local yum_config="${1:-}"; shift
   local yum_fm_cnf="${1:-}"; shift
@@ -32,13 +55,13 @@ yum_config_update() {
   then sed -re 's/^[#[:space:]]*(tsflags)=.*$/\1=nodocs/g'
   else sed -re '/^override_.+_langs=.*/a tsflags=nodocs'
   fi |
-  cat 1>"${yum_config}.tmp" &&
-  mv -f "${yum_config}"{.tmp,} &&{
+  cat 1>"${yum_config}.tmp" && {
     echo
     echo "[${yum_config}]"
-    cat ${yum_config}
+    diff "${yum_config}"{,.tmp} || :
     echo
-  } ||
+  } &&
+  mv -f "${yum_config}"{.tmp,} ||
   return $?
 
   # Modify yum-plugin-fastestmirror
@@ -70,13 +93,13 @@ yum_config_update() {
       fi
     else cat
     fi |
-    cat 1>"${yum_fm_cnf}.tmp" &&
-    mv -f "${yum_fm_cnf}"{.tmp,} && {
+    cat 1>"${yum_fm_cnf}.tmp" && {
       echo
       echo "[${yum_fm_cnf}]"
-      cat "${yum_fm_cnf}"
+      diff "${yum_fm_cnf}"{,.tmp}
       echo
-    }
+    } &&
+    mv -f "${yum_fm_cnf}"{.tmp,}
   else :
   fi ||
   return $?
@@ -84,6 +107,11 @@ yum_config_update() {
   return 0
 }
 
+: "Check the support status of this CentOS version" && {
+
+  yum_check_obsolate
+
+} &&
 : "Change the config of YUM and plugins" && {
 
   yum -v -y install \
@@ -117,6 +145,7 @@ yum_config_update() {
     rpm -v \
       --root ${CENTOSROOT} \
       --import "${CENTOSROOT}${rpm_gpgkey}" &&
+    yum_check_obsolate "${CENTOSROOT}" &&
     yum -v -y \
       --installroot=${CENTOSROOT} \
       --setopt=override_install_langs=en_US.UTF-8 \
@@ -166,9 +195,9 @@ yum_config_update() {
     iproute \
     passwd \
     rootfiles \
+    sudo \
     tar \
     vim-minimal \
-    yum-plugin-fastestmirror \
     yum-plugin-ovl \
     yum-utils \
     || exit 1
@@ -184,52 +213,45 @@ yum_config_update() {
 
   # Remove logos
   rpm -v -e --nodeps \
-    centos-logos \
+    redhat-logos \
     || :
 
   # Remove packages as much as possible.
   yum -v -y remove \
-    bind-libs \
-    bind-libs-lite \
+    bind-license \
+    dbus-glib \
+    dbus-python \
+    device-mapper* \
     dhclient \
     dhcp-common \
     dhcp-libs \
-    dracut-network \
-    e2fsprogs \
+    dracut \
+    dracutinstall \
     e2fsprogs-libs \
     ebtables \
     ethtool \
     file \
     firewalld \
-    firewalld-filesystem \
     freetype \
     gettext* \
-    GeoIP \
-    geoipupdate \
-    groff-base \
+    gobject-introspection \
     grub2 \
-    grub2-tools \
     grubby \
-    initscripts \
-    iproute \
-    iptables \
-    kexec-tools \
-    libcroco \
-    libgomp \
-    libmnl \
-    libnetfilter_conntrack \
-    libnfnetlink \
+    hwdata \
+    kbd-misc \
+    kernel-firmware \
+    kmod \
+    kmod-libs \
+    kpartx \
     libselinux-python \
-    libunistring \
-    linux-firmware \
-    lzo \
+    libss \
     os-prober \
+    pygobject3-base \
     python-decorator \
     python-slip \
     python-slip-dbus \
-    qemu-guest-agent \
-    snappy \
     sysvinit-tools \
+    upstart \
     which \
     || exit 1
 
@@ -245,14 +267,17 @@ yum_config_update() {
   }
 
 } &&
-: "Systemd fixes" && {
+: "Disable services." && {
 
-  # no machine-id by default.
-  :> /etc/machine-id
+  for sn in $(/sbin/chkconfig|cut -f1)
+  do
+     [ -n "${sn}" ] && /sbin/chkconfig "${sn}" off || :
+  done
 
-  # Fix /run/lock breakage since it's not tmpfs in docker
-  umount /run || :
-  systemd-tmpfiles --create --boot || :
+  # udev-post
+  [ -e "/etc/rc1.d/S26udev-post" ] && {
+    mv /etc/rc1.d/S26udev-post /etc/rc1.d/K26udev-post
+  } || :
 
 } &&
 : "Initialize the root user password." && {
@@ -266,24 +291,26 @@ yum_config_update() {
 } &&
 : "Default Language." && {
 
-  if [ -s "${langfile:=/etc/locale.conf}" ] &&
+  if [ -s "${langfile:=/etc/sysconfig/i18n}" ] &&
      egrep '^LANG=' "${langfile}" 1>/dev/null 2>&1
   then sed -ri 's/^LANG=.*$/LANG=en_US.UTF-8/g' "${langfile}"
   else echo 'LANG=en_US.UTF-8' 1>>"${langfile}"
+  fi || :
+  if [ -s "${langfile}" ] &&
+     egrep '^LC_ALL=' "${langfile}" 1>/dev/null 2>&1
+  then sed -ri 's/^LC_ALL=.*$/LC_ALL=C/g' "${langfile}"
+  else echo 'LC_ALL=C' 1>>"${langfile}"
   fi || :
 
 } &&
 : "Remove some things we don't need." && {
 
-  rm -rfv \
+  rm -rf \
     /boot/* \
     /etc/firewalld \
     /etc/sysconfig/network-scripts/ifcfg-* \
     /usr/lib/locale/locale-archive \
     /root/* || :
-  rm -rfv \
-    /etc/udev/hwdb.bin \
-    /usr/lib/udev/hwdb.d/* || :
 
   # Cleanup all log files.
   for lf in /var/log/*
@@ -314,15 +341,17 @@ _EOD_
 
 } &&
 : "Cleanup." && {
-  work_dir=$(pwd); cd /
-  for lf in /var/log/*
-  do
-    [ -f "${lf}" ] && cat /dev/null 1>"${lf}"
-  done
-  rm -f {,/var}/tmp/*
-  yum -v -y clean all
-  rm -rf /var/cache/yum/*
-} 2>/dev/null || : &&
+  work_dir=$(pwd)
+  cd / && {
+    for lf in /var/log/*
+    do
+      [ -f "${lf}" ] && : 1>"${lf}"
+    done
+    rm -f {,/var}/tmp/*
+    yum -v -y clean all
+    rm -rf /var/cache/yum/*
+  } 2>/dev/null || :
+} &&
 : "Done."
 
 exit $?

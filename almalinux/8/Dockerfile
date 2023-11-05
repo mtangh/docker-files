@@ -1,22 +1,22 @@
 #
-# centos6:*
+# almalinux8:*
 #
 #@  DOCKER_CONTAINER=""
-#@  DOCKER_IMAGEPATH="centos6"
+#@  DOCKER_IMAGEPATH="almalinux8"
 #@  DOCKER_BUILDOPTS="--platform=linux/amd64"
 #@  DOCKER_BOOT_OPTS=""
 #@  DOCKER_PUBLISHED=""
-#@  DOCKER_PUBLISHED="${DOCKER_PUBLISHED} centos6:minimal"
-#@  DOCKER_PUBLISHED="${DOCKER_PUBLISHED} centos6:upstart"
-#@  DOCKER_PUBLISHED="${DOCKER_PUBLISHED} centos6:minimal-onbuild"
-#@  DOCKER_PUBLISHED="${DOCKER_PUBLISHED} centos6:upstart-onbuild"
+#@  DOCKER_PUBLISHED="${DOCKER_PUBLISHED} almalinux8:minimal"
+#@  DOCKER_PUBLISHED="${DOCKER_PUBLISHED} almalinux8:systemd"
+#@  DOCKER_PUBLISHED="${DOCKER_PUBLISHED} almalinux8:minimal-onbuild"
+#@  DOCKER_PUBLISHED="${DOCKER_PUBLISHED} almalinux8:systemd-onbuild"
 #
 
-# CentOS Version
-ARG CENTOS_VER="6"
+# AlmaLinux Version
+ARG ALMALINUX_VER="8"
 
-# CentOS rootfs Image Dir
-ARG CENTOSROOT="/centos-image/ROOT"
+# AlmaLinux rootfs Image Dir
+ARG ALMALINUXROOT="/almalinux-image/ROOT"
 
 # Default Language
 ARG LANGUAGE="en_US.UTF-8"
@@ -44,39 +44,25 @@ ARG DOCKER_LOGIN_SHELL=""
 ARG DOCKER_ENABLE_SUDO=""
 
 
-# CentOS rootfs
-FROM centos:centos${CENTOS_VER} AS rootfs
+# AlmaLinux rootfs
+FROM almalinux:${ALMALINUX_VER} AS rootfs
 
-# CentOS Version
-ARG CENTOS_VER
+# AlmaLinux Version
+ARG ALMALINUX_VER
 
-# CentOS rootfs Image
-ARG CENTOSROOT
-
-# YUM fastestmirror server
-ARG YUM_FAST_MIRROR="www.ftp.ne.jp"
-
-# YUM fastestmirror include domains
-ARG YUM_FM_DOM_INCL=".jp,.org"
-
-# YUM fastestmirror exclude domains
-ARG YUM_FM_DOM_EXCL=""
+# AlmaLinux rootfs Image
+ARG ALMALINUXROOT
 
 # Build env
 ENV \
- CENTOS_VER="${CENTOS_VER:-}" \
- CENTOSROOT="${CENTOSROOT:-}"
-
-ENV \
- YUM_FAST_MIRROR="${YUM_FAST_MIRROR:-}" \
- YUM_FM_DOM_INCL="${YUM_FM_DOM_INCL:-}" \
- YUM_FM_DOM_EXCL="${YUM_FM_DOM_EXCL:-}"
+ ALMALINUX_VER="${ALMALINUX_VER:-}" \
+ ALMALINUXROOT="${ALMALINUXROOT:-}"
 
 # Set Workdir
 WORKDIR /tmp/docker-container-image-build
 
 # COPY shell scripts to Workdir
-COPY "00_build-chrootdir_c${CENTOS_VER}.sh" ./build-chrootdir.sh
+COPY "00_build-chrootdir_AL${ALMALINUX_VER}.sh" ./build-chrootdir.sh
 
 # Setup
 RUN \
@@ -91,7 +77,7 @@ WORKDIR /
 
 # Labels
 LABEL \
- name="CentOS ${CENTOS_VER} rootfs" \
+ name="AlmaLinux ${ALMALINUX_VER} rootfs" \
  vendor="UGOOLE.ORG" \
  maintainer="MT" \
  license="" \
@@ -99,17 +85,17 @@ LABEL \
  build-stage="true"
 
 
-# CentOS minimal
+# AlmaLinux minimal
 FROM scratch AS minimal
 
 # Env
 ENV container="docker"
 
-# CentOS Version
-ARG CENTOS_VER
+# AlmaLinux Version
+ARG ALMALINUX_VER
 
-# CentOS rootfs Image
-ARG CENTOSROOT
+# AlmaLinux rootfs Image
+ARG ALMALINUXROOT
 
 # Default Language
 ARG LANGUAGE
@@ -137,7 +123,7 @@ ARG DOCKER_LOGIN_SHELL
 ARG DOCKER_ENABLE_SUDO
 
 # COPY From root-image
-COPY --from=rootfs "${CENTOSROOT}"/ /
+COPY --from=rootfs "${ALMALINUXROOT}"/ /
 
 # Set Workdir
 WORKDIR /tmp/docker-container-image-build
@@ -149,7 +135,7 @@ RUN \
  set -ux; \
  work_dir=$(pwd); \
  : "Export Args." && { \
-  export CENTOS_VER; \
+  export ALMALINUX_VER; \
   export LANGUAGE TIMEZONE KEYBOARD KBDTABLE; \
   export ROOTPSWD; \
   export DOCKERUSER DOCKERPSWD; \
@@ -162,10 +148,10 @@ RUN \
   for build_sh in ./[0-9A-Z][0-9A-Z]_*.sh; \
   do /bin/bash -ux "${build_sh}" || exit 1; done; \
  } && \
- : "YUM Cleanup." && { \
-  yum -v -y clean all || :; \
-  [ -d "/var/cache/yum/" ] && \
-  rm -rf /var/cache/yum/* || :; \
+ : "DNF Cleanup." && { \
+  dnf -v -y clean all || :; \
+  [ -d "/var/cache/dnf/" ] && \
+  rm -rf /var/cache/dnf/* || :; \
  } && \
  : "Cleanup." && { \
   cd /; \
@@ -180,7 +166,7 @@ WORKDIR /
 
 # Labels
 LABEL \
- name="CentOS ${CENTOS_VER} Minimal" \
+ name="AlmaLinux ${ALMALINUX_VER} Minimal" \
  vendor="UGOOLE.ORG" \
  maintainer="MT" \
  license="" \
@@ -189,14 +175,14 @@ LABEL \
  docker.run.confirm-startup=""
 
 
-# CentOS 6 with upstart
-FROM scratch AS upstart
+# AlmaLinux with systemd
+FROM scratch AS systemd
 
 # Env
 ENV container="docker"
 
-# CentOS Version
-ARG CENTOS_VER
+# AlmaLinux Version
+ARG ALMALINUX_VER
 
 # COPY From minimal image
 COPY --from=minimal / /
@@ -212,16 +198,18 @@ RUN \
  set -ux; \
  work_dir=$(pwd); \
  : "Export Args." && { \
-  export CENTOS_VER; \
+  export ALMALINUX_VER; \
+  export ROOTPSWD; \
+  export LANGUAGE TIMEZONE KEYBOARD KBDTABLE; \
  }; \
  : "Execute Build Script." && { \
   for build_sh in ./[0-9A-Z][0-9A-Z]_*.sh; \
   do /bin/bash -ux "${build_sh}" || exit 1; done; \
  } && \
- : "YUM Cleanup." && { \
-  yum -v -y clean all || :; \
-  [ -d "/var/cache/yum/" ] && \
-  rm -rf /var/cache/yum/* || :; \
+ : "DNF Cleanup." && { \
+  dnf -v -y clean all || :; \
+  [ -d "/var/cache/dnf/" ] && \
+  rm -rf /var/cache/dnf/* || :; \
  } && \
  : "Cleanup." && { \
   cd /; \
@@ -236,29 +224,30 @@ WORKDIR /
 
 # Labels
 LABEL \
- name="CentOS ${CENTOS_VER} with Upstart" \
+ name="AlmaLinux ${ALMALINUX_VER} with Systemd" \
  vendor="UGOOLE.ORG" \
  maintainer="MT" \
  license="" \
  docker.build.options="" \
- docker.run.options="-d -P -h centos${CENTOS_VER}-upstart --privileged" \
+ docker.run.options="-d -P -h almalinux${ALMALINUX_VER}-systemd --privileged" \
  docker.run.confirm-startup=""
 
 # STOP SIGNAL
-STOPSIGNAL SIGINT
+#STOPSIGNAL SIGINT
+STOPSIGNAL SIGRTMIN+3
 
-# Volume
-VOLUME [ "/sys/fs/cgroup" ]
+## Volume
+#VOLUME [ "/sys/fs/cgroup" ]
 
 # Start /sbin/init
-CMD [ "/sbin/init", "3" ]
+CMD [ "/sbin/init" ]
 
 
-# CentOS7 minimal (onbuild)
+# AlmaLinux minimal (onbuild)
 FROM minimal AS minimal-onbuild
 
-# CentOS Version
-ARG CENTOS_VER
+# AlmaLinux Version
+ARG ALMALINUX_VER
 
 # Set Workdir
 WORKDIR /.onbuild
@@ -267,17 +256,17 @@ WORKDIR /.onbuild
 COPY \[1-4\]\[0-9\]_*.sh ./
 COPY 9\[0-9\]_*.sh ./
 
-# CentOS Version
+# AlmaLinux Version
 RUN \
  set -ux; \
- echo "${CENTOS_VER}" >./CENTOS_VER;
+ echo "${ALMALINUX_VER}" >./ALMALINUX_VER;
 
 # Reset Workdir
 WORKDIR /
 
 # Labels
 LABEL \
- name="CentOS ${CENTOS_VER} Minimal (onbuild)" \
+ name="AlmaLinux ${ALMALINUX_VER} Minimal (onbuild)" \
  vendor="UGOOLE.ORG" \
  maintainer="MT" \
  license="" \
@@ -348,7 +337,7 @@ RUN \
  work_dir=$(pwd); \
  scrptdir="/.onbuild"; \
  : "ONBUILD: Export Args." && { \
-  export CENTOS_VER=$(cat "${scrptdir}/CENTOS_VER"); \
+  export ALMALINUX_VER=$(cat "${scrptdir}/ALMALINUX_VER"); \
   export LANGUAGE TIMEZONE KEYBOARD KBDTABLE; \
   export ROOTPSWD; \
   export DOCKERUSER DOCKERPSWD; \
@@ -363,10 +352,10 @@ RUN \
   do /bin/bash -ux "${build_sh}" || exit 1; done && \
   rm -rf "${scrptdir}/" || :; \
  } && \
- : "ONBUILD: YUM Cleanup." && { \
-  yum -v -y clean all || :; \
-  [ -d "/var/cache/yum/" ] && \
-  rm -rf /var/cache/yum/* || :; \
+ : "ONBUILD: DNF Cleanup." && { \
+  dnf -v -y clean all || :; \
+  [ -d "/var/cache/dnf/" ] && \
+  rm -rf /var/cache/dnf/* || :; \
  } && \
  : "ONBUILD: Cleanup." && { \
   cd /; \
@@ -381,11 +370,11 @@ ONBUILD \
 WORKDIR /
 
 
-# CentOS 6 with upstart (onbuild)
-FROM upstart AS upstart-onbuild
+# AlmaLinux with systemd (onbuild)
+FROM systemd AS systemd-onbuild
 
-# CentOS Version
-ARG CENTOS_VER
+# AlmaLinux Version
+ARG ALMALINUX_VER
 
 # Set Workdir
 WORKDIR /.onbuild
@@ -393,22 +382,22 @@ WORKDIR /.onbuild
 # Copy onbuild scripts to Workdir
 COPY \[1-9\]\[0-9\]_*.sh ./
 
-# CentOS Version
+# AlmaLinux Version
 RUN \
  set -ux; \
- echo "${CENTOS_VER}" >./CENTOS_VER;
+ echo "${ALMALINUX_VER}" >./ALMALINUX_VER;
 
 # Reset Workdir
 WORKDIR /
 
 # Labels
 LABEL \
- name="CentOS ${CENTOS_VER} with Upstart (onbuild)" \
+ name="AlmaLinux ${ALMALINUX_VER} with Systemd (onbuild)" \
  vendor="UGOOLE.ORG" \
  maintainer="MT" \
  license="" \
  docker.build.options="" \
- docker.run.options="-d -P -h centos${CENTOS_VER}-upstart --privileged" \
+ docker.run.options="-d -P -h almalinux${ALMALINUX_VER}-systemd --privileged" \
  docker.run.confirm-startup=""
 
 # ONBUILD: Language
@@ -482,7 +471,7 @@ RUN \
  work_dir=$(pwd); \
  scrptdir="/.onbuild"; \
  : "ONBUILD: Export Args." && { \
-  export CENTOS_VER=$(cat "${scrptdir}/CENTOS_VER"); \
+  export ALMALINUX_VER=$(cat "${scrptdir}/ALMALINUX_VER"); \
   export LANGUAGE TIMEZONE KEYBOARD KBDTABLE; \
   export ROOTPSWD; \
   export DOCKERUSER DOCKERPSWD; \
@@ -497,10 +486,10 @@ RUN \
   do /bin/bash -ux "${build_sh}" || exit 1; done && \
   rm -rf "${scrptdir}/" || :; \
  } && \
- : "ONBUILD: YUM Cleanup." && { \
-  yum -v -y clean all || :; \
-  [ -d "/var/cache/yum/" ] && \
-  rm -rf /var/cache/yum/* || :; \
+ : "ONBUILD: DNF Cleanup." && { \
+  dnf -v -y clean all || :; \
+  [ -d "/var/cache/dnf/" ] && \
+  rm -rf /var/cache/dnf/* || :; \
  } && \
  : "ONBUILD: Cleanup." && { \
   cd /; \
