@@ -185,16 +185,11 @@ _EOM_
   EXIT_STATE=0
   # Push dir
   pushd "${__docker_build_wdir}" 1>/dev/null 2>&1 || :
-  # Trap
-  trap 'dmf_trap_exit |dmf_stdout_with_ts' EXIT
 
 } 1> >(dmf_stdout_with_ts) 2>&1
 
 # Section "IMG"
 dmf_section "IMG" && {
-
-  # Reset status
-  EXIT_STATE=0
 
 cat <<_EOM_
 The image to build is as follows:
@@ -249,9 +244,6 @@ _EOM_
 # Section "BUILD"
 dmf_section "BUILD" && {
 
-  # Reset status
-  EXIT_STATE=0
-
   _docker_tmp_options=""
   [ -z "${_docker_target_arch:-}" ] || {
     _docker_tmp_options="${_docker_tmp_options:+${_docker_tmp_options} }"
@@ -274,19 +266,13 @@ _EOM_
     dmf_invoke \
     docker-build --for-each-stage -f "${__docker_build_file}" ${_docker_tmp_options} .  &&
     unset _docker_tmp_options
-  } || {
-    # Build status
-    EXIT_STATE=$?
-    # Has error ?
-    [ ${EXIT_STATE:-0} -eq 0 ] || {
-      exit ${EXIT_STATE:-1}
-    }
   }
 
 } 1> >(dmf_stdout_with_ts "BUILD") 2>&1
 
 # Run ?
 [ ${_docker_not_running:-0} -eq 0 ] || {
+  dmf_echo_exit 0 |dmf_stdout_with_ts
   exit 0
 }
 
@@ -316,6 +302,7 @@ dmf_section "RUN" && {
         EXIT_STATE=$?
         # Has error ?
         [ ${EXIT_STATE:-0} -eq 0 ] || {
+          dmf_echo_exit ${EXIT_STATE:-1}
           exit ${EXIT_STATE:-1}
         }
       }
@@ -370,13 +357,6 @@ dmf_section "RUN" && {
         dmf_invoke \
         docker-run -f "${__docker_build_file}" "${_docker_c_image_ent}" ${_docker_tmp_options} &&
         unset _docker_tmp_options
-      } || {
-        # Running status
-        EXIT_STATE=$?
-        # Has error ?
-        [ ${EXIT_STATE:-0} -eq 0 ] || {
-          exit ${EXIT_STATE:-1}
-        }
       }
 
       # Checking build only mode
@@ -416,9 +396,6 @@ dmf_section "RUN" && {
 # Section "CHK"
 dmf_section "CHK" && {
 	  
-  # Reset status
-  EXIT_STATE=0
-
   # Retry and interval
   _retrymax=5
   _wait_for=3
@@ -511,6 +488,8 @@ dmf_section "CHK" && {
 # Pop dir
 popd 1>/dev/null 2>&1 || :
 
+# echo exit
+dmf_echo_exit ${EXIT_STATE:-1} |dmf_stdout_with_ts
 # end
-exit ${EXIT_STATE}
+exit ${EXIT_STATE:-1}
 # vim: set ff=unix ts=2 sw=2 sts=2 et : This line is VIM modeline

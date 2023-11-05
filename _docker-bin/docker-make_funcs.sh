@@ -28,10 +28,11 @@ _EOM_
   return 0;
 }
 
-# 'EXIT' trap
-dmf_trap_exit() {
+# echo exit
+dmf_echo_exit() {
+  local _ecd=${1:-0}
   __section
-  if [ ${EXIT_STATE:-0} -eq 0 ]
+  if [ ${_ecd:-0} -eq 0 ]
   then
 cat <<'_EOM_'
    _____                   _
@@ -81,6 +82,7 @@ dmf_echo_end() {
     echo "}}} END - $(date +'%Y%m%dT%H%M%S')"
   else
     echo "}}} ERROR OCCURED - ret(${_exit_st})."
+    dmf_echo_exit ${_exit_st}
     exit ${_exit_st}
   fi
   return 0
