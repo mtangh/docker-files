@@ -9,17 +9,15 @@ docker-pull() {
   local _dpullstat=0
   local _aloginout=0
   local _aloginopt=""
-  __docker_is_running || return 128
-  eval $(getoptions \
-    "A|auto-login=_aloginout L|login-opts:=_aloginopt |platform:=_iplatform" \
-    "$@")
+  __docker_is_running || return 111
+  eval $(getoptions "|platform:=_iplatform" "$@")
   while getoptions_has_next
   do
     eval $(getoptions_shift)
     case "${_getopt_V:=}" in
     --help)
       __docker_help pull \
-      "${FUNCNAME} [-A][-L login-options] [OPTIONS] NAME[:TAG|@DIGEST] ..."
+      "${FUNCNAME} [OPTIONS] NAME[:TAG|@DIGEST] ..."
       return 0
       ;;
     --)
@@ -38,9 +36,7 @@ docker-pull() {
     esac
   done
   eval $(getoptions_end)
-  [ ${_aloginout:-0} -eq 0 ] || {
-    docker-login ${_aloginopt:-}
-  } && {
+  : && {
     [ -n "${_iplatform:-}" ] && {
       _dpullopts="${_dpullopts:+$_dpullopts }--platform ${_iplatform:-}"
     } || :
@@ -55,14 +51,13 @@ docker-pull() {
       }
     done
   } || :
-  [ ${_aloginout:-0} -ne 0 ] && {
-    docker-logout
-  } 1>/dev/null 2>&1 || :
   return ${_dpullstat}
 }
 
 # docker push
 docker-push() {
+  local _buildpath=""
+  local _pubimages=""
   local _imagekeys=""
   local _image_key=""
   local _imagename=""
@@ -73,17 +68,15 @@ docker-push() {
   local _dlogin_id=""
   local _aloginout=0
   local _aloginopt=""
-  __docker_is_running || return 128
-  eval $(getoptions \
-    "A|auto-login=_aloginout L|login-opts:=_aloginopt" \
-    "$@")
+  __docker_is_running || return 111
+  eval $(getoptions "f|:=_buildpath" "$@")
   while getoptions_has_next
   do
     eval $(getoptions_shift)
     case "${_getopt_V:=}" in
     --help)
       __docker_help push \
-      "${FUNCNAME} [-A][-L login-options] [OPTIONS] NAME[:TAG] ..."
+      "${FUNCNAME} [OPTIONS] NAME[:TAG] ..."
       return 0
       ;;
     --)
@@ -102,19 +95,26 @@ docker-push() {
     esac
   done
   eval $(getoptions_end)
-  [ -n "${_imagekeys:-}" ] || {
-    _imagekeys=$(dockerfile-env_PUBLISHED)
-  } || :
-  [ -n "${_imagekeys:-}" ] || {
-    _imagekeys=$(container-image-get-path)
-  } || :
+  _pubimages=$(dockerfile-env_PUBLISHED ${_buildpath})
+  case "${_pubimages:-}" in
+  [Nn][Oo])
+    echo "Not subject to PUSH." 1>&2
+    return 1
+    ;;
+  *)
+    [ -n "${_imagekeys:-}" ] || {
+      _imagekeys=${_pubimages}
+    } || :
+    [ -n "${_imagekeys:-}" ] || {
+      _imagekeys=$(
+      dockerfile-imagepath-get ${_buildpath:+-f $_buildpath})
+    } || :
+    ;;
+  esac
   [ -n "${_imagekeys:-}" ] || {
     __docker_help push \
-    "${FUNCNAME} [-A][-L login-options] [OPTIONS] NAME[:TAG] ..."
+    "${FUNCNAME} [OPTIONS] NAME[:TAG] ..."
     return 2
-  } || :
-  [ ${_aloginout:-0} -eq 0 ] || {
-    docker-login ${_aloginopt:-}
   } && {
     _dlogin_id=$(docker-login-get-user ${_aloginopt:-})
     for _image_key in ${_imagekeys}
@@ -131,9 +131,9 @@ docker-push() {
         ;;
       *)
         _imagepath="${_dlogin_id:+$_dlogin_id/}${_imagename}"
-        container-image-get-path "${_imagepath}" || {
-          docker-tag "${_imagename}" "${_imagepath}"
-        } || :
+        docker-tag --untag "${_imagepath}" 1>/dev/null 2>&1 || :
+        docker-tag "${_imagename}" "${_imagepath}" &&
+        docker-tag --untag "${_imagename}"
         ;;
       esac
       echo ${DOCKER_CMD} push ${_dpushopts} ${_imagepath:-}
@@ -143,9 +143,6 @@ docker-push() {
       }
     done
   } || :
-  [ ${_aloginout:-0} -ne 0 ] && {
-    docker-logout
-  } 1>/dev/null 2>&1 || :
   return ${_dpushstat}
 }
 

@@ -1,0 +1,11 @@
+# docker-top
+
+# docker top
+docker-top() {
+  local _container="$(container-get-id)"
+  [ -n "$(echo ${_container}${@})" ] &&
+  ${DOCKER_CMD} top ${_container} "${@}"
+  return $?
+}
+
+# vim: set ff=unix ts=2 sw=2 sts=2 et : This line is VIM modeline

@@ -6,7 +6,7 @@ docker-login-get() {
   local _config_json=""
   local _registryurl=""
   local _creds_store=""
-  __docker_is_running || return 128
+  __docker_is_running || return 111
   case "${1:-}" in
   user|password|registry|creds-store)
     _get_command="${1:-}"

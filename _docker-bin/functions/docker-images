@@ -6,7 +6,7 @@ docker-images() {
   local _headerstr=""
   local _formatopt=""
   local _col_width=""
-  __docker_is_running || return 128
+  __docker_is_running || return 111
   _col_width=$(
     ${DOCKER_CMD} images --format='{{ .Tag |printf "%s:%s" .Repository }}' 2>/dev/null |
     __adjustcolwidth 24 2>/dev/null)

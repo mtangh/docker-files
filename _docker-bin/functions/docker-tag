@@ -1,11 +1,11 @@
-# docker-images
+# docker-tag
 
-# docker images
+# docker tag
 docker-tag() {
   local _imgsource=""
   local _imgtarget=""
   local _img_untag=0
-  __docker_is_running || return 128
+  __docker_is_running || return 111
   eval $(getoptions "u|untag=_img_untag" "$@")
   while getoptions_has_next
   do

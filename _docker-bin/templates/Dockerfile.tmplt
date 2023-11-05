@@ -1,49 +1,31 @@
 #
-# ${reponame}${tag_name:+:$tag_name}
+# $reponame:$tag_name
 #
 #@  DOCKER_CONTAINER=""
-#@  DOCKER_IMAGEPATH="${reponame}${tag_name:+:$tag_name}"
+#@  DOCKER_IMAGEPATH="$reponame:$tag_name"
 #@  DOCKER_BUILDOPTS=""
 #@  DOCKER_BOOT_OPTS=""
 #@  DOCKER_PUBLISHED=""
 #
-
-# ${reponame}${tag_name:+:$tag_name}
-FROM ${base_img}${tag_name:+AS $tag_name}
-
-# Work dir
-WORKDIR /tmp/build-work
+FROM $base_img
 
 # Run
 RUN \
- set -x; \
- work_dir=$(pwd); \
- : "Build" && { \
-  echo "NOOP"; \
- } && \
- : "Cleanup." && { \
-  cd /; \
-  [ -d "/var/log" ] && for lf in /var/log/*; \
-  do [ -s "${lf}" ] && cat /dev/null >"${lf}"; done || :; \
-  rm -rf {,/var}/tmp/* "${work_dir:-X}" || :; \
- } && \
- : "Done.";
+ set -ux; \
+ echo "Hello Docker !!"
 
-# Reset Work dir
+# Reset Workdir
 WORKDIR /
 
 # Labels
 LABEL \
- name="${image_name}" \
- vendor="${vendor}" \
- maintainer="${maintainer}" \
- license="${license}" \
- docker.build.options="${docker_build_options}" \
- docker.run.options="${docker_run_options}" \
- docker.run.confirm-startup="${docker_confirm_startup}"
-
-## STOP SIGNAL
-#STOPSIGNAL SIGINT
+ name="$reponame-$tag_name" \
+ vendor="" \
+ maintainer="" \
+ license="" \
+ docker.build.options="" \
+ docker.run.options="-d -P -h $hostname" \
+ docker.run.confirm-startup=""
 
 ## Publish a container's port(s) to the host
 #EXPOSE

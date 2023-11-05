@@ -9,7 +9,7 @@ __docker_help() {
   local _subcmnd="${1:-}"; shift
   local _usghead="Usage:"
   local _usgtext=""
-  __docker_is_running || return 128
+  __docker_is_running || return 111
   [ $# -gt 0 ] && {
     for _usgtext in "${@}"
     do

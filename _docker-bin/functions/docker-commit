@@ -1,4 +1,4 @@
-# docker-container-commit
+# docker-commit
 
 # docker container commit
 docker-container-commit() {
@@ -8,7 +8,7 @@ docker-container-commit() {
   local _cmit_opts=""
   local _toggleflg=0
   local _dockerret=0
-  __docker_is_running || return 128
+  __docker_is_running || return 111
   eval $(getoptions "" "$@")
   while getoptions_has_next
   do

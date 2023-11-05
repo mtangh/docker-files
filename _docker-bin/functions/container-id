@@ -12,7 +12,7 @@ container-get-id() {
   local _find_keys=""
   local _found_cnt=0
   local _searchval=""
-  __docker_is_running || return 128
+  __docker_is_running || return 111
   eval $(getoptions \
   "f|file:=_buildpath a|all=_ps_allids l|latest=_ps_latest N|name=_printname n|last:=_ps_last_n" "$@")
   while getoptions_has_next
@@ -47,23 +47,26 @@ container-get-id() {
   _cmnd_opts="${_cmnd_opts:+${_cmnd_opts} }-n${_ps_last_n}" || :
   for _searchval in ${_find_keys}
   do
+    [ -n "${_searchval}" ] || {
+      continue
+    }
     _container=""
-    [ -n "${_searchval}" ] && {
-      _container=$(
-        ${DOCKER_CMD} ps ${_cmnd_opts} \
-        --format='{{ .CreatedAt }};{{.ID}};{{.Image}};{{.Names}}' |
-        egrep '(^|[;])('"${_searchval}"'|'"${_searchval%:latest*}"')([;].*|$)' |
-        sort -r |
-        if [ ${_printname} -eq 0 ]
-        then ${AWK} -F ';' '{print($2);}'
-        else ${AWK} -F ';' '{print($4);}'
-        fi; )
+    _container=$(
+      ${DOCKER_CMD} ps ${_cmnd_opts} \
+      --format='{{ .CreatedAt }};{{.ID}};{{.Image}};{{.Names}}' |
+      egrep '(^|[;])('"${_searchval}"'|'"${_searchval%:latest*}"')([;].*|$)' |
+      sort -r |
+      if [ ${_printname} -eq 0 ]
+      then ${AWK} -F ';' '{print($2);}'
+      else ${AWK} -F ';' '{print($4);}'
+      fi; ) ||
+      _container=""
+    [ -n "${_container}" ] || {
+      continue
     }
-    [ -n "${_container}" ] && {
-      echo "${_container}"
-      _found_cnt=$(( ${_found_cnt} + 1 ))
-      [ ${_find_file} -ne 0 ] && break
-    }
+    echo "${_container}"
+    _found_cnt=$(( ${_found_cnt} + 1 ))
+    [ ${_find_file} -ne 0 ] && break || :
   done &&
   [ ${_found_cnt} -gt 0 ]
   return $?
@@ -114,7 +117,7 @@ container-get-name-last() {
 # container running
 container-is-running() {
   local _container=$(container-get-id-last "${@}")
-  __docker_is_running || return 128
+  __docker_is_running || return 111
   [ -n "${_container}" ] && {
     ${DOCKER_CMD} ps -a --format="{{ .ID }}" --filter "status=running" |
     egrep '^'"${_container}"'$'
@@ -128,7 +131,7 @@ container-get-port() {
   local _cont_opts=""
   local _find_port=""
   local _portmapln=""
-  __docker_is_running || return 128
+  __docker_is_running || return 111
   eval $(getoptions "" "$@")
   while getoptions_has_next
   do

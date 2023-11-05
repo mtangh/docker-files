@@ -13,7 +13,7 @@ docker-ssh() {
   local c_ssh_opts="-oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no"
   local c_cmndopts=""
   local _endofopts=0
-  __docker_is_running || return 128
+  __docker_is_running || return 111
   [ -z "${c_ssh_host}" ] &&
   [ -n "$(type -P docker-machine)" ] && {
     c_ssh_host="$(docker-machine ip 2>/dev/null)"

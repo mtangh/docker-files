@@ -10,7 +10,7 @@ docker-exec() {
   local _cmnd_args=()
   local _opts_type=""
   local _endofopts=0
-  __docker_is_running || return 128
+  __docker_is_running || return 111
   eval $(getoptions "f|file:=_buildpath" "$@")
   while getoptions_has_next
   do

@@ -13,7 +13,7 @@ docker-run() {
   local _opts_type=""
   local _endofopts=0
   local _dockerret=0
-  __docker_is_running || return 128
+  __docker_is_running || return 111
   eval $(getoptions "|image:=_imagepath f|file:=_buildpath" "$@")
   while getoptions_has_next
   do

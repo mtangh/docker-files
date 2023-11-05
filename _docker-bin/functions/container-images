@@ -21,7 +21,7 @@ container-image-get() {
   local _found_cnt=0
   local _found_val=""
   local _buildpath=""
-  __docker_is_running || return 128
+  __docker_is_running || return 111
   case "${_cimg_type}" in
   id)   _cimg_fcls='{print($1);}' ;;
   path) _cimg_fcls='{print($2);}' ;;
@@ -93,7 +93,7 @@ container-image-get-config() {
   local _inspecter=""
   local _collength=20
   local _dockerret=0
-  __docker_is_running || return 128
+  __docker_is_running || return 111
   case "${_cmnd_type:-}" in
   cmd)
     ;;

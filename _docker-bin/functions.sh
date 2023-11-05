@@ -1,6 +1,6 @@
 # _functions.sh
 DOCKERFUNC_SRC="${BASH_SOURCE##*/}"
-DOCKERFUNC_DIR=$([ -n "${BASH_SOURCE%/*}" ] && cd "${BASH_SOURCE%/*}"; pwd)
+DOCKERFUNC_DIR=$([ -n "${BASH_SOURCE%/*}" ] && cd "${BASH_SOURCE%/*}" 2>/dev/null; pwd)
 
 # awk
 AWK="${AWK:-$(type -P gawk)}"
