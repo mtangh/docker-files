@@ -27,8 +27,8 @@ docker-tag() {
        -z "$(container-image-get-id ${_imgsource:-X} 2>/dev/null)" ]
   then
 cat <<_EOD_
-Usage: $FUNCNAME SOURCE_IMAGE[:TAG] TARGET_IMAGE[:TAG]
-       $FUNCNAME --untag TARGET_IMAGE[:TAG]
+Usage: ${FUNCNAME} SOURCE_IMAGE[:TAG] TARGET_IMAGE[:TAG]
+       ${FUNCNAME} --untag TARGET_IMAGE[:TAG]
 
 _EOD_
     return 2

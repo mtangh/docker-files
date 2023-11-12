@@ -1,6 +1,6 @@
 # docker-dockerfile
 
-# Docker file get
+# Dockerfile get
 dockerfile-get-path() {
   local _buildpath="${1:-}"; shift
   local _build_dir=""
@@ -9,9 +9,8 @@ dockerfile-get-path() {
   _buildpath="$(pwd)/Dockerfile" || :
   if [[ "${_buildpath}" =~ ^http(s:|:)// ]]
   then
-    [[ "${_buildpath}" =~ .*/$ ]] && {
-      _buildpath="${_buildpath}Dockerfile"
-    } || :
+    [[ "${_buildpath}" =~ .*/$ ]] &&
+    _buildpath="${_buildpath}Dockerfile" || :
   else
     [ -d "${_buildpath}" ] &&
     _buildpath="${_buildpath}/Dockerfile" || :
@@ -46,9 +45,31 @@ dockerfile-cat() {
 
 dockerfile-cat-FROM() {
   dockerfile-cat "${@}" |
-  egrep -i '^[[:space:]]*FROM[[:space:]]+' |
-  ${SED} -re 's/#.*$//g' |
-  ${AWK} '{print(NR-1,(($4=="")?"-":$4),$2);}'
+  egrep -i '^[[:space:]]*(FROM|#@&)[[:space:]]+' |
+  ${SED} -re 's/^[[:space:]]*((FROM[^#]+|#@&.+)[^[:space:]])([[:space:]]*#.*$|$)/\1/gi' |
+  ${AWK} -f <( : && {
+cat - <<-'_EOF_'
+BEGIN{ sn="-"; ti=""; pl="-"; an=""; };
+$0 ~ /^#@&/ {
+  an = gensub(/^#@&[[:space:]]+([^[:space:]]+).+$/,"\\1",1,$0);
+}
+toupper($0) - /^FROM/ {
+  if( match(toupper($0),/[[:space:]]+AS[[:space:]]+/) ) {
+    ti = gensub(/^.+[[:space:]]+([^[:space:]]+)[[:space:]]+[Aa][Ss][[:space:]].+$/,"\\1",1,$0);
+    sn = gensub(/^.+[[:space:]]+[Aa][Ss][[:space:]]+([^[:space:]]+)[[:space:]]*$/,"\\1",1,$0);
+  } else {
+    ti = gensub(/^.+[[:space:]]+([^[:space:]]+)[[:space:]]*$/,"\\1",1,$0);
+  }
+};
+tolower($0) ~ /--platform=/ {
+  pl = gensub(/^.+--platform=([^[:space:]]*).*$/,"\\1",1,$0);
+};
+sn != "" && ti != "" {
+  print(NR-1,sn,ti,pl,an);
+  sn="";ti="-";pl="-";an="";
+};
+_EOF_
+  }; )
   return $?
 }
 
@@ -67,6 +88,19 @@ dockerfile-multi-stage() {
   return $?
 }
 
+# multi-stage chooser
+dockerfile-choose-stage() {
+  local _buildpath="${1:-}"
+  dockerfile-multi-stage "${_buildpath}" 1>/dev/null 2>&1 && {
+    echo "Choose a stage to run."
+    echo
+    dockerfile-stage-list -F "${_buildpath}" 2>/dev/null
+    echo
+    return 1
+  } || :
+  return 0
+}
+
 # list stage
 dockerfile-stage-list() {
   local _buildpath=""
@@ -77,9 +111,8 @@ dockerfile-stage-list() {
   local _stage_ind=0
   local _stagename=""
   local _in_record=""
-  local _prtformat="%s %s %s"
-  local _colwidth2=20
-  local _colwidth3=20
+  local _prtheader="IDX As From ARCH Image"
+  local _prtformat="%s %s %s %s %s"
   eval $(getoptions "F|format=_formatted I|image=_withimage" "$@")
   while getoptions_has_next
   do
@@ -103,65 +136,54 @@ _EOD_
   [ -f "${_buildpath}" -a -r "${_buildpath}" ] || {
     return 1
   }
-  if [ ${_withimage} -eq 0 ]
+  _imagepath=$(
+    dockerfile-env_IMAGEPATH "${_buildpath}" ||
+    dockerfile-imagepath-from-dir "${_buildpath}" ||
+    :; )
+  if [ ${_formatted} -ne 0 ]
   then
-    _imagepath=""
-  else
-    _imagepath=$(
-      dockerfile-env_IMAGEPATH "${_buildpath}" ||
-      dockerfile-imagepath-from-dir "${_buildpath}" ||
-      :; )
-  fi 2>/dev/null
-  if [ ${_formatted} -eq 0 -a ${_withimage} -ne 0 ]
-  then
-    _prtformat="%s %s %s %s"
-  elif [ ${_formatted} -ne 0 ]
-  then
-    eval $(
+    _prtformat=$(
       : && {
       eval $(dockerfile-build-opts-apply "${_buildpath}")
       while read _in_record
       do
-        _colwidth2=$(
-          eval "echo ${_in_record}" |
-          __adjustcolwidth "${_colwidth2}" 2 )
-        _colwidth3=$(
-          eval "echo ${_in_record}" |
-          __adjustcolwidth "${_colwidth3}" 3 )
+        _cw2=$( echo "${_in_record}" |
+                __adjustcolwidth "${_cw2:-12}" 2 )
+        _cw3=$( echo "${_in_record}" |
+                __adjustcolwidth "${_cw3:-12}" 3 )
+        _cw4=$( echo "${_in_record}" |
+                __adjustcolwidth "${_cw4:-12}" 4 )
       done < <(dockerfile-cat-FROM "${_buildpath}")
-      printf "_colwidth2=%s;" "${_colwidth2}"
-      printf "_colwidth3=%s;" "${_colwidth3}"
-      }; )
-    if [ ${_withimage} -eq 0 ]
-    then
-      _prtformat="%3s %-${_colwidth2}s%s"
-      printf "${_prtformat}" "IDX" "As" "From"
-    else
-      _prtformat="%3s %-${_colwidth2}s%-${_colwidth3}s%s"
-      printf "${_prtformat}" "IDX" "As" "From" "Image"
-    fi; echo
+      printf "%s" "%3s %-${_cw2}s%-${_cw3}s%-${_cw4}s%s"
+    }; )
   fi
   ( : && {
+    echo ${_prtheader}
     eval $(dockerfile-build-opts-apply "${_buildpath}")
     while read _in_record
     do
       _cimagetmp=""
-      [ -z "${_imagepath}" ] || {
-        eval $(
-          echo "${_in_record}" |${AWK} \
-          '{printf("_stage_ind=%s;_stagename=%s;",$1,$2);}')
+      _stage_ind=""
+      _stagename=""
+      eval $(
+        echo "${_in_record}" |${AWK} \
+        '{printf("_stage_ind=%s;_stagename=%s;_cimagetmp=%s;",$1,$2,$5);}' \
+        2>/dev/null; )
+      _cimagetmp="${_cimagetmp//-}"
+      _stagename="${_stagename//-}"
+      if [ -n "${_imagepath}" -a -z "${_cimagetmp:-}" ]
+      then
         _cimagetmp=$(
           dockerfile-imagepath-echo \
           "${_imagepath}" "${_stage_ind}" "${_stagename}" \
-          2>/dev/null)
-      }
-      eval "echo ${_in_record}${_cimagetmp:+ ${_cimagetmp}}"
+          2>/dev/null; )
+      else :
+      fi
+      eval echo $(echo ${_in_record}${_cimagetmp:+ ${_cimagetmp}})
     done < <(dockerfile-cat-FROM "${_buildpath}")
   }; )|
-  if [ ${_withimage} -eq 0 ]
-  then ${AWK} '{print(sprintf("'"${_prtformat}"'",$1,$2,$3));}'
-  else ${AWK} '{print(sprintf("'"${_prtformat}"'",$1,$2,$3,$4));}'
-  fi 2>/dev/null
+  ${AWK} -vPfmt="${_prtformat}" \
+  '{print( sprintf(Pfmt,$1,$2,$3,$4,$5) );}' 2>/dev/null
   return $?
 }
 
@@ -232,6 +254,12 @@ dockerfile-stage-get() {
   from)
     _indorname='{print($3);}'
     ;;
+  platform|arch)
+    _indorname='{print($4);}'
+    ;;
+  tag|image)
+    _indorname='{print($5);}'
+    ;;
   *)
     return 2
     ;;
@@ -245,27 +273,39 @@ dockerfile-stage-get() {
       _stage_key="${_stage_key#*@}"
       ;;
     esac
-    dockerfile-stage-list "${_buildpath}" |${AWK} \
-    '$1=="'"${_stage_key}"'" || $2=="'"${_stage_key}"'" '"${_indorname};"
+    dockerfile-stage-list -I "${_buildpath}" |
+    ${AWK} '$1=="'"${_stage_key}"'" || $2=="'"${_stage_key}"'" '"${_indorname};"
   }
   return $?
 }
 
-# Get stage index
+# Get index of stage
 dockerfile-stage-get-index() {
   dockerfile-stage-get index "${@}"
   return $?
 }
 
-# Get stage name
+# Get name of stage
 dockerfile-stage-get-name() {
   dockerfile-stage-get name "${@}"
   return $?
 }
 
-# Get stage from
+# Get "from" of stage
 dockerfile-stage-get-from() {
   dockerfile-stage-get from "${@}"
+  return $?
+}
+
+# Get platform of stage
+dockerfile-stage-get-platform() {
+  dockerfile-stage-get platform "${@}"
+  return $?
+}
+
+# Get repo-tag of stage
+dockerfile-stage-get-tag() {
+  dockerfile-stage-get tag "${@}"
   return $?
 }
 
@@ -279,18 +319,37 @@ dockerfile-stage-has-index() {
 # Exists stage name
 dockerfile-stage-has-name() {
   local _stagename=$(dockerfile-stage-get name "${@}") || :
-  [ -n "${_stagename}" ]
+  [ -n "${_stagename##*-}" ]
   return $?
 }
 
 # Get stage name by index
 dockerfile-imagepath-get() {
+  local _buildpath=""
+  local _stage_key=""
+  local _imagepath=""
   local _stage_ind=""
   local _stagename=""
-  local _imagepath=""
-  local _stage_key="${1:-}"; shift
-  local _buildpath=$(dockerfile-get-path "${1:-}" 2>/dev/null); shift
   local _multi_stg=0
+  while [ $# -gt 0 ]
+  do
+    [ -z "${1:-}" ] ||
+    case "${1:-}" in
+    -)
+      ;;
+    --)
+      ;;
+    +[0-9]*|@[0-9A-Za-z]*)
+      _stage_key="${1:-}"
+      ;;
+    *)
+      if [ -z "${_buildpath:-}" ]
+      then _buildpath=$(dockerfile-get-path "${1:-}" 2>/dev/null)
+      else :
+      fi;
+    esac
+    shift
+  done
   [ -z "${_imagepath}" ] &&
   _imagepath=$(dockerfile-env_IMAGEPATH "${_buildpath}") || :
   [ -z "${_imagepath}" ] &&
@@ -306,14 +365,14 @@ dockerfile-imagepath-get() {
   } || :
   case "${_stage_key}" in
   +[0-9]*)
-    _stage_ind="${_stage_key##*+}"
+    _stage_ind="${_stage_key#*+}"
     dockerfile-stage-has-index "${_stage_ind}" "${_buildpath}" 1>/dev/null 2>&1 && {
       _stagename=$(
         dockerfile-stage-get-name "${_stage_ind}" "${_buildpath}" 2>/dev/null)
     } || return 2
     ;;
   @[0-9A-Za-z]*)
-    _stagename="${_stage_key##*@}"
+    _stagename="${_stage_key#*@}"
     _stage_ind=$(
       dockerfile-stage-get-index "${_stagename}" "${_buildpath}" 2>/dev/null)
     [ $? -eq 0 -a -n "${_stage_ind}" ] ||
@@ -327,8 +386,8 @@ dockerfile-imagepath-get() {
   if [ -z "${_stage_ind}${_stagename}" ]
   then
     _stage_key=$(
-      dockerfile-stage-list "${_buildpath}" |
-      awk '{print($1);}' 2>/dev/null)
+      dockerfile-stage-list "${_buildpath}" |tail -n +2 |
+      ${AWK} '{print($1);}' 2>/dev/null)
   else
     _stage_key="${_stage_ind}"
   fi
@@ -381,21 +440,18 @@ dockerfile-imagepath-echo() {
   local _stagename="${1:-}"; shift
   [ -n "${_imagepath}" -a \
     -n "${_stage_ind}${_stagename}" ] && {
-    [ "${_stagename}" = "-" ] && {
-      _stagename=""
-    }
+    _stagename="${_stagename##-}"
+    _stagename="${_stagename:=${_stage_ind}}"
     case "${_imagepath}" in
     [-_0-9A-Za-z]*:[-_0-9A-Za-z]*)
       if [ -n "${_stagename}" ]
       then echo "${_imagepath}${_stagename:+_${_stagename}}"
-    # else echo "${_imagepath}${_stage_ind:+_${_stage_ind}}"
       else echo "${_imagepath}"
       fi
       ;;
     [-_0-9A-Za-z]*)
       if [ -n "${_stagename}" ]
       then echo "${_imagepath}${_stagename:+:${_stagename}}"
-    # else echo "${_imagepath}${_stage_ind:+:${_stage_ind}}"
       else echo "${_imagepath}"
       fi
       ;;

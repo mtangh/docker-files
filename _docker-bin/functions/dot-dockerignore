@@ -6,7 +6,7 @@ dot-dockerignore() {
   for dockerfile in $(find . -type f -a -name "Dockerfile" 2>/dev/null)
   do
     docker_dir="${dockerfile%/*}"
-    echo "$FUNCNAME: $docker_dir" && {
+    echo "${FUNCNAME}: $docker_dir" && {
 
       cat "${DOCKER_TMPLDIR}/dot.dockerignore"
 

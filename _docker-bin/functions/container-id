@@ -8,23 +8,35 @@ container-get-id() {
   local _ps_allids=0
   local _ps_latest=0
   local _ps_last_n=""
+  local _ps_with_n=0
   local _find_file=0
   local _find_keys=""
   local _found_cnt=0
   local _searchval=""
+  local _copt_list=""
   __docker_is_running || return 111
-  eval $(getoptions \
-  "f|file:=_buildpath a|all=_ps_allids l|latest=_ps_latest N|name=_printname n|last:=_ps_last_n" "$@")
+  _copt_list="${_copt_list:+${_copt_list} }f|file:=_buildpath"
+  _copt_list="${_copt_list:+${_copt_list} }a|all=_ps_allids"
+  _copt_list="${_copt_list:+${_copt_list} }l|latest=_ps_latest"
+  _copt_list="${_copt_list:+${_copt_list} }N|name=_printname"
+  _copt_list="${_copt_list:+${_copt_list} }n|last:=_ps_last_n"
+  _copt_list="${_copt_list:+${_copt_list} }W|with-name=_ps_with_n"
+  eval $(getoptions "${_copt_list}" "$@")
   while getoptions_has_next
   do
     eval $(getoptions_shift)
     case "${_getopt_V:=}" in
-    +[0-9]*|@[0-9A-Za-z]*)
-      _stage_key="${_getopt_V}"
+    -)
+      ;;
+    --)
       ;;
     -*)
       ;;
+    +[0-9]*|@[0-9A-Za-z]*)
+      _stage_key="${_getopt_V}"
+      ;;
     *)
+      [ -z "${_getopt_V:-}" ] ||
       _find_keys="${_find_keys:+${_find_keys} }${_getopt_V}"
       ;;
     esac
@@ -37,7 +49,7 @@ container-get-id() {
       $(dockerfile-env_CONTAINER "${_buildpath}") \
       $(dockerfile-imagepath-get "${_stage_key:-}" "${_buildpath}") \
       "" )
-  }
+  } || :
   [ ${_ps_allids} -ne 0 ] &&
   _cmnd_opts="${_cmnd_opts:+${_cmnd_opts} }--all" || :
   [ ${_ps_latest} -ne 0 ] &&
@@ -47,28 +59,44 @@ container-get-id() {
   _cmnd_opts="${_cmnd_opts:+${_cmnd_opts} }-n${_ps_last_n}" || :
   for _searchval in ${_find_keys}
   do
-    [ -n "${_searchval}" ] || {
-      continue
-    }
+    [ -n "${_searchval}" ] ||
+    continue
     _container=""
     _container=$(
       ${DOCKER_CMD} ps ${_cmnd_opts} \
       --format='{{ .CreatedAt }};{{.ID}};{{.Image}};{{.Names}}' |
       egrep '(^|[;])('"${_searchval}"'|'"${_searchval%:latest*}"')([;].*|$)' |
-      sort -r |
-      if [ ${_printname} -eq 0 ]
-      then ${AWK} -F ';' '{print($2);}'
-      else ${AWK} -F ';' '{print($4);}'
-      fi; ) ||
+      sort -r |${AWK} -F ';' -vPn="${_printname:-0}" -vWn="${_ps_with_n:-0}" \
+      '{print((Wn==0)?((Pn==0)?$2:$4):$2";"$4);}'; ) ||
       _container=""
-    [ -n "${_container}" ] || {
-      continue
-    }
+    [ -n "${_container}" ] ||
+    continue
     echo "${_container}"
-    _found_cnt=$(( ${_found_cnt} + 1 ))
+    _found_cnt=$(( ${_found_cnt:-0} + 1 ))
     [ ${_find_file} -ne 0 ] && break || :
   done &&
   [ ${_found_cnt} -gt 0 ]
+  return $?
+}
+
+container-num-of-id() {
+  local _cntid_num=$(container-get-id "$@"|wc -l 2>/dev/null)
+  echo ${_cntid_num:-0}
+  return 0
+}
+
+container-get-one-id() {
+  local _cntid_out=$(container-get-id "$@" 2>/dev/null)
+  local _cntid_num=$(echo "${_cntid_out:-}" |wc -l 2>/dev/null)
+  if [ ${_cntid_num:-0} -gt 1 ]
+  then
+    echo "Choose one container."
+    echo
+    container-get-id -W "$@" 2>/dev/null |${AWK} -F";" '{print(" ",NR,$1,$2);}'
+    echo
+    return 1
+  else echo "${_cntid_out}"
+  fi 
   return $?
 }
 

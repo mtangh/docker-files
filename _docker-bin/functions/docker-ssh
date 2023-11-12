@@ -24,6 +24,8 @@ docker-ssh() {
   do
     eval $(getoptions_shift)
     case "${_getopt_V:=}" in
+    -)
+      ;;
     --)
       if [ ${_endofopts} -ne 0 ]
       then _endofopts=0
@@ -46,7 +48,7 @@ docker-ssh() {
           ;;
         *)
           c_ssh_opts="${c_ssh_opts:+${c_ssh_opts:-} }${_getopt_V}"
-        ;;
+          ;;
         esac
       else
         c_cmndopts="${c_cmndopts:+${c_cmndopts:-} }${_getopt_V}"
@@ -59,11 +61,9 @@ docker-ssh() {
   [ -r "${_buildpath}" -a -z "${_cinstance}" ] &&
   _cinstance=$(dockerfile-env_CONTAINER "${_buildpath}") || :
   [ -r "${_buildpath}" -a -z "${_imagepath}" ] && {
-    [ -z "${_stage_key}" ] &&
-    dockerfile-multi-stage "${_buildpath}" 1>/dev/null 2>&1 && {
-      dockerfile-stage-list -FI "${_buildpath}" 2>/dev/null
-      return 1
-    } || :
+    [ -n "${_stage_key}" ] ||
+    dockerfile-choose-stage "${_buildpath}" ||
+    return 1
     _imagepath=$(
       if [ -n "${_stage_key}" ]
       then dockerfile-imagepath-get "${_stage_key}" "${_buildpath}"

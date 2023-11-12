@@ -22,7 +22,7 @@ docker-cleanup() {
     _removecnt=$(${DOCKER_CMD} rm ${_rmoptions} ${_cinst_ids} |wc -l)
     [ -n "${_cinst_ids}" ] ||
     _removecnt=0
-    printf "$FUNCNAME: container ... %3d deleted.\n" "${_removecnt}"
+    printf "${FUNCNAME}: container ... %3d deleted.\n" "${_removecnt}"
   } 2>/dev/null
   : "Image" && {
     _cimageids=$(${DOCKER_CMD} images -a --format="{{ .ID }}" --filter="dangling=true")
@@ -30,9 +30,15 @@ docker-cleanup() {
     _removecnt=$(${DOCKER_CMD} rmi ${_rmoptions} ${_cimageids} |wc -l)
     [ -n "${_cimageids}" ] ||
     _removecnt=0
-    printf "$FUNCNAME: image     ... %3d deleted.\n" "${_removecnt}"
+    printf "${FUNCNAME}: image     ... %3d deleted.\n" "${_removecnt}"
   } 2>/dev/null
   return 0
+}
+
+# docker cleanup all
+docker-cleanup-all() {
+  docker-cleanup --all
+  return $?
 }
 
 # vim: set ff=unix ts=2 sw=2 sts=2 et : This line is VIM modeline

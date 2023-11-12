@@ -164,10 +164,13 @@ then
   exec 1> >(tee -a "${_make_log_file_name}") 2>&1
 fi
 
+# Reset status
+EXIT_STATE=0
+
 # First section
 dmf_section && {
 
-  dmf_echo_logo "${_docker_not_running:-0}"
+  dmf_proc_start "${_docker_not_running:-0}"
 
 cat <<_EOM_
 #*
@@ -181,8 +184,6 @@ cat <<_EOM_
 #*
 _EOM_
 
-  # Reset status
-  EXIT_STATE=0
   # Push dir
   pushd "${__docker_build_wdir}" 1>/dev/null 2>&1 || :
 
@@ -270,43 +271,40 @@ _EOM_
 
 } 1> >(dmf_stdout_with_ts "BUILD") 2>&1
 
-# Run ?
-[ ${_docker_not_running:-0} -eq 0 ] || {
-  dmf_echo_exit 0 |dmf_stdout_with_ts
-  exit 0
-}
-
 # Section "RUN"
+[ ${_docker_not_running:-0} -eq 0 ] &&
 dmf_section "RUN" && {
-	  
-  # Reset status
-  EXIT_STATE=0
 
   # Stop and remove
   if [ ${_docker_rebuild_obj:-0} -ne 0 ] &&
      [ -n "${_docker_contid_list:-}" ]
   then
+
+    _docker_status_temp=0
+
+    dmf_echo_start
+
     for _docker_contid_temp in ${_docker_contid_list}
     do
       [ -n "${_docker_contid_temp:-}" ] ||
       continue
       # Stop and remove
       ( cd "${__docker_build_wdir}" && {
-        echo "#*     docker stop and rm: ID='${_docker_contid_temp}'."
+        echo "[${_docker_contid_temp}] docker stop and rm."
         dockre-stop "${_docker_contid_temp}" 1>/dev/null 2>&1 &&
-        echo "#*     docker container ID='${_docker_contid_temp}' was stoped."
+        echo "[${_docker_contid_temp}] docker container was stoped."
         docker-rm "${_docker_contid_temp}" 1>/dev/null 2>&1 &&
-        echo "#*     docker container ID='${_docker_contid_temp}' was removed."
+        echo "[${_docker_contid_temp}] docker container was removed."
       }; ) || {
-        # Stop and remove status
-        EXIT_STATE=$?
-        # Has error ?
-        [ ${EXIT_STATE:-0} -eq 0 ] || {
-          dmf_echo_exit ${EXIT_STATE:-1}
-          exit ${EXIT_STATE:-1}
-        }
+        _docker_status_temp=$?
+        break
       }
     done
+
+    dmf_echo_end ${_docker_status_temp:-1}
+    unset _docker_status_temp
+
+  else :
   fi
 
   # Each images
@@ -325,9 +323,6 @@ dmf_section "RUN" && {
      # Container ID
     _docker_containerid=""
 
-    # Confirm
-    _confirm_start_cmnd=""
-
     # Image
     [ -z "${_docker_c_image_ent}" ] || {
 
@@ -339,7 +334,8 @@ dmf_section "RUN" && {
       }
 
       # Image
-      echo "Image=${_docker_c_image_ent}"
+      echo "Image: name:tag=${_docker_c_image_ent}"
+      echo "Stage=[${_docker_stage_alias}]"
 
       # Run
       : "docker-run" && {
@@ -359,12 +355,9 @@ dmf_section "RUN" && {
         unset _docker_tmp_options
       }
 
-      # Checking build only mode
+      # Container ID
       _docker_containerid=$(
         container-get-id-last -f "${__docker_build_path}" \
-        "${_docker_c_image_ent}")
-      _confirm_start_cmnd=$(
-        container-image-property_CONFIRM-STARTUP -f "${__docker_build_path}" \
         "${_docker_c_image_ent}")
 
       # Print ports
@@ -391,9 +384,10 @@ dmf_section "RUN" && {
 
   done
 
-} 1> >(dmf_stdout_with_ts "RUN") 2>&1
+} 1> >(dmf_stdout_with_ts "RUN") 2>&1 || :
 
 # Section "CHK"
+[ ${_docker_not_running:-0} -eq 0 ] &&
 dmf_section "CHK" && {
 	  
   # Retry and interval
@@ -483,13 +477,19 @@ dmf_section "CHK" && {
 
   done
 
-} 1> >(dmf_stdout_with_ts "CHK") 2>&1
+} 1> >(dmf_stdout_with_ts "CHK") 2>&1 || :
 
-# Pop dir
-popd 1>/dev/null 2>&1 || :
+# End section
+dmf_section && {
 
-# echo exit
-dmf_echo_exit ${EXIT_STATE:-1} |dmf_stdout_with_ts
+  # Pop dir
+  popd 1>/dev/null 2>&1 || :
+
+  # echo exit
+  dmf_proc_exit ${EXIT_STATE:-1}
+
+} 1> >(dmf_stdout_with_ts "") 2>&1
+
 # end
 exit ${EXIT_STATE:-1}
 # vim: set ff=unix ts=2 sw=2 sts=2 et : This line is VIM modeline

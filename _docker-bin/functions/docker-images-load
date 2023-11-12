@@ -14,7 +14,7 @@ docker-images-load() {
     _cimg_pref=""
     _cimg_suff=""
     [ -r "${_imagefile}" ] || {
-      echo "$FUNCNAME: Unable to read file '${_imagefile}'." 1>&2
+      echo "${FUNCNAME}: Unable to read file '${_imagefile}'." 1>&2
       continue
     }
     _imagepath="${_imagefile##*/}"
@@ -47,8 +47,8 @@ docker-images-load() {
     ${DOCKER_CMD} tag "${_cimage_id}" "${_imagepath}" ||
     _dockerret=$?
     if [ ${_dockerret} -eq 0 ]
-    then echo "$FUNCNAME: Loaded image ID: ${_cimage_id} Tag: '${_imagepath}'."
-    else echo "$FUNCNAME: Failed to load image: ${_imagefile}." 1>&2
+    then echo "${FUNCNAME}: Loaded image ID: ${_cimage_id} Tag: '${_imagepath}'."
+    else echo "${FUNCNAME}: Failed to load image: ${_imagefile}." 1>&2
     fi
   done &&
   [ ${_dockerret} -eq 0 ]

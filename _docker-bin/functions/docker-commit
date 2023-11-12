@@ -1,7 +1,7 @@
 # docker-commit
 
 # docker container commit
-docker-container-commit() {
+docker-commit() {
   local _container=""
   local _imagename=""
   local _cmit_argv=""
@@ -14,6 +14,9 @@ docker-container-commit() {
   do
     eval $(getoptions_shift)
     case "${_getopt_V:=}" in
+    --)
+      _toggleflg=0
+      ;;
     -*)
       _cmit_opts="${_cmit_opts:+$_cmit_opts }${_getopt_V}"
       _toggleflg=1
@@ -22,25 +25,32 @@ docker-container-commit() {
       if [ ${_toggleflg} -eq 0 ]
       then
         if [ -z "${_container}" ]
-        then _container="$(container-get-id-all ${_getopt_V} |head -n 1)"
+        then _container="$(container-get-id-all ${_getopt_V})"
         elif [ -z "${_imagename}" ]
         then _imagename="${_getopt_V}"
         fi
       else
         _cmit_opts="${_cmit_opts:+${_cmit_opts} }"'"'"${_getopt_V}"'"'
-        _toggleflg=0
       fi
       ;;
     esac
   done
   eval $(getoptions_end)
   [ -n "${_container}" ] || {
-    _container=$(container-get-id-all |head -n1)
+    _container=$(container-get-id-all)
   }
   [ -n "${_container}" ] || {
     ${DOCKER_CMD} commit --help
     return 1
   }
+  if [ $(echo "${_container}" |wc -l 2>/dev/null) -ge 2 ]
+  then
+    echo "Choose one."
+    echo
+    container-get-id-all ${_container} 2>/dev/null
+    echo
+    return 1
+  fi
   ${DOCKER_CMD} commit ${_cmit_opts} ${_container} ${_imagename}
   return $?
 }

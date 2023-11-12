@@ -22,16 +22,18 @@ docker-run() {
     _opts_type="c" || :
     eval $(getoptions_shift 2>/dev/null)
     case "${_getopt_V:=}" in
-    --help)
-      __docker_help run \
-      "${FUNCNAME} [OPTIONS] [+stage-index|@stage-name|IMAGE] [[--] [COMMAND] [ARG...]]"
-      return 0
+    -)
       ;;
     --)
       [ ${_endofopts} -eq 0 ] && {
         _opts_type=""
         _endofopts=1
       } || :
+      ;;
+    --help)
+      __docker_help run \
+      "${FUNCNAME} [OPTIONS] [+stage-index|@stage-name|IMAGE] [[--] [COMMAND] [ARG...]]"
+      return 0
       ;;
     -*)
       ;;
@@ -76,14 +78,9 @@ docker-run() {
   } 2>/dev/null || :
   if [ -r "${_buildpath}" -a -z "${_imageuuid}" ]
   then
-    [ -z "${_stage_key}" ] &&
-    dockerfile-multi-stage "${_buildpath}" 1>/dev/null 2>&1 && {
-      echo "Choose a stage to run."
-      echo
-      dockerfile-stage-list -FI "${_buildpath}" 2>/dev/null
-      echo
-      return 1
-    } || :
+    [ -n "${_stage_key}" ] ||
+    dockerfile-choose-stage "${_buildpath}" ||
+    return 1
     _imagepath=$(
     dockerfile-imagepath-get \
     "${_stage_key:-+0}" "${_buildpath}" 2>/dev/null)

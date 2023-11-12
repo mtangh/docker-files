@@ -26,7 +26,7 @@ container-image-get() {
   id)   _cimg_fcls='{print($1);}' ;;
   path) _cimg_fcls='{print($2);}' ;;
   *)
-    echo "Usage: $FUNCNAME {path|id} [-f dockerfile-path] [IMAGE ...]" 1>&2
+    echo "Usage: ${FUNCNAME} {path|id} [-f dockerfile-path] [IMAGE ...]" 1>&2
     return 2
     ;;
   esac
@@ -91,7 +91,7 @@ container-image-get-config() {
   local _imagepath=""
   local _cimagecnt=0
   local _inspecter=""
-  local _collength=20
+  local _collength=12
   local _dockerret=0
   __docker_is_running || return 111
   case "${_cmnd_type:-}" in
@@ -101,15 +101,15 @@ container-image-get-config() {
     _prop_name="${1:-}"; shift
     [ -n "${_prop_name}" ] || {
       cat <<_USAGE_ 1>&2
-Usage: $FUNCNAME property name [-f dockerfile-path] [IMAGE ...]
+Usage: ${FUNCNAME} property name [-f dockerfile-path] [IMAGE ...]
 _USAGE_
       return 2
     }
     ;;
   *)
     cat <<_USAGE_ 1>&2
-Usage: $FUNCNAME cmd [-f dockerfile-path] [IMAGE ...]
-       $FUNCNAME property name [-f dockerfile-path] [IMAGE ...]
+Usage: ${FUNCNAME} cmd [-f dockerfile-path] [IMAGE ...]
+       ${FUNCNAME} property name [-f dockerfile-path] [IMAGE ...]
 _USAGE_
     return 2
     ;;
@@ -156,6 +156,15 @@ _USAGE_
       case "${_cmnd_type}" in
       label|property)
         _inspecter='{{ index .Config.Labels "'"${_prop_name}"'" }}'
+        ;;
+      os)
+        _inspecter='{{ .Os }}'
+        ;;
+      arch)
+        _inspecter='{{ .Platform }}'
+        ;;
+      platform)
+        _inspecter='{{ .Os }}/{{ .Platform }}'
         ;;
       *)
         _inspecter='{{ .Config.Cmd }}'

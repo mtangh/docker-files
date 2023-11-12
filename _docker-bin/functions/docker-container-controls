@@ -21,16 +21,18 @@ __docker-control-command() {
   do
     eval $(getoptions_shift 2>/dev/null)
     case "${_getopt_V:=}" in
-    --help)
-      __docker_help "${_ctrl_cmnd}" \
-      "docker-${_ctrl_cmnd} [OPTIONS] [CONTAINER|IMAGE] ..." \
-      "docker-${_ctrl_cmnd} [-f /path/to/Dockerfile] [+stage-index|@stage-name] ..."
-      return 0
+    -)
       ;;
     --)
       [ ${_endofopts} -eq 0 ] && {
         _endofopts=1
       } || :
+      ;;
+    --help)
+      __docker_help "${_ctrl_cmnd}" \
+      "docker-${_ctrl_cmnd} [OPTIONS] [CONTAINER|IMAGE] ..." \
+      "docker-${_ctrl_cmnd} [-f /path/to/Dockerfile] [+stage-index|@stage-name] ..."
+      return 0
       ;;
     -*)
       if [ ${_endofopts} -eq 0 ]
@@ -109,9 +111,9 @@ __docker-control-command() {
     "docker-${_ctrl_cmnd} [OPTIONS] [CONTAINER|IMAGE] ..."
     return 1
   }
-  echo ${DOCKER_CMD} "${_ctrl_cmnd}" "${_ctrl_opts[@]}" "${_ctrl_args[@]}" 1>&2
+  echo ${DOCKER_CMD} "${_ctrl_cmnd}" "${_ctrl_opts[@]}" ${_ctrl_args[@]} 1>&2
   eval $(
-  echo ${DOCKER_CMD} "${_ctrl_cmnd}" "${_ctrl_opts[@]}" "${_ctrl_args[@]}"
+  echo ${DOCKER_CMD} "${_ctrl_cmnd}" "${_ctrl_opts[@]}" ${_ctrl_args[@]}
   )
   return $?
 }

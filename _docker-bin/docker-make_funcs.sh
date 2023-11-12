@@ -7,8 +7,8 @@ DOCKERMAKEFUNC_DIR=$([ -n "${BASH_SOURCE%/*}" ] && cd "${BASH_SOURCE%/*}" 2>/dev
   . "${DOCKERMAKEFUNC_DIR}/functions.sh"
 } || exit 1
 
-# echo logo
-dmf_echo_logo() {
+# proc start
+dmf_proc_start() {
   __section
 cat <<'_EOM_'
    ____             _               __  __       _
@@ -28,11 +28,11 @@ _EOM_
   return 0;
 }
 
-# echo exit
-dmf_echo_exit() {
-  local _ecd=${1:-0}
+# proc end
+dmf_proc_exit() {
+  local _exit_st=${1:-$?}
   __section
-  if [ ${_ecd:-0} -eq 0 ]
+  if [ ${_exit_st:-0} -eq 0 ]
   then
 cat <<'_EOM_'
    _____                   _
@@ -53,7 +53,11 @@ cat <<'_EOM_'
 _EOM_
   fi
   __section
-  return 0
+  if [ ${_exit_st:-0} -ne 0 ]
+  then exit ${_exit_st:-0}
+  else :
+  fi
+  return ${_exit_st:-0}
 }
 
 # invoke
@@ -82,8 +86,8 @@ dmf_echo_end() {
     echo "}}} END - $(date +'%Y%m%dT%H%M%S')"
   else
     echo "}}} ERROR OCCURED - ret(${_exit_st})."
-    dmf_echo_exit ${_exit_st}
-    exit ${_exit_st}
+    echo
+	dmf_proc_exit ${_exit_st}
   fi
   return 0
 }

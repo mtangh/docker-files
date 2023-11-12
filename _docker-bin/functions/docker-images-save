@@ -64,8 +64,8 @@ docker-images-save() {
     } ||
     _dockerret=$?
     if [ ${_dockerret} -eq 0 ]
-    then echo "$FUNCNAME: Saved image: '${_imagepath:-${_cimagekey}}${_cimage_id:+(${_cimage_id})}' to '${_savedfile}'."
-    else echo "$FUNCNAME: Failed to save image: '${_imagepath:-${_cimagekey}}${_cimage_id:+(${_cimage_id})}'."
+    then echo "${FUNCNAME}: Saved image: '${_imagepath:-${_cimagekey}}${_cimage_id:+(${_cimage_id})}' to '${_savedfile}'."
+    else echo "${FUNCNAME}: Failed to save image: '${_imagepath:-${_cimagekey}}${_cimage_id:+(${_cimage_id})}'."
     fi
     _savedfile=""
   done &&

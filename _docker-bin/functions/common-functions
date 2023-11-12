@@ -25,7 +25,7 @@ __docker_help() {
 }
 
 __adjustcolwidth() {
-  local _collength=${1:-20}; shift
+  local _collength=${1:-12}; shift
   local _targetcol=${1:-1}; shift
   cat |${AWK} -vm="${_collength}" -vc=0 '
 {if(m<(length($'"${_targetcol}"')+1)){m=(length($'"${_targetcol}"')+1)}};\
