@@ -1,19 +1,19 @@
 #
-# almalinux8:*
+# almalinux9:*
 #
 #@  DOCKER_CONTAINER=""
-#@  DOCKER_IMAGEPATH="almalinux8"
+#@  DOCKER_IMAGEPATH="almalinux9"
 #@  DOCKER_BUILDOPTS="" # "--platform=linux/amd64"
 #@  DOCKER_BOOT_OPTS=""
 #@  DOCKER_PUBLISHED=""
-#@  DOCKER_PUBLISHED="${DOCKER_PUBLISHED} almalinux8:minimal"
-#@  DOCKER_PUBLISHED="${DOCKER_PUBLISHED} almalinux8:systemd"
-#@  DOCKER_PUBLISHED="${DOCKER_PUBLISHED} almalinux8:minimal-onbuild"
-#@  DOCKER_PUBLISHED="${DOCKER_PUBLISHED} almalinux8:systemd-onbuild"
+#@  DOCKER_PUBLISHED="${DOCKER_PUBLISHED} almalinux9:minimal"
+#@  DOCKER_PUBLISHED="${DOCKER_PUBLISHED} almalinux9:systemd"
+#@  DOCKER_PUBLISHED="${DOCKER_PUBLISHED} almalinux9:minimal-onbuild"
+#@  DOCKER_PUBLISHED="${DOCKER_PUBLISHED} almalinux9:systemd-onbuild"
 #
 
 # AlmaLinux Version
-ARG ALMALINUX_VER="8"
+ARG ALMALINUX_VER="9"
 
 # AlmaLinux rootfs Image Dir
 ARG ALMALINUXROOT="/almalinux-image/ROOT"
