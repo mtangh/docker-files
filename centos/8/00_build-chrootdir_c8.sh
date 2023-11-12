@@ -196,13 +196,13 @@ dnf_config_update() {
   dnf -v -y remove \
     --exclude=procps-ng \
     systemd-udev \
+    kmod \
     || :
 
   dnf -v -y remove \
     --exclude=procps-ng \
     brotli \
     coreutils-common \
-    cracklib-dicts \
     diffutils \
     findutils \
     gettext \
@@ -211,7 +211,6 @@ dnf_config_update() {
     gnupg2-smime \
     hardlink \
     kbd \
-    kmod \
     kpartx \
     libcroco \
     libevent \

@@ -107,7 +107,7 @@ __section() {
 }
 # Section
 dmf_section() {
-  __section "${@}" |dmf_stdout_with_ts ""
+  __section "$@" |dmf_stdout_with_ts ""
   return 0
 }
 

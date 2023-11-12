@@ -395,7 +395,7 @@ dmf_section "CHK" && {
   _wait_for=3
 
   # Interval
-  sleep 1s
+  sleep 1
 
   # Each images
   for _docker_c_image_ent in $(
@@ -489,6 +489,9 @@ dmf_section && {
   dmf_proc_exit ${EXIT_STATE:-1}
 
 } 1> >(dmf_stdout_with_ts "") 2>&1
+
+# interval
+sleep 1
 
 # end
 exit ${EXIT_STATE:-1}

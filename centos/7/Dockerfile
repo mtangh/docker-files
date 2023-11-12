@@ -3,7 +3,7 @@
 #
 #@  DOCKER_CONTAINER=""
 #@  DOCKER_IMAGEPATH="centos7"
-#@  DOCKER_BUILDOPTS="--platform=linux/amd64"
+#@  DOCKER_BUILDOPTS="" # "--platform=linux/amd64"
 #@  DOCKER_BOOT_OPTS=""
 #@  DOCKER_PUBLISHED=""
 #@  DOCKER_PUBLISHED="${DOCKER_PUBLISHED} centos7:minimal"
