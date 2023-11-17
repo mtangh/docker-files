@@ -6,11 +6,13 @@ CDIR=$([ -n "${BASH_SOURCE%/*}" ] && cd "${BASH_SOURCE%/*}" &>/dev/null; pwd)
 echo "[${tests_name:-${THIS}}] syntax-check.sh" && {
 
   # Path
-  docker_bin="${tests_wdir:-${CDIR}/..}/_docker-bin"
+  docker_bin=$(cd "${tests_wdir:-${CDIR}/..}/_docker-bin"; pwd)
   dockerfncs="${docker_bin}/functions"
 
   # Error
   syntax_err=0
+
+  echo "Dir: ${docker_bin}"
 
   # Syntax check
   for shscript in $(set +x && {
@@ -18,7 +20,7 @@ echo "[${tests_name:-${THIS}}] syntax-check.sh" && {
     find "${dockerfncs}" -type f |sort
     } 2>/dev/null; )
   do
-    echo "${shscript}:"
+    echo "_docker-bin/${shscript##*/_docker-bin/}:"
     bash -n "${shscript}" || syntax_err=$?
   done &&
   [ $syntax_err -le 0 ] &&

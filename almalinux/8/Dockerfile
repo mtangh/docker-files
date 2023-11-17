@@ -209,7 +209,7 @@ ARG ALMALINUX_VER
 WORKDIR /.onbuild
 
 # Copy onbuild scripts to Workdir
-COPY 010_build-stage.sh ./build-stage.sh
+COPY 010_build-stage.sh ./onbuild.sh
 COPY \[19\]\[0-9\]\[0-9\]_*.sh ./
 
 # AlmaLinux Version
@@ -292,7 +292,7 @@ RUN \
  set -ux; \
  : "ONBUILD: Run" && { \
   scrptdir="/.onbuild"; \
-  . ./onbuild.sh || exit 1; \
+  . ${scrptdir}/onbuild.sh || exit 1; \
   rm -rf "${scrptdir}/" || :; \
  } && \
  : "ONBUILD: Done.";
@@ -403,7 +403,7 @@ RUN \
  set -ux; \
  : "ONBUILD: Run" && { \
   scrptdir="/.onbuild"; \
-  . ./onbuild.sh || exit 1; \
+  . ${scrptdir}/onbuild.sh || exit 1; \
   rm -rf "${scrptdir}/" || :; \
  } && \
  : "ONBUILD: Done.";
