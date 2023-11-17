@@ -157,6 +157,13 @@ else
   fi
 fi
 
+# Is the docker daemon running?
+__docker_is_running 1>/dev/null 2>&1 || {
+  echo "${THIS}: ERROR: Cannot connect to the Docker daemon at ${DOCKER_HOST}." 1>&2
+  echo "${THIS}: ERROR: Is the docker daemon running?" 1>&2
+  exit 111
+}
+
 # Logging
 if [ ${_logging_std_output:-0} -ne 0 ]
 then
