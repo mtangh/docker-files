@@ -5,13 +5,23 @@ __docker_is_running() {
   return $?
 }
 
+__docker_invoke() {
+  local _cmd="${1:-}"; shift
+  local _ret=0
+  echo ${DOCKER_CMD##*/} ${_cmd} "$@" 1>&2 &&
+  eval $(
+  echo ${DOCKER_CMD} ${_cmd} "$@"
+  ); _ret=$?
+  return ${_ret}
+}
+
 __docker_help() {
   local _subcmnd="${1:-}"; shift
   local _usghead="Usage:"
   local _usgtext=""
   __docker_is_running || return 111
   [ $# -gt 0 ] && {
-    for _usgtext in "${@}"
+    for _usgtext in "$@"
     do
       printf "%s %s\n" "${_usghead}" "${_usgtext}"
       _usghead="      "

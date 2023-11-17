@@ -61,7 +61,6 @@ alias docker-rc-reload=". ${DOCKERFILESDIR}/${DOCKER_RC_FILE} && echo OK"
 alias docker-make="docker-make.sh --build-only"
 alias docker-make-boot="docker-make.sh"
 alias docker-make-rebuild="docker-make.sh --build-only --rebuild"
-alias docker-make-clean="docker-make.sh --clean"
 
 alias docker-clean=docker-cleanup
 

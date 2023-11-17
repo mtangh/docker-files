@@ -3,16 +3,20 @@
 # docker build
 docker-build() {
   local _imagepath=""
+  local _image_ver=""
   local _imagefrom=""
+  local _imglatest=""
   local _eachstage=0
   local _stage_ind=""
   local _stagename=""
   local _buildpath=""
   local _buildfile=""
-  local _build_dir=""
+  local _build_ctx=""
   local _buildopts=""
   local _meta_opts=""
   local _labelopts=""
+  local _imtagopts=""
+  local _imgtagent=""
   local _build_all=0
   local _targetlst=""
   local _targetind=""
@@ -25,11 +29,6 @@ t|tag:=_imagepath
 |target:=_targetind
 |for-each-stage=_eachstage
 " "$@")
-  if [ -n "${_buildpath}" -a "${_buildpath}" != "${_buildpath##*/}" ]
-  then
-    _buildfile="${_buildpath##*/}"
-    _build_dir="${_buildpath%/*}"
-  fi
   while getoptions_has_next
   do
     eval $(getoptions_shift)
@@ -39,9 +38,6 @@ t|tag:=_imagepath
       "${FUNCNAME} [OPTIONS] [+stage-index|@stage-name] [PATH]"
       return 0
       ;;
-    -*)
-      _buildopts="${_buildopts:+${_buildopts} }${_getopt_V}"
-      ;;
     +[0-9]*)
       _stage_ind="${_getopt_V##*+}"
       ;;
@@ -50,66 +46,55 @@ t|tag:=_imagepath
       ;;
     *)
       if getoptions_has_next
-      then
-        _buildopts="${_buildopts:+${_buildopts} }${_getopt_V}"
-      else
-        if [ -d "${_getopt_V}" ]
-        then
-          _build_dir="${_getopt_V}"
-          _buildfile="${_buildfile:-Dockerfile}"
-        elif [ -f "${_getopt_V}" ] &&
-             [ "${_getopt_V}" != "${_getopt_V%/*}" ]
-        then
-          [ -z "${_buildfile}" ] &&
-          _buildfile="${_getopt_V##*/}"
-          _build_dir="${_getopt_V%/*}"
-        fi 1>/dev/null 2>&1
+      then _buildopts="${_buildopts:+${_buildopts} }${_getopt_V}"
+      else _build_ctx="${_getopt_V}"
       fi
       ;;
     esac
   done
   eval $(getoptions_end)
-  if [ -n "${_build_dir}" ]
+  if [ -n "${_imagepath:-}" ]
   then
-    _buildpath=$(
-      dockerfile-get-path \
-      "${_build_dir}${_buildfile:+/${_buildfile}}")
+    for _imgtagent in _imagepath
+    do _imtagopts="${_imtagopts:+${_imtagopts} }-t ${_imgtagent}"
+    done
+  fi
+  if [ -d "${_build_ctx:-.}" ]
+  then :
   else
-    _buildpath=$(
-      dockerfile-get-path "${_buildpath}")
-  fi 2>/dev/null
-  _build_dir="${_buildpath%/*}"
-  _buildfile="${_buildpath##*/}"
-  if [ -r "${_buildpath}" ]
+    __docker_invoke build ${_imtagopts} ${_buildopts} ${_build_ctx}
+    return $?
+  fi
+  [ -z "${_buildpath}" -a -n "${_build_ctx}" ] &&
+  _buildpath=$(dockerfile-get-path "${_build_ctx}") || :
+  _buildpath=$(dockerfile-get-path "${_buildpath}") || :
+  if [ -f "${_buildpath}" -a -r "${_buildpath}" ]
   then
-    if [ -n "${_targetind}" ]
-    then
+    eval $(dockerfile-env-export "${_buildpath}")
+    [ -n "${_targetind}" ] && {
       _stage_ind=$(dockerfile-stage-get-index "${_targetind}" "${_buildpath}")
       _stagename=$(dockerfile-stage-get-name "${_targetind}" "${_buildpath}")
-      _targetind=""
-    fi
-    if [ -n "${_stagename}" -a -z "${_stage_ind}" ]
-    then
+      _targetind=""; } || :
+    [ -n "${_stagename}" -a -z "${_stage_ind}" ] && {
       _stage_ind=$(dockerfile-stage-get-index "${_stagename}" "${_buildpath}")
-      _targetind=""
-    elif [ -n "${_stage_ind}" -a -n "${_stagename}" ]
-    then
+      _targetind=""; } || :
+    [ -z "${_stagename}" -a -n "${_stage_ind}" ] && {
       _stagename=$(dockerfile-stage-get-name "${_stage_ind}" "${_buildpath}")
-      -targetind=""
-    fi
-    if [ -n "${_stage_ind}${_stagename}" ]
+      -targetind=""; } || :
+    if [ -n "${_stagename}${_stage_ind}" ]
     then
-      _targetlst="${_stagename:-${_stage_ind}}"
+      _targetlst=$(
+        dockerfile-stage-get-index \
+        "${_stagename:-${_stage_ind}}" "${_buildpath}")
     elif [ ${_eachstage:-0} -ne 0 ]
     then
       _targetlst=$(
         dockerfile-stage-list "${_buildpath}" |
-        ${AWK} '{print($1);}' 2>/dev/null)
-    fi
-    if [ -z "${_targetlst}" ]
-    then
-      _targetlst="-"
-    fi
+        ${AWK} '{print($1);}' 2>/dev/null; )
+    fi || :
+    _targetlst="${_targetlst:--}"
+    _stagename=""
+    _stage_ind=""
   fi
   if [ -z "${_targetlst}" ]
   then
@@ -117,32 +102,38 @@ t|tag:=_imagepath
     "${FUNCNAME} [OPTIONS] [+stage-index|@stage-name] [PATH]"
     return 1
   fi
+  [ -z "${_image_ver}" ] &&
+  _image_ver=$(dockerfile-env_IMAGE_VER "${_buildpath}") || :
+  [ -z "${_imglatest}" ] &&
+  _imglatest=$(dockerfile-env_LATEST_IS "${_buildpath}") || :
   [ -z "${_buildopts}" ] &&
-  _buildopts=$(dockerfile-env_BUILDOPTS "${_buildpath}")
-  for _targetind in ${_targetlst}
+  _buildopts=$(dockerfile-env_BUILDOPTS "${_buildpath}") || :
+  for _targetind in ${_targetlst:--}
   do
     _imagepath=""
     _stagename=""
-    if [ "${_targetind:--}" = "-" ]
-    then _targetind=""
-    fi
-    if [ -n "${_targetind:--}" ]
-    then _stagename=$(dockerfile-stage-get-name "+${_targetind}" "${_buildpath}")
-    fi
-    if [ "${_stagename:--}" = "-" ]
-    then _stagename=""
-    fi
-    if [ -z "${_imagepath}" -a -n "${_targetind}" ]
-    then _imagepath=$(dockerfile-imagepath-get "+${_targetind}" "${_buildpath}")
-    fi
-    if [ -z "${_imagepath}" ]
+    _targetind="${_targetind#-}"
+    if [ -n "${_targetind}" ]
     then
-      _imagepath=$(dockerfile-env_IMAGEPATH "${_buildpath}") ||
-      _imagepath=$(dockerfile-imagepath-from-dir "${_buildpath}")
-    fi 2>/dev/null
-    [ -n "${_targetind:-}" ] && {
-      _imagefrom=$(dockerfile-stage-get-from "${_targetind:-0}" "${_buildpath}")
-    } 2>/dev/null || :
+      _stagename=$(dockerfile-stage-get-name "${_targetind}" "${_buildpath}")
+      _stagename="${_stagename#-}"
+      _imagefrom=$(dockerfile-stage-get-from "+${_targetind}" "${_buildpath}")
+      [ -z "${_imagepath}" ] && {
+        _imagepath=$(dockerfile-imagepath-get "+${_targetind}" "${_buildpath}")
+      } || :
+    else
+      if [ -z "${_imagepath}" ]
+      then
+        _imagepath=$(dockerfile-env_IMAGEPATH "${_buildpath}") ||
+        _imagepath=$(dockerfile-imagepath-from-dir "${_buildpath}")
+      fi 2>/dev/null
+    fi
+    [ -n "${_imagepath}" -a -n "${_image_ver}" ] && {
+      _imgvertag="${_imagepath}-${_image_ver}"
+    } || :
+    [ "${_imagepath}" = "${DOCKER_LATEST_IS:-}" ] && {
+      _imglatest="${DOCKER_LATEST_IS:-}"
+    } || :
     _meta_opts=""
     [ -n "${_imagepath}" ] &&
     dockerfile-has-ARG _DOCKER_META_IMAGENAME "${_buildpath:-}" && {
@@ -156,17 +147,19 @@ t|tag:=_imagepath
     dockerfile-has-ARG _DOCKER_META_IMAGEFROM "${_buildpath:-}" && {
       _meta_opts="${_meta_opts:+${_meta_opts} }--build-arg _DOCKER_META_IMAGEFROM=${_imagefrom}"
     } || :
+    _imgtagent="${imtagopts:-}"
+    [ -n "${_imagepath}" ] &&
+    _imgtagent="${_imgtagent:+${_imgtagent} }-t ${_imagepath}" || :
+    [ -n "${_imagepath}" -a -n "${_image_ver}" ] &&
+    _imgtagent="${_imgtagent:+${_imgtagent} }-t ${_imagepath}-${_image_ver}" || :
+    [ -n "${_imagepath}" ] && [ "${_imagepath}" = "${_imglatest}" ] &&
+    _imgtagent="${_imgtagent:+${_imgtagent} }-t ${_imagepath%:*}" || :
     _labelopts=""
-#   _labelopts="${_labelopts:+${_labelopts} }--label build-date="'"'$(date +'%Y%m%dT%H:%M%z')'"'
     _labelopts="${_labelopts:+${_labelopts} }--label docker.build.options="'"'"${_buildopts}"'"'
-    echo \
-      ${DOCKER_CMD} build ${_buildopts} ${_meta_opts} ${_labelopts} \
-      ${_imagepath:+-t ${_imagepath}} ${_stagename:+--target=${_stagename}} \
-      ${_buildpath:+-f ${_buildpath}} "${_build_dir:-.}" 1>&2 &&
-    eval $(echo \
-      ${DOCKER_CMD} build ${_buildopts} ${_meta_opts} ${_labelopts} \
-      ${_imagepath:+-t ${_imagepath}} ${_stagename:+--target=${_stagename}} \
-      ${_buildpath:+-f ${_buildpath}} "${_build_dir:-.}")
+    __docker_invoke build \
+      ${_buildopts} ${_imgtagent} ${_meta_opts} ${_labelopts} \
+      ${_stagename:+--target=${_stagename}} ${_buildpath:+-f ${_buildpath}} \
+      "${_build_ctx:-.}"
     _dockerret=$?
     [ ${_dockerret} -eq 0 ] || break
   done

@@ -10,7 +10,7 @@ docker-bash() {
   local _shellopts=()
   __docker_is_running || return 111
   eval $(getoptions \
-    "f|file:=_buildpath S|shell:=_shellpath" "${@}")
+    "f|file:=_buildpath S|shell:=_shellpath" "$@")
   while getoptions_has_next
   do
     eval $(getoptions_shift 2>/dev/null)
@@ -47,7 +47,7 @@ docker-bash() {
   then
     [ -n "${_stage_key}" ] ||
     dockerfile-choose-stage "${_buildpath}" ||
-    return 1
+      return 1
     _imagepath=$(
       dockerfile-imagepath-get "${_stage_key:-+0}" "${_buildpath}")
     if [ -n "${_imagepath}" -a -z "${_container}" ]

@@ -3,23 +3,21 @@
 # Dockerfile get
 dockerfile-get-path() {
   local _buildpath="${1:-}"; shift
-  local _build_dir=""
-  local _buildfile=""
-  [ -z "${_buildpath}" ] &&
-  _buildpath="$(pwd)/Dockerfile" || :
-  if [[ "${_buildpath}" =~ ^http(s:|:)// ]]
+  if [ -z "${_buildpath}" ]
   then
-    [[ "${_buildpath}" =~ .*/$ ]] &&
-    _buildpath="${_buildpath}Dockerfile" || :
+    _buildpath="$(pwd)/Dockerfile" || :
   else
-    [ -d "${_buildpath}" ] &&
-    _buildpath="${_buildpath}/Dockerfile" || :
-    [ "${_buildpath}" = "${_buildpath##*/}" ] &&
-    _buildpath="$(pwd)/${_buildpath}" || :
-    [ -d "${_buildpath%/*}" ] &&
-    _buildpath=$(cd "${_buildpath%/*}" 2>/dev/null; pwd)"/${_buildpath##*/}" || :
+    _buildpath=( $(echo "${_buildpath}") )
+    _buildpath="${_buildpath[0]}"
   fi
+  [ -d "${_buildpath}" ] &&
+  _buildpath="${_buildpath}/Dockerfile" || :
+  [ "${_buildpath}" = "${_buildpath##*/}" ] &&
+  _buildpath="$(pwd)/${_buildpath}" || :
+  [ -d "${_buildpath%/*}" ] &&
+  _buildpath=$(cd "${_buildpath%/*}" 2>/dev/null; pwd)"/${_buildpath##*/}" || :
   [ -n "${_buildpath}" ] &&
+  [ -f "${_buildpath:-X}" -a -r "${_buildpath:-X}" ] &&
   echo "${_buildpath}"
   return $?
 }
@@ -28,7 +26,8 @@ dockerfile-cat() {
   local _buildpath=""
   local _line_data=""
   [ $# -gt 0  ] &&
-  _buildpath=$(dockerfile-get-path "${1:-}" 2>/dev/null) && shift || :
+  _buildpath=$(dockerfile-get-path "${1:-}") &&
+  shift || :
   if [ -n "${_buildpath}" ]
   then cat "${_buildpath}"
   else cat
@@ -44,7 +43,7 @@ dockerfile-cat() {
 }
 
 dockerfile-cat-FROM() {
-  dockerfile-cat "${@}" |
+  dockerfile-cat "$@" |
   egrep -i '^[[:space:]]*(FROM|#@&)[[:space:]]+' |
   ${SED} -re 's/^[[:space:]]*((FROM[^#]+|#@&.+)[^[:space:]])([[:space:]]*#.*$|$)/\1/gi' |
   ${AWK} -f <( : && {
@@ -75,7 +74,7 @@ _EOF_
 
 # number of stage
 dockerfile-num-of-stage() {
-  local _buildpath=$(dockerfile-get-path "${1:-}" 2>/dev/null); shift
+  local _buildpath=$(dockerfile-get-path "${1:-}"); shift
   local _stage_num=$(dockerfile-stage-list "${_buildpath}"|wc -l 2>/dev/null)
   echo ${_stage_num:-0}
   return 0
@@ -90,7 +89,7 @@ dockerfile-multi-stage() {
 
 # multi-stage chooser
 dockerfile-choose-stage() {
-  local _buildpath="${1:-}"
+  local _buildpath=$(dockerfile-get-path "${1:-}"); shift
   dockerfile-multi-stage "${_buildpath}" 1>/dev/null 2>&1 && {
     echo "Choose a stage to run."
     echo
@@ -132,18 +131,17 @@ _EOD_
     esac
   done
   eval $(getoptions_end)
-  _buildpath="$(dockerfile-get-path ${_buildpath} 2>/dev/null)"
-  [ -f "${_buildpath}" -a -r "${_buildpath}" ] || {
+  _buildpath=$(dockerfile-get-path "${_buildpath}") ||
     return 1
-  }
+  __dockerfile_attributes_is_exported ||
+    eval $(dockerfile-env-export "${_buildpath}") || :
   _imagepath=$(
     dockerfile-env_IMAGEPATH "${_buildpath}" ||
     dockerfile-imagepath-from-dir "${_buildpath}" ||
     :; )
   if [ ${_formatted} -ne 0 ]
   then
-    _prtformat=$(
-      : && {
+    _prtformat=$( : && {
       eval $(dockerfile-build-opts-apply "${_buildpath}")
       while read _in_record
       do
@@ -158,7 +156,8 @@ _EOD_
     }; )
   fi
   ( : && {
-    echo ${_prtheader}
+    [ ${_formatted} -ne 0 ] &&
+    echo ${_prtheader} || :
     eval $(dockerfile-build-opts-apply "${_buildpath}")
     while read _in_record
     do
@@ -189,9 +188,9 @@ _EOD_
 
 # Apply build-args
 dockerfile-build-opts-apply() {
-  local _buildpath="$(dockerfile-get-path ${1:-} 2>/dev/null)"
+  local _buildpath="${1:-}"; shift
   local _buildopts=""
-  [ -f "${_buildpath}" -a -r "${_buildpath}" ] && {
+  _buildpath=$(dockerfile-get-path "${_buildpath}") && {
     cat "${_buildpath}" |dockerfile-cat |${SED} -nre \
     's/^[[:space:]]*ARG[[:space:]]+([^=]+=.*)$/\1;/gip'
     dockerfile-env_BUILDOPTS "${_buildpath}" |${SED} -nre \
@@ -200,11 +199,11 @@ dockerfile-build-opts-apply() {
   return $?
 }
 
-# Apply build-args
+# Unset build-args
 dockerfile-build-opts-unset() {
-  local _buildpath="$(dockerfile-get-path ${1:-} 2>/dev/null)"
+  local _buildpath="${1:-}"; shift
   local _buildopts=""
-  [ -f "${_buildpath}" -a -r "${_buildpath}" ] && {
+  _buildpath=$(dockerfile-get-path "${_buildpath}") && {
     cat "${_buildpath}" |dockerfile-cat |${SED} -nre \
     's/^[[:space:]]*ARG[[:space:]]+([^=]+)=.*$/unset \1;/gip'
     dockerfile-env_BUILDOPTS "${_buildpath}" |${SED} -re \
@@ -216,8 +215,8 @@ dockerfile-build-opts-unset() {
 # Get ARG
 dockerfile-get-ARG() {
   local _c_arg_key="${1:-}"; shift
-  local _buildpath="$(dockerfile-get-path ${1:-} 2>/dev/null)"
-  [ -f "${_buildpath}" -a -r "${_buildpath}" ] && {
+  local _buildpath="${1:-}"; shift
+  _buildpath=$(dockerfile-get-path "${_buildpath}") && {
     cat "${_buildpath}" |dockerfile-cat |${SED} -nre \
     's/^[[:space:]]*ARG[[:space:]]+([^=]+)[[:space:]]*=[[:space:]]*(([^=].*)$|$)/\1=\3/gip' |
     if [ -n "${_c_arg_key}" -a "${_c_arg_key}" != "-" ]
@@ -231,8 +230,9 @@ dockerfile-get-ARG() {
 # Has a ARG
 dockerfile-has-ARG() {
   local _c_arg_key="${1:-}"; shift
-  local _buildpath="$(dockerfile-get-path ${1:-} 2>/dev/null)"
-  [ -f "${_buildpath}" -a -r "${_buildpath}" -a "${_c_arg_key}" ] && {
+  local _buildpath="${1:-}"; shift
+  _buildpath=$(dockerfile-get-path "${_buildpath}") &&
+  [ -n "${_c_arg_key}" ] && {
     cat "${_buildpath}" |dockerfile-cat |egrep \
     '^[[:space:]]*ARG[[:space:]]+('"${_c_arg_key}"')([[:space:]]*=[[:space:]]*([^=].*)$|$)'
   } 1>/dev/null 2>&1
@@ -243,7 +243,9 @@ dockerfile-has-ARG() {
 dockerfile-stage-get() {
   local _indorname="${1:-}"; shift
   local _stage_key="${1:-}"; shift
-  local _buildpath=$(dockerfile-get-path "${1:-}" 2>/dev/null); shift
+  local _buildpath="${1:-}"; shift
+  _buildpath=$(dockerfile-get-path "${_buildpath}") ||
+    return 1
   case "${_indorname}" in
   ind|index)
     _indorname='{print($1);}'
@@ -281,44 +283,44 @@ dockerfile-stage-get() {
 
 # Get index of stage
 dockerfile-stage-get-index() {
-  dockerfile-stage-get index "${@}"
+  dockerfile-stage-get index "$@"
   return $?
 }
 
 # Get name of stage
 dockerfile-stage-get-name() {
-  dockerfile-stage-get name "${@}"
+  dockerfile-stage-get name "$@"
   return $?
 }
 
 # Get "from" of stage
 dockerfile-stage-get-from() {
-  dockerfile-stage-get from "${@}"
+  dockerfile-stage-get from "$@"
   return $?
 }
 
 # Get platform of stage
 dockerfile-stage-get-platform() {
-  dockerfile-stage-get platform "${@}"
+  dockerfile-stage-get platform "$@"
   return $?
 }
 
 # Get repo-tag of stage
 dockerfile-stage-get-tag() {
-  dockerfile-stage-get tag "${@}"
+  dockerfile-stage-get tag "$@"
   return $?
 }
 
 # Exists stage index
 dockerfile-stage-has-index() {
-  local _stage_ind=$(dockerfile-stage-get index "${@}") || :
+  local _stage_ind=$(dockerfile-stage-get index "$@") || :
   [ -n "${_stage_ind}" ]
   return $?
 }
 
 # Exists stage name
 dockerfile-stage-has-name() {
-  local _stagename=$(dockerfile-stage-get name "${@}") || :
+  local _stagename=$(dockerfile-stage-get name "$@") || :
   [ -n "${_stagename##*-}" ]
   return $?
 }
@@ -344,39 +346,41 @@ dockerfile-imagepath-get() {
       ;;
     *)
       if [ -z "${_buildpath:-}" ]
-      then _buildpath=$(dockerfile-get-path "${1:-}" 2>/dev/null)
+      then _buildpath="${1:-}"
       else :
       fi;
     esac
     shift
   done
-  [ -z "${_imagepath}" ] &&
-  _imagepath=$(dockerfile-env_IMAGEPATH "${_buildpath}") || :
-  [ -z "${_imagepath}" ] &&
-  _imagepath=$(dockerfile-imagepath-from-dir "${_buildpath}") || :
-  [ -z "${_imagepath}" ] && {
+  _buildpath=$(dockerfile-get-path "${_buildpath}") ||
     return 1
-  } || :
-  dockerfile-multi-stage "${_buildpath}" 1>/dev/null 2>&1 && {
-    _multi_stg=1
-  } || :
-  [ ${_multi_stg} -eq 0 ] && {
-    _stage_key="+0"
-  } || :
+  __dockerfile_attributes_is_exported ||
+    eval $(dockerfile-env-export "${_buildpath}")
+  [ -z "${_imagepath}" ] &&
+    _imagepath=$(dockerfile-env_IMAGEPATH "${_buildpath}") || :
+  [ -z "${_imagepath}" ] &&
+    _imagepath=$(dockerfile-imagepath-from-dir "${_buildpath}") || :
+  [ -z "${_imagepath}" ] &&
+    return 1 || :
+  dockerfile-multi-stage "${_buildpath}" 1>/dev/null 2>&1 &&
+    _multi_stg=1 || :
+  [ ${_multi_stg} -eq 0 ] &&
+    _stage_key="+0" || :
   case "${_stage_key}" in
   +[0-9]*)
     _stage_ind="${_stage_key#*+}"
     dockerfile-stage-has-index "${_stage_ind}" "${_buildpath}" 1>/dev/null 2>&1 && {
       _stagename=$(
         dockerfile-stage-get-name "${_stage_ind}" "${_buildpath}" 2>/dev/null)
-    } || return 2
+    } ||
+	  return 2
     ;;
   @[0-9A-Za-z]*)
     _stagename="${_stage_key#*@}"
     _stage_ind=$(
       dockerfile-stage-get-index "${_stagename}" "${_buildpath}" 2>/dev/null)
     [ $? -eq 0 -a -n "${_stage_ind}" ] ||
-    return 2
+      return 2
     ;;
   *)
     _stage_ind=""
@@ -484,62 +488,75 @@ dockerfile-attributes-get() {
     esac
   done
   eval $(getoptions_end)
-  _buildpath=$(dockerfile-get-path "${_buildpath}")
-  [ -r "${_buildpath}" ] && {
-    cat "${_buildpath}" |
-    ${SED} -ne \
-    's;^#[[:space:]]*@[[:space:]]*\([_A-Za-z][_0-9A-Za-z]*\)[[:space:]]*=[[:space:]]*\(.*\)[[:space:]]*$;\1=\2;gp' |
-    while read _dvariable
-    do
-      [ -z "${_dvariable}" ] || {
-        [ ${_exportflg} -ne 0 ] &&
-        echo "export ${_dvariable};" ||
-        echo "${_dvariable};"
-      }
-    done
-  } #2>/dev/null
+  _buildpath=$(dockerfile-get-path "${_buildpath}") ||
+    return 1
+  [ ${_exportflg} -ne 0 ] && printf "export " || :
+  echo "$(__dockerfile_attributes_set_exported);"
+  cat "${_buildpath}" |egrep '^#@[[:space:]]*' |${SED} -ne \
+  's;^#@[[:space:]]*\([_A-Za-z][_0-9A-Za-z]*\)[[:space:]]*=[[:space:]]*\([^[:space:]]*.*\)[[:space:]]*$;\1=\2;gp' |
+  while read _dvariable
+  do
+    [ -n "${_dvariable}" ] ||
+    continue
+    [ ${_exportflg} -ne 0 ] &&
+    echo "export ${_dvariable};" ||
+    echo "${_dvariable};"
+  done
+  return $?
+}
+
+# dockerfile export env
+dockerfile-env-export() {
+  dockerfile-attributes-get -E "$@"
+  return $?
+}
+
+__dockerfile_attributes_key() {
+  echo "__dockerfile_attributes_exported"
+  return 0
+}
+
+__dockerfile_attributes_set_exported() {
+  echo "$(__dockerfile_attributes_key)=1"
+  return 0
+}
+
+__dockerfile_attributes_is_exported() {
+  eval '[ ${'$(__dockerfile_attributes_key)':-0} -ne 0 ]'
   return $?
 }
 
 # dockerfile get env
 dockerfile-env-get() {
   local _cattr_key="${1:-}"; shift
-  local _buildpath=$(dockerfile-get-path "${1:-}"); shift
+  local _buildpath="${1:-}"; shift
   local _cattr_val=""
-  [ -f "${_buildpath}" -a -r "${_buildpath}" ] && {
-    if [ -z "${_cattr_key}" ]
-    then dockerfile-attributes-get "${_buildpath}"
-    else
-      case "${_cattr_key}" in
-      DOCKER_*)
-        ;;
-      *)
-        _cattr_key="DOCKER_${_cattr_key}"
-        ;;
-      esac
-      _cattr_val=$(eval $(
-        dockerfile-attributes-get "${_buildpath}" |
-        egrep '^'"${_cattr_key}"'=.*' 2>/dev/null &&
-        echo 'echo $'"${_cattr_key}") )
-      [ -z "${_cattr_val}" ] &&
-      _cattr_val=$(eval $(
-        dockerfile-attributes-get "${_buildpath}" |
-        egrep '^'"${_cattr_key#DOCKER_}"'=.*' 2>/dev/null &&
-        echo 'echo $'"${_cattr_key#DOCKER_}") )
-      [ -n "${_cattr_val}" ] &&
-      echo "${_cattr_val}"
-    fi 2>/dev/null
-  }
-  return $?
-}
-
-dockerfile-env_CONTAINER() {
-  dockerfile-env-get DOCKER_CONTAINER "${@}"
+  local _cakey_tmp=""
+  [ -n "${_cattr_key}" ] ||
+    return 2
+  _buildpath=$(dockerfile-get-path "${_buildpath}") ||
+    return 1
+  case "${_cattr_key}" in
+  DOCKER_*)
+    ;;
+  *)
+    _cattr_key="DOCKER_${_cattr_key}"
+    ;;
+  esac
+  __dockerfile_attributes_is_exported ||
+    eval $(dockerfile-env-export "${_buildpath}")
+  for _cakey_tmp in "${_cattr_key}" "${_cattr_key#DOCKER_}"
+  do
+    _cattr_val=$(eval 'echo ${'"${_cakey_tmp}"':-}')
+    [ -n "${_cattr_val}" ] && break || :
+  done
+  [ -n "${_cattr_val}" ] &&
+  echo "${_cattr_val}"
   return $?
 }
 
 dockerfile-env_IMAGEPATH() {
-  local _imgname=$(dockerfile-env-get DOCKER_IMAGEPATH "${@}")
+  local _imgname=$(dockerfile-env-get DOCKER_IMAGEPATH "$@")
   local _imgrepo=$(echo "${_imgname}" |${AWK} -F: '{print($1);}')
   local _img_tag=$(echo "${_imgname}" |${AWK} -F: '{print($2);}')
   [ -n "${_imgrepo}${_img_tag}" ] &&
@@ -548,14 +565,29 @@ dockerfile-env_IMAGEPATH() {
 }
 
 dockerfile-env_IMAGEREPO() {
-  dockerfile-env_IMAGEPATH "${@}" |
+  dockerfile-env_IMAGEPATH "$@" |
   ${AWK} -F: '{print($1);}' 2>/dev/null
   return $?
 }
 
 dockerfile-env_IMAGE_TAG() {
-  dockerfile-env_IMAGEPATH "${@}" |
+  dockerfile-env_IMAGEPATH "$@" |
   ${AWK} -F: '{print($2);}' 2>/dev/null
+  return $?
+}
+
+dockerfile-env_IMAGE_VER() {
+  dockerfile-env-get DOCKER_IMAGE_VER "$@"
+  return $?
+}
+
+dockerfile-env_CONTAINER() {
+  dockerfile-env-get DOCKER_CONTAINER "$@"
+  return $?
+}
+
+dockerfile-env_LATEST_IS() {
+  dockerfile-env-get DOCKER_LATEST_IS "$@"
   return $?
 }
 
@@ -575,7 +607,7 @@ dockerfile-env_EXEC_OPTS() {
 }
 
 dockerfile-env_PUBLISHED() {
-  dockerfile-env-get DOCKER_PUBLISHED "${@}"
+  __load_external_env "${1:-}" "PUBLISHED" "published"
   return $?
 }
 
@@ -587,7 +619,10 @@ __load_external_env() {
   local _opt_value=""
   local _eval_expr=""
   local _tmp_value=""
-  _buildpath=$(dockerfile-get-path "${_buildpath}")
+  _buildpath=$(dockerfile-get-path "${_buildpath}") ||
+    return 1
+  __dockerfile_attributes_is_exported ||
+    eval $(dockerfile-env-export "${_buildpath}") || :
   [ -n "${_opts_name}" ] && {
     _opt_value=$(dockerfile-env-get "${_opts_name}" "${_buildpath}")
   } || :

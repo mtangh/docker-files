@@ -113,9 +113,8 @@ Check the instance to be executed with the '${DOCKER_CMD} ps'.
 _EOD_
     return 1
   fi || :
-  echo ${DOCKER_CMD} exec "${_dcmd_opts[@]}" ${_container} "${_cmnd_args[@]}" 1>&2
-  eval $(
-  echo ${DOCKER_CMD} exec "${_dcmd_opts[@]}" ${_container} "${_cmnd_args[@]}")
+  __docker_invoke exec \
+  "${_dcmd_opts[@]}" ${_container} "${_cmnd_args[@]}"
   return $?
 }
 

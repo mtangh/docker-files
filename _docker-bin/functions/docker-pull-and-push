@@ -38,14 +38,13 @@ docker-pull() {
   eval $(getoptions_end)
   : && {
     [ -n "${_iplatform:-}" ] && {
-      _dpullopts="${_dpullopts:+$_dpullopts }--platform ${_iplatform:-}"
+      _dpullopts="${_dpullopts:+$_dpullopts }--platform=${_iplatform:-}"
     } || :
     for _image_key in ${_imagekeys}
     do
       [ -n "${_image_key:-}" ] ||
         continue
-      echo ${DOCKER_CMD} pull ${_dpullopts} ${_image_key:-}
-      ${DOCKER_CMD} pull ${_dpullopts} "${_image_key:-}" || {
+      __docker_invoke pull ${_dpullopts} "${_image_key:-}" || {
         _dpullstat=$?
         break
       }
@@ -136,8 +135,7 @@ docker-push() {
         docker-tag --untag "${_imagename}"
         ;;
       esac
-      echo ${DOCKER_CMD} push ${_dpushopts} ${_imagepath:-}
-      ${DOCKER_CMD} push ${_dpushopts} "${_imagepath:-}" || {
+      __docker_invoke push ${_dpushopts} "${_imagepath:-}" || {
         _dpushstat=$?
         break
       }

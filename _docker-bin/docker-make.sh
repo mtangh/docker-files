@@ -167,6 +167,9 @@ fi
 # Reset status
 EXIT_STATE=0
 
+# Trap - Clean up the child process at the EXIT.
+trap 'kill $(jobs -p) 1>/dev/null 2>&1' EXIT
+
 # First section
 dmf_section && {
 
@@ -490,8 +493,8 @@ dmf_section && {
 
 } 1> >(dmf_stdout_with_ts "") 2>&1
 
-# interval
-sleep 1
+# Wait for the end of the child process.
+wait 1>/dev/null 2>&1 || :
 
 # end
 exit ${EXIT_STATE:-1}

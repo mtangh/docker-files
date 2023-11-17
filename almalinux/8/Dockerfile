@@ -1,15 +1,17 @@
 #
 # almalinux8:*
 #
-#@  DOCKER_CONTAINER=""
 #@  DOCKER_IMAGEPATH="almalinux8"
+#@  DOCKER_IMAGE_VER="v$(date +'%Y%m%d')"
+#@  DOCKER_CONTAINER=""
+#@  DOCKER_LATEST_IS="${DOCKER_IMAGEPATH}:minimal"
 #@  DOCKER_BUILDOPTS="" # "--platform=linux/amd64"
 #@  DOCKER_BOOT_OPTS=""
 #@  DOCKER_PUBLISHED=""
-#@  DOCKER_PUBLISHED="${DOCKER_PUBLISHED} almalinux8:minimal"
-#@  DOCKER_PUBLISHED="${DOCKER_PUBLISHED} almalinux8:systemd"
-#@  DOCKER_PUBLISHED="${DOCKER_PUBLISHED} almalinux8:minimal-onbuild"
-#@  DOCKER_PUBLISHED="${DOCKER_PUBLISHED} almalinux8:systemd-onbuild"
+#@  DOCKER_PUBLISHED="${DOCKER_PUBLISHED} ${DOCKER_IMAGEPATH}:minimal"
+#@  DOCKER_PUBLISHED="${DOCKER_PUBLISHED} ${DOCKER_IMAGEPATH}:systemd"
+#@  DOCKER_PUBLISHED="${DOCKER_PUBLISHED} ${DOCKER_IMAGEPATH}:minimal-onbuild"
+#@  DOCKER_PUBLISHED="${DOCKER_PUBLISHED} ${DOCKER_IMAGEPATH}:systemd-onbuild"
 #
 
 # AlmaLinux Version
@@ -62,7 +64,7 @@ ENV \
 WORKDIR /tmp/docker-container-image-build
 
 # COPY shell scripts to Workdir
-COPY "00_build-chrootdir_AL${ALMALINUX_VER}.sh" ./build-chrootdir.sh
+COPY "000_build-chrootdir_AL${ALMALINUX_VER}.sh" ./build-chrootdir.sh
 
 # Setup
 RUN \
@@ -129,37 +131,12 @@ COPY --from=rootfs "${ALMALINUXROOT}"/ /
 WORKDIR /tmp/docker-container-image-build
 
 # COPY shell scripts to Workdir
-COPY \[1-4\]\[0-9\]_*.sh ./
+COPY 010_build-stage.sh ./build-stage.sh
+COPY \[12\]\[0-9\]\[0-9\]_*.sh ./
 
+# SetUp
 RUN \
- set -ux; \
- work_dir=$(pwd); \
- : "Export Args." && { \
-  export ALMALINUX_VER; \
-  export LANGUAGE TIMEZONE KEYBOARD KBDTABLE; \
-  export ROOTPSWD; \
-  export DOCKERUSER DOCKERPSWD; \
-  export DOCKER_UID DOCKER_GRP DOCKER_GID; \
-  export DOCKER_ACCOUNTNAME DOCKER_GROUPS_LIST; \
-  export DOCKER_USERHOMEDIR DOCKER_LOGIN_SHELL; \
-  export DOCKER_ENABLE_SUDO; \
- }; \
- : "Execute Build Script." && { \
-  for build_sh in ./[0-9A-Z][0-9A-Z]_*.sh; \
-  do /bin/bash -ux "${build_sh}" || exit 1; done; \
- } && \
- : "DNF Cleanup." && { \
-  dnf -v -y clean all || :; \
-  [ -d "/var/cache/dnf/" ] && \
-  rm -rf /var/cache/dnf/* || :; \
- } && \
- : "Cleanup." && { \
-  cd /; \
-  [ -d "/var/log" ] && for lf in /var/log/*; \
-  do [ -f "${lf}" -a -s "${lf}" ] && : >"${lf}"; done || :; \
-  rm -rf {,/var}/tmp/* "${work_dir:-X}" || :; \
- } && \
- : "Done.";
+ set -ux; . ./build-stage.sh || exit 1;
 
 # Reset Workdir
 WORKDIR /
@@ -191,33 +168,12 @@ COPY --from=minimal / /
 WORKDIR /tmp/docker-container-image-build
 
 # COPY shell scripts to Workdir
-COPY \[A-Z\]\[0-9A-Z\]_*.sh ./
+COPY 010_build-stage.sh ./build-stage.sh
+COPY \[13\]\[0-9\]\[0-9\]_*.sh ./
 
 # SetUp
 RUN \
- set -ux; \
- work_dir=$(pwd); \
- : "Export Args." && { \
-  export ALMALINUX_VER; \
-  export ROOTPSWD; \
-  export LANGUAGE TIMEZONE KEYBOARD KBDTABLE; \
- }; \
- : "Execute Build Script." && { \
-  for build_sh in ./[0-9A-Z][0-9A-Z]_*.sh; \
-  do /bin/bash -ux "${build_sh}" || exit 1; done; \
- } && \
- : "DNF Cleanup." && { \
-  dnf -v -y clean all || :; \
-  [ -d "/var/cache/dnf/" ] && \
-  rm -rf /var/cache/dnf/* || :; \
- } && \
- : "Cleanup." && { \
-  cd /; \
-  [ -d "/var/log" ] && for lf in /var/log/*; \
-  do [ -f "${lf}" -a -s "${lf}" ] && : >"${lf}"; done || :; \
-  rm -rf {,/var}/tmp/* "${work_dir:-X}" || :; \
- } && \
- : "Done.";
+ set -ux; . ./build-stage.sh || exit 1;
 
 # Reset Workdir
 WORKDIR /
@@ -253,8 +209,8 @@ ARG ALMALINUX_VER
 WORKDIR /.onbuild
 
 # Copy onbuild scripts to Workdir
-COPY \[1-4\]\[0-9\]_*.sh ./
-COPY 9\[0-9\]_*.sh ./
+COPY 010_build-stage.sh ./build-stage.sh
+COPY \[19\]\[0-9\]\[0-9\]_*.sh ./
 
 # AlmaLinux Version
 RUN \
@@ -334,34 +290,10 @@ COPY * ./
 ONBUILD \
 RUN \
  set -ux; \
- work_dir=$(pwd); \
- scrptdir="/.onbuild"; \
- : "ONBUILD: Export Args." && { \
-  export ALMALINUX_VER=$(cat "${scrptdir}/ALMALINUX_VER"); \
-  export LANGUAGE TIMEZONE KEYBOARD KBDTABLE; \
-  export ROOTPSWD; \
-  export DOCKERUSER DOCKERPSWD; \
-  export DOCKER_UID DOCKER_GRP DOCKER_GID; \
-  export DOCKER_ACCOUNTNAME DOCKER_GROUPS_LIST; \
-  export DOCKER_USERHOMEDIR DOCKER_LOGIN_SHELL; \
-  export DOCKER_ENABLE_SUDO; \
-  export RPM_PACKAGES ONBUILDSCRPT; \
- }; \
- : "ONBUILD: Execute OnBuild Scripts." && { \
-  for build_sh in "${scrptdir}"/[0-9A-Z][0-9A-Z]_*.sh; \
-  do /bin/bash -ux "${build_sh}" || exit 1; done && \
+ : "ONBUILD: Run" && { \
+  scrptdir="/.onbuild"; \
+  . ./onbuild.sh || exit 1; \
   rm -rf "${scrptdir}/" || :; \
- } && \
- : "ONBUILD: DNF Cleanup." && { \
-  dnf -v -y clean all || :; \
-  [ -d "/var/cache/dnf/" ] && \
-  rm -rf /var/cache/dnf/* || :; \
- } && \
- : "ONBUILD: Cleanup." && { \
-  cd /; \
-  [ -d "/var/log" ] && for lf in /var/log/*; \
-  do [ -f "${lf}" -a -s "${lf}" ] && : >"${lf}"; done || :; \
-  rm -rf {,/var}/tmp/* "${work_dir:-X}" || :; \
  } && \
  : "ONBUILD: Done.";
 
@@ -380,7 +312,8 @@ ARG ALMALINUX_VER
 WORKDIR /.onbuild
 
 # Copy onbuild scripts to Workdir
-COPY \[1-9\]\[0-9\]_*.sh ./
+COPY 010_build-stage.sh ./onbuild.sh
+COPY \[1-9\]\[0-9\]\[0-9\]_*.sh ./
 
 # AlmaLinux Version
 RUN \
@@ -468,34 +401,10 @@ COPY * ./
 ONBUILD \
 RUN \
  set -ux; \
- work_dir=$(pwd); \
- scrptdir="/.onbuild"; \
- : "ONBUILD: Export Args." && { \
-  export ALMALINUX_VER=$(cat "${scrptdir}/ALMALINUX_VER"); \
-  export LANGUAGE TIMEZONE KEYBOARD KBDTABLE; \
-  export ROOTPSWD; \
-  export DOCKERUSER DOCKERPSWD; \
-  export DOCKER_UID DOCKER_GRP DOCKER_GID; \
-  export DOCKER_ACCOUNTNAME DOCKER_GROUPS_LIST; \
-  export DOCKER_USERHOMEDIR DOCKER_LOGIN_SHELL; \
-  export DOCKER_ENABLE_SUDO; \
-  export RPM_PACKAGES ONBUILDSCRPT; \
- }; \
- : "ONBUILD: Execute OnBuild Scripts." && { \
-  for build_sh in "${scrptdir}"/[0-9A-Z][0-9A-Z]_*.sh; \
-  do /bin/bash -ux "${build_sh}" || exit 1; done && \
+ : "ONBUILD: Run" && { \
+  scrptdir="/.onbuild"; \
+  . ./onbuild.sh || exit 1; \
   rm -rf "${scrptdir}/" || :; \
- } && \
- : "ONBUILD: DNF Cleanup." && { \
-  dnf -v -y clean all || :; \
-  [ -d "/var/cache/dnf/" ] && \
-  rm -rf /var/cache/dnf/* || :; \
- } && \
- : "ONBUILD: Cleanup." && { \
-  cd /; \
-  [ -d "/var/log" ] && for lf in /var/log/*; \
-  do [ -f "${lf}" -a -s "${lf}" ] && : >"${lf}"; done || :; \
-  rm -rf {,/var}/tmp/* "${work_dir:-X}" || :; \
  } && \
  : "ONBUILD: Done.";
 

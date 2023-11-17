@@ -8,7 +8,7 @@ docker-images-load() {
   local _gunzipcmd=""
   local _dockerret=0
   __docker_is_running || return 111
-  for _imagefile in "${@}"
+  for _imagefile in "$@"
   do
     _imagepath=""
     _cimg_pref=""

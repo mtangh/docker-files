@@ -68,7 +68,7 @@ container-image-get() {
       _found_val=$(
         ${DOCKER_CMD} images --format='{{ .ID}} {{ .Repository }}:{{ .Tag }}' |
         egrep '(^'"${_cimagekey}"'[[:space:]]+|[[:space:]]+'"${_cimagekey}"'(:latest$|$))' |
-        egrep -v '[[:space:]]+<none>:<none>$' |${AWK} ${_cimg_fcls} 2>/dev/null; )
+        egrep -v '[[:space:]]+<none>:<none>$' |${AWK} ${_cimg_fcls} |sort -u 2>/dev/null; )
       [ -n "${_found_val}" ] && {
         echo "${_found_val}"
         _found_cnt=$(( ${_found_cnt} + 1 ))
@@ -88,7 +88,8 @@ container-image-get-config() {
   local _buildpath=""
   local _formatted=0
   local _cimagelst=""
-  local _imagepath=""
+  local _image_key=""
+  local _imageuuid=""
   local _cimagecnt=0
   local _inspecter=""
   local _collength=12
@@ -139,20 +140,17 @@ _USAGE_
   }
   [ ${_cimagecnt} -le 1 -o ${_formatted} -eq 0 ] || {
     _collength=$(
-      for _imagepath in ${_cimagelst}
-      do echo "${_imagepath}"; done |
+      for _image_key in ${_cimagelst}
+      do echo "${_image_key}"; done |
       __adjustcolwidth "${_collength}")
     printf "%-${_collength}s%s" "IMAGE-REPO:TAG" "${_prop_name:-${_cmnd_type}}"
     echo
   }
-  for _imagepath in ${_cimagelst}
+  for _image_key in ${_cimagelst}
   do
     _propvalue=""
-    [ -n "${_imagepath}" ] &&
-    _imagepath=$(
-      container-image-get-path \
-      ${_buildpath:+-f ${_buildpath}} "${_imagepath}") &&
-    [ -n "${_imagepath}" ] && {
+    _imageuuid=$(container-image-get-id \
+    ${_buildpath:+-f ${_buildpath}} "${_image_key}") && {
       case "${_cmnd_type}" in
       label|property)
         _inspecter='{{ index .Config.Labels "'"${_prop_name}"'" }}'
@@ -172,14 +170,14 @@ _USAGE_
       esac
       _propvalue=$(
         ${DOCKER_CMD} inspect --type image --format="${_inspecter}" \
-        "${_imagepath}" 2>/dev/null) &&
+        "${_imageuuid}" 2>/dev/null) &&
       if [ ${_cimagecnt} -le 1 ]
       then
         echo "${_propvalue}"
       else
         if [ ${_formatted} -ne 0 ]
-        then printf "%-${_collength}s%s" "${_imagepath}" "${_propvalue}"
-        else printf "%s %s" "${_imagepath}" "${_propvalue}"
+        then printf "%-${_collength}s%s" "${_image_key}" "${_propvalue}"
+        else printf "%s %s" "${_image_key}" "${_propvalue}"
         fi
         echo
       fi
@@ -191,43 +189,43 @@ _USAGE_
 }
 
 container-image-get-cmd() {
-  container-image-get-config cmd "${@}"
+  container-image-get-config cmd "$@"
   return $?
 }
 
 container-image-get-property() {
-  container-image-get-config property "${@}"
+  container-image-get-config property "$@"
   return $?
 }
 
 container-image-property_BUILD_OPTS() {
-  container-image-get-property "docker.build.options" "${@}"
+  container-image-get-property "docker.build.options" "$@"
   return $?
 }
 
 container-image-property_CONTAINER_NAME() {
-  container-image-get-property "docker.run.container-name" "${@}"
+  container-image-get-property "docker.run.container-name" "$@"
   return $?
 }
 
 container-image-property_RUNNABLE() {
-  container-image-get-property "docker.run.runnable" "${@}"
+  container-image-get-property "docker.run.runnable" "$@"
   return $?
 }
 
 container-image-property_RUN_OPTS() {
-  container-image-get-property "docker.run.options" "${@}"
+  container-image-get-property "docker.run.options" "$@"
   return $?
 }
 
 container-image-property_CONFIRM-STARTUP() {
-  container-image-get-property "docker.run.confirm-startup" "${@}"
+  container-image-get-property "docker.run.confirm-startup" "$@"
   return $?
 }
 
 container-image-is-runnable() {
-  [ -n "$(container-image-get-cmd "${@}")" ] && {
-    container-image-property_RUNNABLE "${@}" |
+  [ -n "$(container-image-get-cmd "$@")" ] && {
+    container-image-property_RUNNABLE "$@" |
     egrep -i '^true$'
   } 1>/dev/null 2>&1
   return $?

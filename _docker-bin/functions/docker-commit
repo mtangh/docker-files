@@ -51,7 +51,8 @@ docker-commit() {
     echo
     return 1
   fi
-  ${DOCKER_CMD} commit ${_cmit_opts} ${_container} ${_imagename}
+  __docker_invoke commit \
+  ${_cmit_opts} ${_container} ${_imagename}
   return $?
 }
 

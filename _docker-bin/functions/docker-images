@@ -70,8 +70,7 @@ docker-images() {
     esac
   done
   eval $(getoptions_end)
-  [ -n "${_headerstr}" ] &&
-  echo "${_headerstr}" || :
+  [ -n "${_headerstr}" ] && echo "${_headerstr}" || :
   eval $(echo ${DOCKER_CMD} images ${_formatopt} ${_dimageopt})
   return $?
 }

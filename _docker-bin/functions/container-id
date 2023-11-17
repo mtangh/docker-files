@@ -102,49 +102,49 @@ container-get-one-id() {
 
 # container all ids
 container-get-id-all() {
-  container-get-id --all "${@}"
+  container-get-id --all "$@"
   return $?
 }
 
 # container latest id
 container-get-id-latest() {
-  container-get-id --all --latest "${@}"
+  container-get-id --all --latest "$@"
   return $?
 }
 
 # container last id
 container-get-id-last() {
-  container-get-id --all --last=1 "${@}"
+  container-get-id --all --last=1 "$@"
   return $?
 }
 
 # container name
 container-get-name() {
-  container-get-id -N "${@}"
+  container-get-id -N "$@"
   return $?
 }
 
 # container all name
 container-get-name-all() {
-  container-get-name --all "${@}"
+  container-get-name --all "$@"
   return $?
 }
 
 # container latest name
 container-get-name-latest() {
-  container-get-name --all --latest "${@}"
+  container-get-name --all --latest "$@"
   return $?
 }
 
 # container last name
 container-get-name-last() {
-  container-get-name --all --last=1 "${@}"
+  container-get-name --all --last=1 "$@"
   return $?
 }
 
 # container running
 container-is-running() {
-  local _container=$(container-get-id-last "${@}")
+  local _container=$(container-get-id-last "$@")
   __docker_is_running || return 111
   [ -n "${_container}" ] && {
     ${DOCKER_CMD} ps -a --format="{{ .ID }}" --filter "status=running" |

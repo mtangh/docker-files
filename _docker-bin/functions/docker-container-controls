@@ -111,10 +111,8 @@ __docker-control-command() {
     "docker-${_ctrl_cmnd} [OPTIONS] [CONTAINER|IMAGE] ..."
     return 1
   }
-  echo ${DOCKER_CMD} "${_ctrl_cmnd}" "${_ctrl_opts[@]}" ${_ctrl_args[@]} 1>&2
-  eval $(
-  echo ${DOCKER_CMD} "${_ctrl_cmnd}" "${_ctrl_opts[@]}" ${_ctrl_args[@]}
-  )
+  __docker_invoke "${_ctrl_cmnd}" \
+  "${_ctrl_opts[@]}" ${_ctrl_args[@]}
   return $?
 }
 
