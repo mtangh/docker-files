@@ -292,8 +292,8 @@ RUN \
  set -ux; \
  : "ONBUILD: Run" && { \
   scrptdir="/.onbuild"; \
-  . ${scrptdir}/onbuild.sh || exit 1; \
-  rm -rf "${scrptdir}/" || :; \
+  . ${scrptdir:-X}/onbuild.sh || exit 1; \
+  rm -rf "${scrptdir:-X}/" || :; \
  } && \
  : "ONBUILD: Done.";
 
@@ -403,8 +403,8 @@ RUN \
  set -ux; \
  : "ONBUILD: Run" && { \
   scrptdir="/.onbuild"; \
-  . ${scrptdir}/onbuild.sh || exit 1; \
-  rm -rf "${scrptdir}/" || :; \
+  . ${scrptdir:-X}/onbuild.sh || exit 1; \
+  rm -rf "${scrptdir:-X}/" || :; \
  } && \
  : "ONBUILD: Done.";
 
