@@ -151,7 +151,14 @@ t|tag:=_imagepath
     [ -n "${_imagepath}" ] &&
     _imgtagent="${_imgtagent:+${_imgtagent} }-t ${_imagepath}" || :
     [ -n "${_imagepath}" -a -n "${_image_ver}" ] &&
-    _imgtagent="${_imgtagent:+${_imgtagent} }-t ${_imagepath}-${_image_ver}" || :
+    case "${_imagepath}" in
+    *:*)
+      _imgtagent="${_imgtagent:+${_imgtagent} }-t ${_imagepath}-${_image_ver}"
+      ;;
+    *:*)
+      _imgtagent="${_imgtagent:+${_imgtagent} }-t ${_imagepath}:${_image_ver}"
+      ;;
+    esac || :
     [ -n "${_imagepath}" ] && [ "${_imagepath}" = "${_imglatest}" ] &&
     _imgtagent="${_imgtagent:+${_imgtagent} }-t ${_imagepath%:*}" || :
     _labelopts=""

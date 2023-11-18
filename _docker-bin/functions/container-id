@@ -65,7 +65,7 @@ container-get-id() {
     _container=$(
       ${DOCKER_CMD} ps ${_cmnd_opts} \
       --format='{{ .CreatedAt }};{{.ID}};{{.Image}};{{.Names}}' |
-      egrep '(^|[;])('"${_searchval}"'|'"${_searchval%:latest*}"')([;].*|$)' |
+      egrep '(^|[;])('"${_searchval}"'|'"${_searchval}:latest"'|'"${_searchval%:latest*}"')([;].*|$)' |
       sort -r |${AWK} -F ';' -vPn="${_printname:-0}" -vWn="${_ps_with_n:-0}" \
       '{print((Wn==0)?((Pn==0)?$2:$4):$2";"$4);}'; ) ||
       _container=""

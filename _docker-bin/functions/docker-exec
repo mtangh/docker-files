@@ -81,7 +81,7 @@ docker-exec() {
   if [ -r "${_buildpath}" -a -z "${_container}" ]
   then
     [ -n "${_stage_key}" ] ||
-    dockerfile-choose-stage "${_buildpath}" ||
+    dockerfile-stage-chooser "${_buildpath}" ||
     return 1
     _imagepath=$(
       dockerfile-imagepath-get \

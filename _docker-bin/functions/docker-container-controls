@@ -2,6 +2,7 @@
 
 # docker control
 __docker-control-command() {
+  local _buildpath=""
   local _container=""
   local _imageuuid=""
   local _imagepath=""

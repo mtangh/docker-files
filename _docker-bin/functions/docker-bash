@@ -46,7 +46,7 @@ docker-bash() {
   if [ -r "${_buildpath}" -a -z "${_imagepath}${_container}" ]
   then
     [ -n "${_stage_key}" ] ||
-    dockerfile-choose-stage "${_buildpath}" ||
+    dockerfile-stage-chooser "${_buildpath}" ||
       return 1
     _imagepath=$(
       dockerfile-imagepath-get "${_stage_key:-+0}" "${_buildpath}")
