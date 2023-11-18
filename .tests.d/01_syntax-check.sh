@@ -12,6 +12,7 @@ echo "[${tests_name:-${THIS}}] syntax-check.sh" && {
   # Error
   syntax_err=0
 
+  # Pwd
   echo "Dir: ${docker_bin}"
 
   # Syntax check
@@ -23,7 +24,7 @@ echo "[${tests_name:-${THIS}}] syntax-check.sh" && {
     echo "_docker-bin/${shscript##*/_docker-bin/}:"
     bash -n "${shscript}" || syntax_err=$?
   done &&
-  [ $syntax_err -le 0 ] &&
+  [ ${syntax_err:-1} -le 0 ] &&
   echo "OK."
 
 } &&
