@@ -22,7 +22,12 @@ echo "[${tests_name:-${THIS}}] syntax-check.sh" && {
     } 2>/dev/null; )
   do
     echo "_docker-bin/${shscript##*/_docker-bin/}:"
-    bash -n "${shscript}" || syntax_err=$?
+    bash -n "${shscript}" && {
+      if [[ "${shscript}" =~ /functions/ ]]
+      then (. "${shscript}")
+      else :
+      fi
+    } || syntax_err=$?
   done &&
   [ ${syntax_err:-1} -le 0 ] &&
   echo "OK."

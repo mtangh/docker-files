@@ -1,0 +1,159 @@
+# docker-dockerfile-image
+
+# Get stage name by index
+dockerfile-imagepath-get() {
+  local _buildpath=""
+  local _stage_key=""
+  local _imagepath=""
+  local _image_ver=""
+  local _stage_ind=""
+  local _stagename=""
+  local _multi_stg=0
+  while [ $# -gt 0 ]
+  do
+    [ -z "${1:-}" ] ||
+    case "${1:-}" in
+    -)
+      ;;
+    --)
+      ;;
+    -V)
+      _image_ver="YES"
+      ;;
+    +[0-9]*|@[0-9A-Za-z]*)
+      _stage_key="${1:-}"
+      ;;
+    *)
+      if [ -z "${_buildpath:-}" ]
+      then _buildpath="${1:-}"
+      else :
+      fi;
+    esac
+    shift
+  done
+  _buildpath=$(dockerfile-get-path "${_buildpath}") ||
+    return 1
+  [ -z "${_imagepath}" ] &&
+    _imagepath=$(dockerfile-env_IMAGEPATH "${_buildpath}") || :
+  [ -z "${_imagepath}" ] &&
+    _imagepath=$(dockerfile-imagepath-from-dir "${_buildpath}") || :
+  [ -z "${_imagepath}" ] &&
+    return 1 || :
+  [ "${_image_ver:-NO}" = "YES" ] &&
+    _image_ver=$(dockerfile-env_IMAGE_VER "${_buildpath}" 2>/dev/null)
+  dockerfile-multi-stage "${_buildpath}" 1>/dev/null 2>&1 &&
+    _multi_stg=1 || :
+  if [ ${_multi_stg} -ne 0 ]
+  then
+    case "${_stage_key}" in
+    +[0-9]*)
+      _stage_ind="${_stage_key#*+}"
+      dockerfile-stage-has-index "${_stage_ind}" "${_buildpath}" 1>/dev/null 2>&1 && {
+        _stagename=$(
+          dockerfile-stage-get-name "${_stage_ind}" "${_buildpath}" 2>/dev/null)
+      } ||
+      return 2
+      ;;
+    @[0-9A-Za-z]*)
+      _stagename="${_stage_key#*@}"
+      _stage_ind=$(
+        dockerfile-stage-get-index "${_stagename}" "${_buildpath}" 2>/dev/null)
+      [ $? -eq 0 -a -n "${_stage_ind}" ] ||
+        return 2
+      ;;
+    *)
+      _stage_ind=""
+      _stagename=""
+      ;;
+    esac
+    if [ -z "${_stage_ind}${_stagename}" ]
+    then
+      _stage_key=$(
+        dockerfile-stage-list "${_buildpath}" |
+        ${AWK} '{print($1);}' 2>/dev/null)
+    else
+      _stage_key="${_stage_ind}"
+    fi || :
+  else
+    _stage_key="-"
+  fi || :
+  [ -n "${_stage_key}" ] &&
+  for _stage_ind in ${_stage_key}
+  do
+    _stagename=$(dockerfile-stage-get-name "${_stage_ind}" "${_buildpath}" 2>/dev/null)
+    dockerfile-imagepath-echo "${_imagepath}" "${_stage_ind}" "${_stagename}" "${_image_ver}"
+  done
+  return $?
+}
+
+dockerfile-imagepath-get-with-version() {
+  dockerfile-imagepath-get -V "$@"
+  return $?
+}
+
+# From context path.
+dockerfile-imagepath-from-dir() {
+  local _buildpath=$(dockerfile-get-path "${1:-}" 2>/dev/null); shift
+  local _build_dir=""
+  local _imagepath=""
+  local _imagepart=""
+  local _imagerepo=""
+  local _image_tag=""
+  if [[ "${_buildpath}" =~ ^http(s:|:)//[^/]+/(.+)$ ]]
+  then _build_dir="${BASH_REMATCH[2]%/*}"
+  elif [[ "${_buildpath}" =~ ^(${DOCKERFILES_ROOT_DIR})/(.+)$ ]]
+  then _build_dir="${BASH_REMATCH[2]%/*}"
+  else return 2
+  fi &&
+  [ -n "${_build_dir:-}" ] &&
+  for _imagepart in $(echo ${_build_dir//\// })
+  do
+    [[ "${_imagepart}" =~ ^_.*_$ ]] || {
+      _imagerepo="${_imagerepo:+${_imagerepo}-}${_imagepart}"
+    } || :
+  done &&
+  [ -n "${_imagerepo:-}" ] && {
+    _imagerepo="${_imagerepo//[/+#%&@]/-}"
+    _imagerepo="${_imagerepo//[.:=]/_}"
+    _imagerepo="${_imagerepo// }"
+    _image_tag="${_image_tag//[/+#%&@]/-}"
+    _image_tag="${_image_tag//[.:=]/_}"
+    _image_tag="${_image_tag// }"
+  } &&
+  [ -n "${_imagerepo:-}" ] && {
+    echo "${_imagerepo}${_image_tag:+:${_image_tag}}"
+  }
+  return $?
+}
+
+dockerfile-imagepath-echo() {
+  local _imagepath="${1:-}"; shift
+  local _stage_ind="${1:-}"; shift
+  local _stagename="${1:-}"; shift
+  local _imversion="${1:-}"; shift
+  [ -n "${_imagepath}" -a \
+    -n "${_stage_ind}${_stagename}" ] && {
+    _stage_ind="${_stage_ind##-}"
+    _stagename="${_stagename##-}"
+    _stagename="${_stagename:=${_stage_ind}}"
+    case "${_imagepath}" in
+    [-_0-9A-Za-z]*:[-_0-9A-Za-z]*)
+      if [ -n "${_stagename}" ]
+      then echo "${_imagepath}_${_stagename}${_imversion:+-${_imversion}}"
+      else echo "${_imagepath}${_imversion:+-${_imversion}}"
+      fi
+      ;;
+    [-_0-9A-Za-z]*)
+      if [ -n "${_stagename}" ]
+      then echo "${_imagepath}:${_stagename}${_imversion:+-${_imversion}}"
+      else echo "${_imagepath}${_imversion:+:${_imversion}}"
+      fi
+      ;;
+    *)
+      ;;
+    esac
+  }
+  return $?
+}
+
+# vim: set ff=unix ts=2 sw=2 sts=2 et : This line is VIM modeline

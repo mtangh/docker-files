@@ -178,7 +178,7 @@ EXIT_STATE=0
 trap 'kill $(jobs -p) 1>/dev/null 2>&1' EXIT
 
 # First section
-dmf_section && {
+dmf_section 1>/dev/null 2>&1 && {
 
   dmf_proc_start "${_docker_not_running:-0}"
 
@@ -490,7 +490,7 @@ dmf_section "CHK" && {
 } 1> >(dmf_stdout_with_ts "CHK") 2>&1 || :
 
 # End section
-dmf_section && {
+dmf_section 1>/dev/null 2>&1 && {
 
   # Pop dir
   popd 1>/dev/null 2>&1 || :
@@ -501,7 +501,7 @@ dmf_section && {
 } 1> >(dmf_stdout_with_ts "") 2>&1
 
 # Wait for the end of the child process.
-wait 1>/dev/null 2>&1 || :
+dmf_wait "$!" 1>/dev/null 2>&1 || :
 
 # end
 exit ${EXIT_STATE:-1}

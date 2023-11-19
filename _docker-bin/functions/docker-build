@@ -55,7 +55,7 @@ t|tag:=_imagepath
   eval $(getoptions_end)
   if [ -n "${_imagepath:-}" ]
   then
-    for _imgtagent in _imagepath
+    for _imgtagent in ${_imagepath}
     do _imtagopts="${_imtagopts:+${_imtagopts} }-t ${_imgtagent}"
     done
   fi
@@ -66,11 +66,11 @@ t|tag:=_imagepath
     return $?
   fi
   [ -z "${_buildpath}" -a -n "${_build_ctx}" ] &&
-  _buildpath=$(dockerfile-get-path "${_build_ctx}") || :
-  _buildpath=$(dockerfile-get-path "${_buildpath}") || :
+    _buildpath=$(dockerfile-get-path "${_build_ctx}") || :
+    _buildpath=$(dockerfile-get-path "${_buildpath}") || :
   if [ -f "${_buildpath}" -a -r "${_buildpath}" ]
   then
-    eval $(dockerfile-env-export "${_buildpath}")
+    eval $(dockerfile-env-export "${_buildpath}") || :
     [ -n "${_targetind}" ] && {
       _stage_ind=$(dockerfile-stage-get-index "${_targetind}" "${_buildpath}")
       _stagename=$(dockerfile-stage-get-name "${_targetind}" "${_buildpath}")
@@ -136,15 +136,15 @@ t|tag:=_imagepath
     } || :
     _meta_opts=""
     [ -n "${_imagepath}" ] &&
-    dockerfile-has-ARG _DOCKER_META_IMAGENAME "${_buildpath:-}" && {
+    dockerfile-ARG-exists _DOCKER_META_IMAGENAME "${_buildpath:-}" && {
       _meta_opts="${_meta_opts:+${_meta_opts} }--build-arg _DOCKER_META_IMAGENAME=${_imagepath}"
     } || :
     [ -n "${_stagename}" ] &&
-    dockerfile-has-ARG _DOCKER_META_STAGENAME "${_buildpath:-}" && {
+    dockerfile-ARG-exists _DOCKER_META_STAGENAME "${_buildpath:-}" && {
       _meta_opts="${_meta_opts:+${_meta_opts} }--build-arg _DOCKER_META_STAGENAME=${_stagename}"
     } || :
     [ -n "${_imagefrom}" ] &&
-    dockerfile-has-ARG _DOCKER_META_IMAGEFROM "${_buildpath:-}" && {
+    dockerfile-ARG-exists _DOCKER_META_IMAGEFROM "${_buildpath:-}" && {
       _meta_opts="${_meta_opts:+${_meta_opts} }--build-arg _DOCKER_META_IMAGEFROM=${_imagefrom}"
     } || :
     _imgtagent="${imtagopts:-}"
@@ -163,6 +163,7 @@ t|tag:=_imagepath
     _imgtagent="${_imgtagent:+${_imgtagent} }-t ${_imagepath%:*}" || :
     _labelopts=""
     _labelopts="${_labelopts:+${_labelopts} }--label docker.build.options="'"'"${_buildopts}"'"'
+    eval $(dockerfile-env-unset "${_buildpath}") || :
     __docker_invoke build \
       ${_buildopts} ${_imgtagent} ${_meta_opts} ${_labelopts} \
       ${_stagename:+--target=${_stagename}} ${_buildpath:+-f ${_buildpath}} \

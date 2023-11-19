@@ -1,4 +1,4 @@
-# _functions.sh
+# functions.sh
 DOCKERFUNC_SRC="${BASH_SOURCE##*/}"
 DOCKERFUNC_DIR=$([ -n "${BASH_SOURCE%/*}" ] && cd "${BASH_SOURCE%/*}" 2>/dev/null; pwd)
 
@@ -18,7 +18,7 @@ if [ -n "${DOCKERFUNC_DIR}" -a -d "${DOCKERFUNC_DIR}/functions" ]
 then
   for func in "${DOCKERFUNC_DIR}"/functions/*
   do
-    [ -f "${func}" ] && {
+   [ -f "${func}" ] && {
       . "${func}"
     } || :
   done 2>/dev/null

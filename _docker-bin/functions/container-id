@@ -42,8 +42,9 @@ container-get-id() {
     esac
   done
   eval $(getoptions_end)
-  _buildpath=$(dockerfile-get-path "${_buildpath:-}")
-  [ -r "${_buildpath}" -a -z "${_find_keys}" ] && {
+  _buildpath=$(dockerfile-get-path "${_buildpath:-}") &&
+    return 1
+  [ -z "${_find_keys}" ] && {
     _find_file=1
     _find_keys=$(echo \
       $(dockerfile-env_CONTAINER "${_buildpath}") \
@@ -60,7 +61,7 @@ container-get-id() {
   for _searchval in ${_find_keys}
   do
     [ -n "${_searchval}" ] ||
-    continue
+      continue
     _container=""
     _container=$(
       ${DOCKER_CMD} ps ${_cmnd_opts} \

@@ -1,0 +1,206 @@
+# docker-dockerfile-stages
+
+# number of stage
+dockerfile-num-of-stage() {
+  local _buildpath=$(dockerfile-get-path "${1:-}"); shift
+  local _stage_num=$(dockerfile-cat-FROM "${_buildpath}"|wc -l 2>/dev/null)
+  echo ${_stage_num:-0}
+  return 0
+}
+
+# multi-stage dockerfile
+dockerfile-multi-stage() {
+  local _stage_num=$(dockerfile-num-of-stage "${1:-}" 2>/dev/null)
+  [ ${_stage_num:-0} -gt 1 ]
+  return $?
+}
+
+# multi-stage chooser
+dockerfile-stage-chooser() {
+  local _buildpath=$(dockerfile-get-path "${1:-}"); shift
+  dockerfile-multi-stage "${_buildpath}" 1>/dev/null 2>&1 && {
+    echo "Choose a stage to run."
+    echo
+    dockerfile-stage-list -F "${_buildpath}" 2>/dev/null
+    echo
+    return 1
+  } || :
+  return 0
+}
+
+# list stage
+dockerfile-stage-list() {
+  local _buildpath=""
+  local _formatted=0
+  local _withimage=0
+  local _imagepath=""
+  local _cimagetmp=""
+  local _multi_stg=0
+  local _stage_ind=0
+  local _stagename=""
+  local _in_record=""
+  local _prtheader="IDX As From ARCH Image"
+  local _prtformat="%s %s %s %s %s"
+  eval $(getoptions "F|format=_formatted I|image=_withimage" "$@")
+  while getoptions_has_next
+  do
+    eval $(getoptions_shift)
+    case "${_getopt_V:=}" in
+    -*)
+cat <<_EOD_ 1>&2
+Usage: ${FUNCNAME} [-IF] [/path/to/Dockerfile]
+_EOD_
+      return 2
+      ;;
+    *)
+      [ -z "${_buildpath}" ] && {
+        _buildpath="${_getopt_V}"
+      } || :
+      ;;
+    esac
+  done
+  eval $(getoptions_end)
+  _buildpath=$(dockerfile-get-path "${_buildpath}") ||
+    return 1
+  _imagepath=$(
+    dockerfile-env_IMAGEPATH "${_buildpath}" ||
+    dockerfile-imagepath-from-dir "${_buildpath}" ||
+    :; )
+  dockerfile-multi-stage "${_buildpath}" &&
+    _multi_stg=1 || :
+  if [ ${_formatted} -ne 0 ]
+  then
+    _prtformat=$( : && {
+      eval $(dockerfile-build-opts-apply "${_buildpath}")
+      while read _in_record
+      do
+        _cw2=$( echo "${_in_record}" |
+                __adjustcolwidth "${_cw2:-12}" 2 )
+        _cw3=$( echo "${_in_record}" |
+                __adjustcolwidth "${_cw3:-12}" 3 )
+        _cw4=$( echo "${_in_record}" |
+                __adjustcolwidth "${_cw4:-12}" 4 )
+      done < <(dockerfile-cat-FROM "${_buildpath}")
+      printf "%s" "%3s %-${_cw2}s%-${_cw3}s%-${_cw4}s%s"
+    }; )
+  fi
+  ( : && {
+    [ ${_formatted} -ne 0 ] &&
+    echo ${_prtheader} || :
+    eval $(dockerfile-build-opts-apply "${_buildpath}")
+    while read _in_record
+    do
+      _cimagetmp=""
+      _stage_ind=""
+      _stagename=""
+      eval $(
+        echo "${_in_record}" |${AWK} \
+        '{printf("_stage_ind=%s;_stagename=%s;_cimagetmp=%s;",$1,$2,$5);}' \
+        2>/dev/null; )
+      _cimagetmp="${_cimagetmp//-}"
+      _stagename="${_stagename//-}"
+      [ ${_multi_stg:-0} -ne 0 ] ||
+      _stage_ind="-" 
+      if [ -n "${_imagepath}" -a -z "${_cimagetmp:-}" ]
+      then
+        _cimagetmp=$(
+          dockerfile-imagepath-echo \
+          "${_imagepath}" "${_stage_ind}" "${_stagename}" \
+          2>/dev/null; )
+      else :
+      fi
+      eval echo $(echo ${_in_record}${_cimagetmp:+ ${_cimagetmp}})
+    done < <(dockerfile-cat-FROM "${_buildpath}")
+  }; )|
+  ${AWK} -vPfmt="${_prtformat}" \
+  '{print( sprintf(Pfmt,$1,$2,$3,$4,$5) );}' 2>/dev/null
+  return $?
+}
+
+# Get stage name
+dockerfile-stage-get() {
+  local _indorname="${1:-}"; shift
+  local _stage_key="${1:-}"; shift
+  local _buildpath="${1:-}"; shift
+  _buildpath=$(dockerfile-get-path "${_buildpath}") ||
+    return 1
+  case "${_indorname}" in
+  ind|index)
+    _indorname='{print($1);}'
+    ;;
+  name)
+    _indorname='{print($2);}'
+    ;;
+  from)
+    _indorname='{print($3);}'
+    ;;
+  platform|arch)
+    _indorname='{print($4);}'
+    ;;
+  tag|image)
+    _indorname='{print($5);}'
+    ;;
+  *)
+    return 2
+    ;;
+  esac
+  [ -n "${_stage_key}" ] && {
+    case "${_stage_key}" in
+    +[0-9]*)
+      _stage_key="${_stage_key#*+}"
+      ;;
+    @[0-9A-Za-z]*)
+      _stage_key="${_stage_key#*@}"
+      ;;
+    esac
+    dockerfile-stage-list -I "${_buildpath}" |
+    ${AWK} '$1=="'"${_stage_key}"'" || $2=="'"${_stage_key}"'" '"${_indorname};"
+  }
+  return $?
+}
+
+# Get index of stage
+dockerfile-stage-get-index() {
+  dockerfile-stage-get index "$@"
+  return $?
+}
+
+# Get name of stage
+dockerfile-stage-get-name() {
+  dockerfile-stage-get name "$@"
+  return $?
+}
+
+# Get "from" of stage
+dockerfile-stage-get-from() {
+  dockerfile-stage-get from "$@"
+  return $?
+}
+
+# Get platform of stage
+dockerfile-stage-get-platform() {
+  dockerfile-stage-get platform "$@"
+  return $?
+}
+
+# Get repo-tag of stage
+dockerfile-stage-get-tag() {
+  dockerfile-stage-get tag "$@"
+  return $?
+}
+
+# Exists stage index
+dockerfile-stage-has-index() {
+  local _stage_ind=$(dockerfile-stage-get index "$@") || :
+  [ -n "${_stage_ind}" ]
+  return $?
+}
+
+# Exists stage name
+dockerfile-stage-has-name() {
+  local _stagename=$(dockerfile-stage-get name "$@") || :
+  [ -n "${_stagename##*-}" ]
+  return $?
+}
+
+# vim: set ff=unix ts=2 sw=2 sts=2 et : This line is VIM modeline

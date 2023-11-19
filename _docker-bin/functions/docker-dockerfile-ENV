@@ -1,0 +1,189 @@
+# docker-dockerfile-ENV
+
+# docker env set
+dockerfile-env-set() {
+  local _buildpath=""
+  local _exportflg=0
+  local _dvariable=""
+  eval $(getoptions "E|export=_exportflg" "$@")
+  while getoptions_has_next
+  do
+    eval $(getoptions_shift)
+    case "${_getopt_V:=}" in
+    -*)
+      echo "${FUNCNAME}: ERROR: Illegal options '${_getopt_V}'". 1>&2
+      return 2
+      ;;
+    *)
+      [ -z "${_buildpath}" ] &&
+      _buildpath="${_getopt_V}" || :
+      ;;
+    esac
+  done
+  eval $(getoptions_end)
+  dockerfile-cat-ATTRIBUTES "${_buildpath}" 2>/dev/null |
+  if [ ${_exportflg:-0} -ne 0 ]
+  then ${SED} -re 's/^/export /g'
+  else cat -
+  fi
+  return $?
+}
+
+# docker env set
+dockerfile-env-unset() {
+  local _buildpath=""
+  local _exportflg=0
+  local _dvariable=""
+  eval $(getoptions "" "$@")
+  while getoptions_has_next
+  do
+    eval $(getoptions_shift)
+    case "${_getopt_V:=}" in
+    -*)
+      echo "${FUNCNAME}: ERROR: Illegal options '${_getopt_V}'". 1>&2
+      return 2
+      ;;
+    *)
+      [ -z "${_buildpath}" ] &&
+      _buildpath="${_getopt_V}" || :
+      ;;
+    esac
+  done
+  eval $(getoptions_end)
+  dockerfile-cat-ATTRIBUTES "${_buildpath}" 2>/dev/null |
+  ${SED} -re 's#^([^=]+)=.*$#unset \1;#gi'
+  return $?
+}
+
+# dockerfile env export
+dockerfile-env-export() {
+  dockerfile-env-set -E "$@"
+  return $?
+}
+
+# dockerfile get env
+dockerfile-env-get() {
+  local _cattr_key="${1:-}"; shift
+  local _buildpath="${1:-}"; shift
+  local _cattr_val=""
+  local _cakey_tmp=""
+  [ -n "${_cattr_key}" ] ||
+    return 2
+  _buildpath=$(dockerfile-get-path "${_buildpath}") ||
+    return 1
+  case "${_cattr_key}" in
+  DOCKER_*)
+    ;;
+  *)
+    _cattr_key="DOCKER_${_cattr_key}"
+    ;;
+  esac
+  for _cakey_tmp in "${_cattr_key}" "${_cattr_key#DOCKER_}"
+  do
+    _cattr_val=$(
+      set |egrep '^'"${_cakey_tmp}"'=' 1>/dev/null 2>&1 ||
+      eval $(dockerfile-env-set "${_buildpath}") || :
+      eval 'echo ${'"${_cakey_tmp}"':-}'; )
+    [ -n "${_cattr_val}" ] && break || :
+  done
+  [ -n "${_cattr_val}" ] &&
+  echo "${_cattr_val}"
+  return $?
+}
+
+dockerfile-env_IMAGEPATH() {
+  local _imgname=$(dockerfile-env-get DOCKER_IMAGEPATH "$@")
+  local _imgrepo=$(echo "${_imgname}" |${AWK} -F: '{print($1);}')
+  local _img_tag=$(echo "${_imgname}" |${AWK} -F: '{print($2);}')
+  [ -n "${_imgrepo}${_img_tag}" ] &&
+  echo "${_imgrepo}${_img_tag:+:${_img_tag}}"
+  return $?
+}
+
+dockerfile-env_IMAGEREPO() {
+  dockerfile-env_IMAGEPATH "$@" |
+  ${AWK} -F: '{print($1);}' 2>/dev/null
+  return $?
+}
+
+dockerfile-env_IMAGE_TAG() {
+  dockerfile-env_IMAGEPATH "$@" |
+  ${AWK} -F: '{print($2);}' 2>/dev/null
+  return $?
+}
+
+dockerfile-env_IMAGE_VER() {
+  dockerfile-env-get DOCKER_IMAGE_VER "$@"
+  return $?
+}
+
+dockerfile-env_CONTAINER() {
+  dockerfile-env-get DOCKER_CONTAINER "$@"
+  return $?
+}
+
+dockerfile-env_LATEST_IS() {
+  dockerfile-env-get DOCKER_LATEST_IS "$@"
+  return $?
+}
+
+dockerfile-env_BUILDOPTS() {
+  __load_external_env "${1:-}" "BUILDOPTS" "build"
+  return $?
+}
+
+dockerfile-env_BOOT_OPTS() {
+  __load_external_env "${1:-}" "BOOT_OPTS" "run"
+  return $?
+}
+
+dockerfile-env_EXEC_OPTS() {
+  __load_external_env "${1:-}" "EXEC_OPTS" "exec"
+  return $?
+}
+
+dockerfile-env_PUBLISHED() {
+  __load_external_env "${1:-}" "PUBLISHED" "published"
+  return $?
+}
+
+__load_external_env() {
+  local _buildpath="${1:-}"; shift
+  local _opts_name="${1:-}"; shift
+  local _opts_suff="${1:-}"; shift
+  local _file_suff=""
+  local _opt_value=""
+  local _eval_expr=""
+  local _tmp_value=""
+  _buildpath=$(dockerfile-get-path "${_buildpath}") ||
+    return 1
+  [ -n "${_opts_name}" ] && {
+    _opt_value=$(dockerfile-env-get "${_opts_name}" "${_buildpath}")
+  } || :
+  for _file_suff in \
+  "${_opts_name}" \
+  "${_opts_name:+opts.${_opts_name}}" "${_opts_suff:+opts.${_opts_suff}}"
+  do
+    [ -n "${_file_suff}" -a \
+      -f "${_buildpath}.${_file_suff}" -a \
+      -r "${_buildpath}.${_file_suff}" ] && {
+      _tmp_value=$(echo $(cat "${_buildpath}.${_file_suff}" 2>/dev/null))
+      [ -n "${_tmp_value}" ] &&
+      _opt_value="${_opt_value:+${_opt_value} }${_tmp_value}"
+    } || :
+  done
+  [ -n "${_opts_name}" -a \
+    -f "${_buildpath}.opts" -a \
+    -r "${_buildpath}.opts" ] && {
+    _eval_expr='. "'"${_buildpath}"'.opts" 2>/dev/null && '
+    _eval_expr="${_eval_expr}"'echo "${DOCKER_'"${_opts_name}"':-}";'
+    _tmp_value=$(eval ${_eval_expr})
+    [ -n "${_tmp_value}" ] &&
+    _opt_value="${_opt_value:+${_opt_value} }${_tmp_value}"
+  } || :
+  [ -n "${_opt_value}" ] &&
+  echo "${_opt_value}"
+  return $?
+}
+
+# vim: set ff=unix ts=2 sw=2 sts=2 et : This line is VIM modeline

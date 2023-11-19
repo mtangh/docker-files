@@ -70,6 +70,20 @@ dmf_invoke() {
   return ${_ret}
 }
 
+# Wait
+dmf_wait() {
+  local cpid="${1:-$!}"
+  while :
+  do
+    ps |${AWK} '{print($1);}' | egrep "${cpid}"
+    if [ $? -eq 0 ]
+    then sleep 1
+    else break
+    fi
+  done 1>/dev/null 2>&1
+  return 0
+}
+
 # echo start
 dmf_echo_start() {
   echo "{{{ START - $(date +'%Y%m%dT%H%M%S')"

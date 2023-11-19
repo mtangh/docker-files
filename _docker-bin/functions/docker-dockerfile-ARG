@@ -1,0 +1,95 @@
+# docker-dockerfile-ARG
+
+# Apply build-args
+dockerfile-build-opts-apply() {
+  dockerfile-ARG-set "$@"
+  return $?
+}
+
+# Unset build-args
+dockerfile-build-opts-unset() {
+  dockerfile-ARG-unset "$@"
+  return $?
+}
+
+# Set ARG
+dockerfile-ARG-set() {
+  local _buildpath=""
+  local _exportflg=0
+  local _dvariable=""
+  eval $(getoptions "E|export=_exportflg" "$@")
+  while getoptions_has_next
+  do
+    eval $(getoptions_shift)
+    case "${_getopt_V:=}" in
+    -*)
+      echo "${FUNCNAME}: ERROR: Illegal options '${_getopt_V}'". 1>&2
+      return 2
+      ;;
+    *)
+      [ -z "${_buildpath}" ] &&
+      _buildpath="${_getopt_V}" || :
+      ;;
+    esac
+  done
+  eval $(getoptions_end)
+  dockerfile-cat-ARG "${_buildpath}" 2>/dev/null |
+  if [ ${_exportflg:-0} -ne 0 ]
+  then ${SED} -re 's/^/export /g'
+  else cat -
+  fi
+  return $?
+}
+
+# Unset ARG
+dockerfile-ARG-unset() {
+  local _buildpath=""
+  local _exportflg=0
+  local _dvariable=""
+  eval $(getoptions "" "$@")
+  while getoptions_has_next
+  do
+    eval $(getoptions_shift)
+    case "${_getopt_V:=}" in
+    -*)
+      echo "${FUNCNAME}: ERROR: Illegal options '${_getopt_V}'". 1>&2
+      return 2
+      ;;
+    *)
+      [ -z "${_buildpath}" ] &&
+      _buildpath="${_getopt_V}" || :
+      ;;
+    esac
+  done
+  eval $(getoptions_end)
+  dockerfile-cat-ARG "${_buildpath}" 2>/dev/null |
+  ${SED} -re 's/^([^=]+)=.*$/unset \1;/gi'
+  return $?
+}
+
+# Get ARG
+dockerfile-ARG-get() {
+  local _c_arg_key="${1:-}"; shift
+  local _buildpath="${1:-}"; shift
+  : && {
+    dockerfile-cat-ARG "${_buildpath}" |
+    if [ -n "${_c_arg_key}" -a "${_c_arg_key}" != "-" ]
+    then egrep '^'"${_c_arg_key}="
+    else cat -
+    fi
+  } 2>/dev/null
+  return $?
+}
+
+# Has a ARG
+dockerfile-ARG-exists() {
+  local _c_arg_key="${1:-}"; shift
+  local _buildpath="${1:-}"; shift
+  [ -n "${_c_arg_key}" ] && {
+    dockerfile-cat-ARG "${_buildpath}" |
+    egrep '^('"${_c_arg_key}"')=([^=].*$|$)'
+  } 1>/dev/null 2>&1
+  return $?
+}
+
+# vim: set ff=unix ts=2 sw=2 sts=2 et : This line is VIM modeline
