@@ -1,8 +1,9 @@
-#!/bin/bash -ux
+#!/bin/bash
+set -ux -o errtrace -o functrace -o pipefail
 
 dockeruser="${DOCKERUSER:-dockeruser}"
 
-if [ -n "${NO_SSH_LOGIN:-}" ]
+if [ "${ENABLE_SSHD:-YES}" != "YES" ]
 then
   echo "Without Open SSHd, skipping this instruction."
   exit 0

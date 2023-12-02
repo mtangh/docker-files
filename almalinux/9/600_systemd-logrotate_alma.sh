@@ -1,6 +1,7 @@
-#!/bin/bash -ux
+#!/bin/bash
+set -ux -o errtrace -o functrace -o pipefail
 
-if [ -n "${NO_LOGMANAGE:-}" ]
+if [ "${LOGROTATION:-YES}" != "YES" ]
 then
   echo "Without logrotate, skipping this instruction."
   exit 0

@@ -1,4 +1,5 @@
-#!/bin/bash -ux
+#!/bin/bash
+set -ux -o errtrace -o functrace -o pipefail
 # AlmaLinux built rootfs image
 THIS="${BASH_SOURCE##*/}"
 BASE="${THIS%.*}"
@@ -56,7 +57,7 @@ dnf_config_update() {
 } &&
 : "Initialize Chroot Dir." && {
 
-  rpm_gpgkey="/etc/pki/rpm-gpg/RPM-GPG-KEY-AlmaLinux-${ALMALINUX_VER}"
+  rpm_gpgkey="/etc/pki/rpm-gpg/RPM-GPG-KEY-AlmaLinux"
 
   mkdir -p "${ALMALINUXROOT}" && {
 
@@ -66,7 +67,7 @@ dnf_config_update() {
       update &&
     dnf -v -y \
       reinstall --downloadonly --downloaddir . \
-      almalinux-release almalinux-gpg-keys almalinux-repos &&
+      almalinux-release &&
     rpm -v \
       --root ${ALMALINUXROOT} \
       --initdb &&
@@ -108,6 +109,8 @@ dnf_config_update() {
   [ -e "/dev/random" ]  || mknod -m 666 /dev/random c 1 8
   [ -e "/dev/urandom" ] || mknod -m 666 /dev/urandom c 1 9
 
+  [ -d "/usr/share/info" ] || mkdir -p "/usr/share/info" || :
+
 } &&
 : "Package setup." && {
 
@@ -120,10 +123,8 @@ dnf_config_update() {
     bash \
     hostname \
     iputils \
-    passwd \
     rootfiles \
     binutils \
-    sudo \
     tar \
     vim-minimal \
     || exit 1
@@ -153,7 +154,7 @@ dnf_config_update() {
     grub2-tools \
     grub2-tools-minimal \
     grubby \
-    || :
+    || exit 1
 
   # Unprotected
   if [ -s "${dnf_protect_conf:=/etc/dnf/protected.d/systemd.conf}" ]
@@ -174,6 +175,7 @@ dnf_config_update() {
     brotli \
     coreutils-common \
     crypto-policies-scripts \
+    diffutils \
     dnf-plugins-core \
     elfutils-debuginfod-client \
     gettext \
@@ -181,10 +183,13 @@ dnf_config_update() {
     glibc-all-langpacks \
     glibc-gconv-extra \
     gnupg2-smime \
+    hardlink \
     kbd \
     kmod \
     kpartx \
     libcroco \
+    libevent \
+    libgomp \
     libkcapi \
     libkcapi-hmaccalc \
     libpsl \
@@ -193,6 +198,8 @@ dnf_config_update() {
     libssh-config \
     libxkbcommon \
     ncurses \
+    openssl \
+    openssl-pkcs11 \
     os-prober \
     pigz \
     platform-python-pip \
@@ -221,6 +228,8 @@ dnf_config_update() {
   :> /etc/machine-id
 
   # Fix /run/lock breakage since it's not tmpfs in docker
+  mount |
+  egrep '[[:space:]]/run[[:space:]]' 2>&1 1>/dev/null &&
   umount /run || :
   systemd-tmpfiles --create --boot || :
 
@@ -237,11 +246,22 @@ dnf_config_update() {
 } &&
 : "Initialize the root user password." && {
 
-  # Randomize root password and lock
-  dd if=/dev/urandom count=50 |md5sum |
-  passwd --stdin root &&
-  passwd -l root &&
-  passwd -S root
+  # Randomize root password
+  set +x && {
+    rootpswd_tmp=$(dd status=none if=/dev/urandom count=50 |md5sum)
+    rootpswd_tmp="${rootpswd_tmp%% *}"
+  } &&  
+  if [ -x "$(type -P passwd)" ]
+  then
+    echo "Set a root password and lock."
+    echo "${rootpswd_tmp}" |passwd --stdin root &&
+    passwd -l root &&
+    passwd -S root
+  else
+    echo "Set a root password"
+    echo "root:${rootpswd_tmp}" |chpasswd
+  fi &&
+  set -x
 
 } &&
 : "Default Language." && {

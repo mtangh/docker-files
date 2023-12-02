@@ -30,20 +30,20 @@ ARG TIMEZONE="Asia/Tokyo"
 ARG KEYBOARD="jp"
 ARG KBDTABLE="jp106"
 
-# root password
-ARG ROOTPSWD=""
+# Enable logrotate
+ARG LOGROTATION="YES"
 
-# Default user
-ARG DOCKERUSER="dockeruser"
-ARG DOCKERPSWD=""
-ARG DOCKER_UID="500"
-ARG DOCKER_GRP=""
-ARG DOCKER_GID=""
-ARG DOCKER_ACCOUNTNAME=""
-ARG DOCKER_GROUPS_LIST=""
-ARG DOCKER_USERHOMEDIR=""
-ARG DOCKER_LOGIN_SHELL=""
-ARG DOCKER_ENABLE_SUDO=""
+# Enable SUDO
+ARG ENABLE_SUDO="YES"
+
+# Enable sshd
+ARG ENABLE_SSHD="YES"
+
+# RPM Packages for ONBUILD
+ARG ONBUILD_RPM_PACKAGES=""
+
+# Shell Script for ONBUILD
+ARG ONBUILD_SHELL_SCRIPT=""
 
 
 # AlmaLinux rootfs
@@ -64,7 +64,7 @@ ENV \
 WORKDIR /tmp/docker-container-image-build
 
 # COPY shell scripts to Workdir
-COPY "000_build-chrootdir_AL${ALMALINUX_VER}.sh" ./build-chrootdir.sh
+COPY "000_build-chrootdir_alma${ALMALINUX_VER}.sh" ./build-chrootdir.sh
 
 # Setup
 RUN \
@@ -109,21 +109,6 @@ ARG TIMEZONE
 ARG KEYBOARD
 ARG KBDTABLE
 
-# root password
-ARG ROOTPSWD
-
-# Default user
-ARG DOCKERUSER
-ARG DOCKERPSWD
-ARG DOCKER_UID
-ARG DOCKER_GRP
-ARG DOCKER_GID
-ARG DOCKER_ACCOUNTNAME
-ARG DOCKER_GROUPS_LIST
-ARG DOCKER_USERHOMEDIR
-ARG DOCKER_LOGIN_SHELL
-ARG DOCKER_ENABLE_SUDO
-
 # COPY From root-image
 COPY --from=rootfs "${ALMALINUXROOT}"/ /
 
@@ -131,11 +116,13 @@ COPY --from=rootfs "${ALMALINUXROOT}"/ /
 WORKDIR /tmp/docker-container-image-build
 
 # COPY shell scripts to Workdir
-COPY 010_build-stage.sh ./build-stage.sh
+COPY 020_build-stage_alma.sh ./build-stage.sh
 COPY \[12\]\[0-9\]\[0-9\]_*.sh ./
 
 # SetUp
 RUN \
+ --mount=type=secret,id=ROOTPSWD \
+ --mount=type=secret,id=DOCKER_USERS \
  set -ux; . ./build-stage.sh || exit 1;
 
 # Reset Workdir
@@ -168,7 +155,7 @@ COPY --from=minimal / /
 WORKDIR /tmp/docker-container-image-build
 
 # COPY shell scripts to Workdir
-COPY 010_build-stage.sh ./build-stage.sh
+COPY 020_build-stage_alma.sh ./build-stage.sh
 COPY \[13\]\[0-9\]\[0-9\]_*.sh ./
 
 # SetUp
@@ -209,11 +196,13 @@ ARG ALMALINUX_VER
 WORKDIR /.onbuild
 
 # Copy onbuild scripts to Workdir
-COPY 010_build-stage.sh ./onbuild.sh
+COPY 020_build-stage_alma.sh ./onbuild.sh
 COPY \[19\]\[0-9\]\[0-9\]_*.sh ./
 
 # AlmaLinux Version
 RUN \
+ --mount=type=secret,id=ROOTPSWD \
+ --mount=type=secret,id=DOCKER_USERS \
  set -ux; \
  echo "${ALMALINUX_VER}" >./ALMALINUX_VER;
 
@@ -230,53 +219,21 @@ LABEL \
  docker.run.options="" \
  docker.run.confirm-startup=""
 
-# ONBUILD: Language
+# ONBUILD: Parameters for localization
 ONBUILD \
-ARG LANGUAGE=""
+ARG \
+ LANGUAGE \
+ TIMEZONE \
+ KEYBOARD \
+ KBDTABLE
 
-# ONBUILD: timezone
+# ONBUILD: RPM Packages for ONBUILD
 ONBUILD \
-ARG TIMEZONE=""
+ARG ONBUILD_RPM_PACKAGES
 
-# ONBUILD: Keyboard Layout and Key-Table
+# ONBUILD: Shell Script for ONBUILD
 ONBUILD \
-ARG KEYBOARD=""
-ONBUILD \
-ARG KBDTABLE=""
-
-# ONBUILD: root password
-ONBUILD \
-ARG ROOTPSWD=""
-
-# ONBUILD: Default user
-ONBUILD \
-ARG DOCKERUSER=""
-ONBUILD \
-ARG DOCKERPSWD=""
-ONBUILD \
-ARG DOCKER_UID=""
-ONBUILD \
-ARG DOCKER_GRP=""
-ONBUILD \
-ARG DOCKER_GID=""
-ONBUILD \
-ARG DOCKER_ACCOUNTNAME=""
-ONBUILD \
-ARG DOCKER_GROUPS_LIST=""
-ONBUILD \
-ARG DOCKER_USERHOMEDIR=""
-ONBUILD \
-ARG DOCKER_LOGIN_SHELL=""
-ONBUILD \
-ARG DOCKER_ENABLE_SUDO=""
-
-# ONBUILD: Extra RPM Packages
-ONBUILD \
-ARG RPM_PACKAGES=""
-
-# ONBUILD: OnBuild Script
-ONBUILD \
-ARG ONBUILDSCRPT=""
+ARG ONBUILD_SHELL_SCRIPT
 
 # ONBUILD: Set Workdir
 ONBUILD \
@@ -312,7 +269,7 @@ ARG ALMALINUX_VER
 WORKDIR /.onbuild
 
 # Copy onbuild scripts to Workdir
-COPY 010_build-stage.sh ./onbuild.sh
+COPY 020_build-stage_alma.sh ./onbuild.sh
 COPY \[1-9\]\[0-9\]\[0-9\]_*.sh ./
 
 # AlmaLinux Version
@@ -333,61 +290,33 @@ LABEL \
  docker.run.options="-d -P -h almalinux${ALMALINUX_VER}-systemd --privileged" \
  docker.run.confirm-startup=""
 
-# ONBUILD: Language
+# ONBUILD: Parameters for localization
 ONBUILD \
-ARG LANGUAGE=""
+ARG \
+ LANGUAGE \
+ TIMEZONE \
+ KEYBOARD \
+ KBDTABLE
 
-# ONBUILD: timezone
+# Enable logrotate
 ONBUILD \
-ARG TIMEZONE=""
+ARG LOGROTATION
 
-# ONBUILD: Keyboard Layout and Key-Table
+# Enable SUDO
 ONBUILD \
-ARG KEYBOARD=""
-ONBUILD \
-ARG KBDTABLE=""
+ARG ENABLE_SUDO
 
-# ONBUILD: root password
+# Enable sshd
 ONBUILD \
-ARG ROOTPSWD=""
+ARG ENABLE_SSHD
 
-# ONBUILD: Default user
+# ONBUILD: RPM Packages for ONBUILD
 ONBUILD \
-ARG DOCKERUSER=""
-ONBUILD \
-ARG DOCKERPSWD=""
-ONBUILD \
-ARG DOCKER_UID=""
-ONBUILD \
-ARG DOCKER_GRP=""
-ONBUILD \
-ARG DOCKER_GID=""
-ONBUILD \
-ARG DOCKER_ACCOUNTNAME=""
-ONBUILD \
-ARG DOCKER_GROUPS_LIST=""
-ONBUILD \
-ARG DOCKER_USERHOMEDIR=""
-ONBUILD \
-ARG DOCKER_LOGIN_SHELL=""
-ONBUILD \
-ARG DOCKER_ENABLE_SUDO=""
+ARG ONBUILD_RPM_PACKAGES
 
-# ONBUILD: sshd
+# ONBUILD: Shell Script for ONBUILD
 ONBUILD \
-ARG NO_SSH_LOGIN=""
-
-# ONBUILD: logrotate
-ONBUILD \
-ARG NO_LOGMANAGE=""
-
-# ONBUILD: Extra RPM Packages
-ONBUILD \
-ARG RPM_PACKAGES=""
-
-# ONBUILD: OnBuild Script
-ONBUILD \
-ARG ONBUILDSCRPT=""
+ARG ONBUILD_SHELL_SCRIPT
 
 # ONBUILD: Set Workdir
 ONBUILD \
@@ -400,6 +329,8 @@ COPY * ./
 # ONBUILD: SetUp
 ONBUILD \
 RUN \
+ --mount=type=secret,id=ROOTPSWD \
+ --mount=type=secret,id=DOCKER_USERS \
  set -ux; \
  : "ONBUILD: Run" && { \
   scrptdir="/.onbuild"; \

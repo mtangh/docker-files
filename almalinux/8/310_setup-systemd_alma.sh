@@ -1,9 +1,10 @@
-#!/bin/bash -ux
+#!/bin/bash
+set -ux -o errtrace -o functrace -o pipefail
 
 : "Install systemd" && {
 
   dnf -v -y update &&
-  dnf -v -y install systemd-container sudo && {
+  dnf -v -y install systemd-container && {
     dnf -v -y remove \
       --exclude=procps-ng \
       $(echo $(dnf -q repoquery --unneeded 2>/dev/null)) || :
