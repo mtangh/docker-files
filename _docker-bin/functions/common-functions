@@ -14,7 +14,7 @@ __docker_invoke() {
   local _ret=0
   echo ${DOCKER_CMD##*/} ${_cmd} "$@" 1>&2 &&
   eval $(
-  echo ${DOCKER_CMD} ${_cmd} "$@"
+  echo ${DOCKER_CMD} --log-level=debug ${_cmd} "$@"
   ); _ret=$?
   return ${_ret}
 }

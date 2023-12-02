@@ -7,7 +7,8 @@ docker-ssh() {
   local _imagepath=""
   local _stage_key=""
   local _buildpath=""
-  local c_ssh_user="root"
+  local sshcommand=""
+  local c_ssh_user=""
   local c_ssh_host=$(docker-host-addr)
   local c_ssh_port=
   local c_ssh_opts="-oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no"
@@ -56,20 +57,20 @@ docker-ssh() {
       ;;
     esac
   done
-  _buildpath=$(
-    dockerfile-get-path "${_buildpath:-}" 2>/dev/null )
-  [ -r "${_buildpath}" -a -z "${_cinstance}" ] &&
-  _cinstance=$(dockerfile-env_CONTAINER "${_buildpath}") || :
-  [ -r "${_buildpath}" -a -z "${_imagepath}" ] && {
-    [ -n "${_stage_key}" ] ||
-    dockerfile-stage-chooser "${_buildpath}" ||
-    return 1
-    _imagepath=$(
-      if [ -n "${_stage_key}" ]
-      then dockerfile-imagepath-get "${_stage_key}" "${_buildpath}"
-      else dockerfile-env_IMAGEPATH "${_buildpath}" ||
-           dockerfile-imagepath-from-dir "${_buildpath}"
-      fi 2>/dev/null; )
+  _buildpath=$(dockerfile-get-path "${_buildpath:-}" 2>/dev/null) && {
+    [ -z "${_cinstance}" ] &&
+      _cinstance=$(dockerfile-env_CONTAINER "${_buildpath}") || :
+    [ -z "${_imagepath}" ] && {
+      [ -n "${_stage_key}" ] ||
+      dockerfile-stage-chooser "${_buildpath}" ||
+        return 1
+      _imagepath=$(
+        if [ -n "${_stage_key}" ]
+        then dockerfile-imagepath-get "${_stage_key}" "${_buildpath}"
+        else dockerfile-env_IMAGEPATH "${_buildpath}" ||
+             dockerfile-imagepath-from-dir "${_buildpath}"
+        fi 2>/dev/null; )
+    } || :
   } || :
   [ -z "${c_ssh_port}" ] && {
     _container=$(
@@ -80,8 +81,11 @@ docker-ssh() {
   [ -z "${c_ssh_port}" ] &&
   [ -n "${_container}" ] &&
   c_ssh_port=$(container-get-port "${_container}" 22)
-  [ -n "${c_ssh_port}" ] &&
-  ssh ${c_ssh_opts} -p "${c_ssh_port}" -l "${c_ssh_user}" "${c_ssh_host}" ${c_cmndopts}
+  [ -n "${c_ssh_port}" ] && {
+    sshcommand="ssh ${c_ssh_opts} -p \"${c_ssh_port}\" -l \"${c_ssh_user:-root}\" \"${c_ssh_host}\" ${c_cmndopts}"
+    echo ${sshcommand} &&
+    eval $(echo ${sshcommand})
+  }
   return $?
 }
 

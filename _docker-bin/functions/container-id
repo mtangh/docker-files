@@ -42,7 +42,7 @@ container-get-id() {
     esac
   done
   eval $(getoptions_end)
-  _buildpath=$(dockerfile-get-path "${_buildpath:-}") &&
+  _buildpath=$(dockerfile-get-path "${_buildpath:-}") ||
     return 1
   [ -z "${_find_keys}" ] && {
     _find_file=1

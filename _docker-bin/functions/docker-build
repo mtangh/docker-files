@@ -6,6 +6,7 @@ docker-build() {
   local _image_ver=""
   local _imagefrom=""
   local _imglatest=""
+  local _imgvertag=""
   local _eachstage=0
   local _stage_ind=""
   local _stagename=""
@@ -111,6 +112,7 @@ t|tag:=_imagepath
   for _targetind in ${_targetlst:--}
   do
     _imagepath=""
+    _imgvertag=""
     _stagename=""
     _targetind="${_targetind#-}"
     if [ -n "${_targetind}" ]
@@ -128,9 +130,6 @@ t|tag:=_imagepath
         _imagepath=$(dockerfile-imagepath-from-dir "${_buildpath}")
       fi 2>/dev/null
     fi
-    [ -n "${_imagepath}" -a -n "${_image_ver}" ] && {
-      _imgvertag="${_imagepath}-${_image_ver}"
-    } || :
     [ "${_imagepath}" = "${DOCKER_LATEST_IS:-}" ] && {
       _imglatest="${DOCKER_LATEST_IS:-}"
     } || :
@@ -152,19 +151,24 @@ t|tag:=_imagepath
     _imgtagent="${_imgtagent:+${_imgtagent} }-t ${_imagepath}" || :
     [ -n "${_imagepath}" -a -n "${_image_ver}" ] &&
     case "${_imagepath}" in
-    *:*)
-      _imgtagent="${_imgtagent:+${_imgtagent} }-t ${_imagepath}-${_image_ver}"
-      ;;
-    *:*)
-      _imgtagent="${_imgtagent:+${_imgtagent} }-t ${_imagepath}:${_image_ver}"
-      ;;
+    *:*) _imgvertag="${_imagepath}-${_image_ver}" ;;
+    *)   _imgvertag="${_imagepath}:${_image_ver}" ;;
     esac || :
-    [ -n "${_imagepath}" ] && [ "${_imagepath}" = "${_imglatest}" ] &&
-    _imgtagent="${_imgtagent:+${_imgtagent} }-t ${_imagepath%:*}" || :
+    [ -n "${_imgvertag}" ] &&
+    _imgtagent="${_imgtagent:+${_imgtagent} }-t ${_imgvertag}" || :
+    if [ -n "${_imagepath}" -a \
+         "${_imagepath}" = "${_imglatest}" -a \
+         "${_imagepath}" != "${_imagepath%:*}" ]
+    then _imgtagent="${_imgtagent:+${_imgtagent} }-t ${_imagepath%:*}"
+    elif [ -n "${_imgvertag}" -a \
+            "${_imgvertag}" = "${_imglatest}" -a \
+            "${_imagepath}" != "${_imgvertag%:*}" ]
+    then _imgtagent="${_imgtagent:+${_imgtagent} }-t ${_imgvertag%:*}"
+    fi || :
     _labelopts=""
     _labelopts="${_labelopts:+${_labelopts} }--label docker.build.options="'"'"${_buildopts}"'"'
     eval $(dockerfile-env-unset "${_buildpath}") || :
-    __docker_invoke build \
+    __docker_invoke build --progress=plain \
       ${_buildopts} ${_imgtagent} ${_meta_opts} ${_labelopts} \
       ${_stagename:+--target=${_stagename}} ${_buildpath:+-f ${_buildpath}} \
       "${_build_ctx:-.}"
