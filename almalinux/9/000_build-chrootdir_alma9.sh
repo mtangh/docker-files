@@ -109,8 +109,6 @@ dnf_config_update() {
   [ -e "/dev/random" ]  || mknod -m 666 /dev/random c 1 8
   [ -e "/dev/urandom" ] || mknod -m 666 /dev/urandom c 1 9
 
-  [ -d "/usr/share/info" ] || mkdir -p "/usr/share/info" || :
-
 } &&
 : "Package setup." && {
 
@@ -121,10 +119,11 @@ dnf_config_update() {
   # Install packages.
   dnf -v -y install \
     bash \
+    binutils \
+    findutils \
     hostname \
     iputils \
     rootfiles \
-    binutils \
     tar \
     vim-minimal \
     || exit 1
@@ -133,6 +132,7 @@ dnf_config_update() {
   dnf -v -y install \
     --best --allowerasing \
     coreutils-single \
+    curl-minimal \
     glibc-minimal-langpack \
     libcurl-minimal \
     || exit 1
@@ -148,13 +148,13 @@ dnf_config_update() {
     kernel \
     || :
 
-  # No boot loader needed.
-  rpm -v -e \
-    grub2-common \
-    grub2-tools \
-    grub2-tools-minimal \
-    grubby \
-    || : exit 1
+#  # No boot loader needed.
+#  rpm -v -e \
+#    grub2-common \
+#    grub2-tools \
+#    grub2-tools-minimal \
+#    grubby \
+#    || : exit 1
 
   # Unprotected
   if [ -s "${dnf_protect_conf:=/etc/dnf/protected.d/systemd.conf}" ]
@@ -164,49 +164,52 @@ dnf_config_update() {
     mv -f "${dnf_protect_conf}"{.tmp,}
   fi
 
-  # Remove packages as much as possible.
-  dnf -v -y remove \
-    --exclude=procps-ng \
-    systemd-udev \
-    || :
+#  # Remove packages as much as possible.
+#  dnf -v -y remove --exclude=binutils \
+#    systemd-udev \
+#    || :
 
-  dnf -v -y remove \
-    --exclude=procps-ng \
-    brotli \
+#  dnf -v -y remove --exclude=binutils \
+#    brotli \
+#    crypto-policies-scripts \
+#    diffutils \
+#    gettext \
+#    gettext-libs \
+#    glibc-all-langpacks \
+#    gnupg2-smime \
+#    kbd \
+#    kmod \
+#    kpartx \
+#    libcroco \
+#    libkcapi \
+#    libkcapi-hmaccalc \
+#    libsecret \
+#    libxkbcommon \
+#    ncurses \
+#    os-prober \
+#    pigz \
+#    platform-python-pip \
+#    procps-ng \
+#    shared-mime-info \
+#    trousers \
+#    trousers-lib \
+#    which \
+#    || exit 1
+
+  dnf -v -y remove --exclude=binutils \
     coreutils-common \
-    crypto-policies-scripts \
-    diffutils \
     dnf-plugins-core \
-    elfutils-debuginfod-client \
-    gettext \
-    gettext-libs \
-    glibc-all-langpacks \
+    gawk-all-langpacks \
     glibc-gconv-extra \
-    gnupg2-smime \
-    kbd \
-    kmod \
-    kpartx \
-    libcroco \
-    libkcapi \
-    libkcapi-hmaccalc \
     libpsl \
-    libsecret \
     libssh \
     libssh-config \
-    libxkbcommon \
-    ncurses \
-    os-prober \
-    pigz \
-    platform-python-pip \
+    python-unversioned-command \
     rpm-plugin-systemd-inhibit \
-    shared-mime-info \
-    trousers \
-    trousers-lib \
-    which \
     || exit 1
 
-#  dnf -v -y remove \
-#    --exclude=procps-ng \
+#  dnf -v -y remove --exclude=binutils \
+#    elfutils-debuginfod-client \
 #    hardlink \
 #    libevent \
 #    libgomp \
@@ -214,8 +217,7 @@ dnf_config_update() {
 #    openssl-pkcs11 \
 #    || exit 1
 
-  dnf -v -y remove \
-    --exclude=procps-ng \
+  dnf -v -y remove --exclude=binutils \
     $(echo $(dnf -q repoquery --unneeded 2>/dev/null)) \
     || exit 1
 
@@ -232,7 +234,7 @@ dnf_config_update() {
   :> /etc/machine-id
 
   # Fix /run/lock breakage since it's not tmpfs in docker
-  mount |
+  mount 2>/dev/null |
   egrep '[[:space:]]/run[[:space:]]' 2>&1 1>/dev/null &&
   umount /run || :
   systemd-tmpfiles --create --boot || :
@@ -246,6 +248,9 @@ dnf_config_update() {
     systemd-remount-fs.service \
     dev-hugepages.mount \
     || :
+
+  # Default runlevel
+  systemctl set-default multi-user.target
 
 } &&
 : "Initialize the root user password." && {
@@ -294,23 +299,26 @@ dnf_config_update() {
     /var/lib/dnf/history.* \
     || :
 
-  for lc in $(ls -1d /usr/share/locale/* |egrep -v '^(en|locale\.alias$)');
+  for lc in $(ls -1d /usr/share/locale/* |egrep -v '/(en|locale\.alias$)');
   do
     echo "${lc}" && rm -rf "${lc}"
   done
 
   # Cleanup all log files.
+  [ -d "/var/log/" ] &&
   for lf in /var/log/*
   do
-    [ -s "${lf}" ] &&
-    cat /dev/null 1>"${lf}" || :
+    [ -s "${lf}" ] && : 1>"${lf}" || :
   done
+
+  # Cleanup /var/lib/rpm/__db.*
+  rm -f /var/lib/rpm/__db.* || :
 
   # Cleanup /tmp/*.
   rm -rf {,/var}/tmp/* || :
 
   # Make sure login works.
-  rm -f /var/run/nologin || :
+  rm -f {/var,}/run/nologin || :
 
 } &&
 : "Generate installtime file record." && {
@@ -337,6 +345,7 @@ _EOD_
     rm -f {,/var}/tmp/*
     dnf -v -y clean all
     rm -rf /var/cache/dnf/*
+    rm -f /var/lib/rpm/__db.*
   } 2>/dev/null || :
 } &&
 : "Done."

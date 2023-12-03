@@ -1,0 +1,75 @@
+#!/bin/bash
+THIS=$([ -n "${0##*/}" ] && echo "${0##*/}" || echo "tc-server-status")
+CDIR=$([ -n "${0%/*}" ] && cd "${0%/*}" 2>/dev/null; pwd)
+
+# Load the tomcat-tools.rc
+if [ -x "$CDIR/tomcat-tools.rc" ]
+then
+  . "$CDIR/tomcat-tools.rc" $@
+else
+  echo "$THIS: ABORTED: 'tomcat-tools.rc' not found" 1>&2
+  exit 1
+fi
+
+# Command
+command="status/all"
+
+# XML Output
+out_xml="?XML=true"
+
+# Options
+while [ $# -gt 0 ]
+do
+  case "$1" in
+  --info|--serverinfo)
+    command="serverinfo"
+    out_xml=""
+    ;;
+  --leaks|--findleaks)
+    command="findleaks"
+    out_xml=""
+    ;;
+  --html)
+    [ -n "$out_xml" ] &&
+    out_xml="?XML=false"
+    ;;
+  --help)
+    cat <<_USAGE_
+Usage: $THIS [--info|--leaks]
+
+_USAGE_
+    exit 1
+    ;;
+  *)
+    ;;
+  esac
+  shift
+done
+
+# tomcat manager accounts
+http_user="${TC_MANAGE_USER:-manager}"
+http_pswd="${TC_MANAGE_PASS:-manager}"
+
+# tomcat manager command
+tomcatman="wget -q --http-user=$http_user --http-password=$http_pswd -O - "
+tomcaturl="${TOMCAT_MAN_URL:-http://localhost:$CATALINA_HTP_PORT/manager}"
+
+# bash option
+set -u
+
+# Get status
+: && {
+  $tomcatman "$tomcaturl/${command}${out_xml}"
+  _retval=$?
+} | {
+  if [ "$out_xml" = "?XML=true" ] &&
+     [ -n "$(type -P xmllint 2>/dev/null)" ]
+  then
+    xmllint --format -
+  else
+    cat
+  fi
+}
+
+# end of script
+exit $_retval

@@ -17,17 +17,17 @@ echo "[${tests_name:-${THIS}}] syntax-check.sh" && {
   do
 
     docker_dir="${dockerfile%/*}"
-    dfctx_name="${docker_dir#./}"
+    dfctx_name="${docker_dir##*docker-files/}"
+    dfctx_name="${dfctx_name#./}"
 
     dflint_err=0
     dfscrpterr=0
 
-    echo "@${dfctx_name}: "
+    echo "@${dfctx_name}: ${dockerfile##*/}"
 
     if [ -n "${hadolint}" ]
     then
 
-      echo "@${dfctx_name}: ${dockerfile##*/}:"
       ${hadolint} --no-color -t warning "${dockerfile}" || dflint_err=$?
       if [ ${dflint_err:-0} -eq 0 ]
       then
@@ -39,8 +39,8 @@ echo "[${tests_name:-${THIS}}] syntax-check.sh" && {
       fi
 
     else
-      echo "@${dfctx_name}: The 'hadolint' command is missing."
-      echo "@${dfctx_name}: Skip syntax checking of dockerfile '${dockerfile##*docker-files/}'."
+      echo "@${dfctx_name}: * The 'hadolint' command is missing."
+      echo "@${dfctx_name}: * Skip syntax checking of dockerfile '${dockerfile##*docker-files/}'."
     fi
 
     echo "@${dfctx_name}: Shell-Scripts:"

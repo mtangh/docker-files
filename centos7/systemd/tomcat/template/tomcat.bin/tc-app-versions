@@ -1,0 +1,96 @@
+#!/bin/bash
+THIS=$([ -n "${0##*/}" ] && echo "${0##*/}" || echo "tc-app-versions")
+CDIR=$([ -n "${0%/*}" ] && cd "${0%/*}" 2>/dev/null; pwd)
+
+# Load the tomcat-tools.rc
+if [ -x "$CDIR/tomcat-tools.rc" ]
+then
+  . "$CDIR/tomcat-tools.rc" $@
+else
+  echo "$THIS: ABORTED: 'tomcat-tools.rc' not found" 1>&2
+  exit 1
+fi
+
+# deploy & versions
+deploydir="$CATALINA_APPDIR"
+versiondir="${CATALINA_APPDIR%/*}/versions"
+
+# context names
+context_names=""
+
+# latest only
+latest_only=0
+
+# check context name and version
+while [ $# -gt 0 ]
+do
+  case "${1#*/}" in
+  -n|--new)
+    latest_only=1
+    ;;
+  manager|host-manager|watcher)
+    echo "Usage: $THIS [context-name...]" 1>&2
+    exit 1
+    ;;
+  *)
+    if [ -r "$deploydir/${1#*/}.war" ]
+    then
+      if ! echo $context_names | grep "${1#*/}" 1>/dev/null 2>&1
+      then
+        context_names="${context_names} ${1#*/}"
+      fi
+    fi
+    ;;
+  esac
+  shift
+done
+
+# check context_name
+if [ -z "$context_names" ]
+then
+  for app in $(ls -1 $deploydir/*.war 2>/dev/null)
+  do
+    app="${app##*/}"
+    app="${app%.war*}"
+    case "$app" in
+    manager|host-manager|watcher)
+      ;;
+    *)
+      context_names="${context_names} ${app}"
+      ;;
+    esac
+  done
+fi
+
+# app versions listing
+for app in $context_names
+do
+  if [ $latest_only -ne 1 ]
+  then
+    echo "CONTEXT=/$app"
+  fi
+  # read link
+  deploy_war="$deploydir/${app}.war"
+  deploy_war="$(readlink $deploy_war 2>/dev/null)"
+  deploy_war="${deploy_war##*/}"
+  # print
+  for war in $(ls -1 $versiondir/${app}-[0-9]*.war 2>/dev/null)
+  do
+    war_file_name="${war##*/}"
+    if [ "$war_file_name" == "$deploy_war" ]
+    then
+      if [ $latest_only -eq 1 ]
+      then
+        echo "$war_file_name"
+      else
+        echo "* $war_file_name"
+      fi
+    elif [ $latest_only -ne 1 ]
+    then
+      echo "  $war_file_name"
+    fi
+  done
+done
+
+# end of script
+exit 0

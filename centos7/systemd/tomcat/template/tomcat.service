@@ -1,0 +1,36 @@
+# Systemd unit file for default tomcat
+
+[Unit]
+Description=Apache Tomcat Web Application Container
+After=syslog.target network.target
+
+[Service]
+Type=forking
+
+# Inctance name
+Environment="INSTANCENAME=tomcat"
+
+# Exec Start,Stop,etc...
+ExecStartPre=/bin/sh -c "cd ${TOMCAT_HOME} && ./bin/catalina-init-instance.sh ${INSTANCENAME}"
+ExecStart=/bin/su -m ${TOMCAT_USER} -c "cd ${CATALINA_BASE} && ./bin/startup.sh"
+ExecStop=/bin/su -m ${TOMCAT_USER} -c "cd ${CATALINA_BASE} && ./bin/shutdown.sh"
+
+# Environment File
+EnvironmentFile=/etc/sysconfig/tomcat
+
+# PID
+PIDFile=/opt/tomcat/var/run/tomcat/tomcat.pid
+
+# Kill mode
+KillMode=none
+
+# Give a reasonable amount of time for the server to start up/shut down
+TimeoutSec=90
+
+# Restart options
+#Restart=always
+#RestartSec=32
+
+[Install]
+WantedBy=multi-user.target
+

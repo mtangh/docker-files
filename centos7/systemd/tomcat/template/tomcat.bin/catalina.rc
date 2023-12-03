@@ -1,0 +1,66 @@
+# catalina.rc
+CATALINA_RCFILE="${BASH_SOURCE##*/}"
+CATALINA_RC_DIR=$([ -n "${BASH_SOURCE%/*}" ] && cd "${BASH_SOURCE%/*}" 2>/dev/null; pwd)
+
+# Instance
+INSTANCENAME="${INSTANCENAME:-$TC_INSTANCE}"
+INSTANCESDIR="${INSTANCESDIR:-$TC_INSTANCES_DIR}"
+TEMPLATE_DIR="${TEMPLATE_DIR:-$TC_INSTANCE_TEMPLATE}"
+
+# sysconf load
+sysconf_load=0
+
+# instance name
+[ -n "${INSTANCENAME}" ] && {
+  case "${INSTANCENAME}" in
+  tomcat|default)
+    INSTANCENAME=""
+    ;;
+  *)
+  esac
+}
+
+# Load the sysconfig files
+for instance_cfg in \
+/etc/sysconfig/tomcat \
+"${INSTANCENAME:+/etc/sysconfig/tomcat@$INSTANCENAME}"
+do
+  [ ! -r "${instance_cfg}" ] || {
+    echo "SYSCONFIG: ${instance_cfg}"
+    . "${instance_cfg}" && sysconf_load=1
+  }
+done
+unset instance_cfg
+
+# sysconfig loaded ?
+[ $sysconf_load -ne 0 ] || {
+  echo "ERROR: '/etc/sysconfig/tomcat*' not found." 1>&2
+  return 124
+}
+
+# Checking required variables
+[ -n "$TOMCAT_USER" ] || {
+  echo "ERROR: 'TOMCAT_USER' is not set." 1>&2
+  return 91
+}
+[ -n "$TOMCAT_HOME" -a -d "${TOMCAT_HOME}" ] || {
+  echo "ERROR: TOMCAT_HOMEE=$TOMCAT_HOME is not a directory." 1>&2
+  return 92
+}
+[ -n "$CATALINA_HOME" -a -d "$CATALINA_HOME" ] || {
+  echo "ERROR: CATALINA_HOME=$CATALINA_HOME is not a directory." 1>&2
+  return 93
+}
+[ -z "$INSTANCENAME" ] ||
+[ -n "$CATALINA_BASE" ] || {
+  echo "ERROR: CATALINA_BASE=$CATALINA_BASE is not a directory." 1>&2
+  return 94
+}
+
+# Set the default
+[ -n "${TOMCAT_GROUP}" ] || {
+  TOMCAT_GROUP="${TOMCAT_USER:-tomcat}"
+}
+
+# end
+return 0

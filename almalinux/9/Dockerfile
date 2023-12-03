@@ -160,6 +160,8 @@ COPY \[13\]\[0-9\]\[0-9\]_*.sh ./
 
 # SetUp
 RUN \
+ --mount=type=secret,id=ROOTPSWD \
+ --mount=type=secret,id=DOCKER_USERS \
  set -ux; . ./build-stage.sh || exit 1;
 
 # Reset Workdir
@@ -201,8 +203,6 @@ COPY \[19\]\[0-9\]\[0-9\]_*.sh ./
 
 # AlmaLinux Version
 RUN \
- --mount=type=secret,id=ROOTPSWD \
- --mount=type=secret,id=DOCKER_USERS \
  set -ux; \
  echo "${ALMALINUX_VER}" >./ALMALINUX_VER;
 
@@ -246,6 +246,8 @@ COPY * ./
 # ONBUILD: SetUp
 ONBUILD \
 RUN \
+ --mount=type=secret,id=ROOTPSWD \
+ --mount=type=secret,id=DOCKER_USERS \
  set -ux; \
  : "ONBUILD: Run" && { \
   scrptdir="/.onbuild"; \

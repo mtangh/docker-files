@@ -78,6 +78,7 @@ fi
     : >"${lf}"
   done || :
 
+  rm -f /var/lib/rpm/__db.* || :
   rm -rf {,/var}/tmp/* "${work_dir:-X}" || :
 
 } &&

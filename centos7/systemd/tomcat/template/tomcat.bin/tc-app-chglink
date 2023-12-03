@@ -1,0 +1,115 @@
+#!/bin/bash
+THIS=$([ -n "${0##*/}" ] && echo "${0##*/}" || echo "tc-app-chglink")
+CDIR=$([ -n "${0%/*}" ] && cd "${0%/*}" 2>/dev/null; pwd)
+
+# Load the tomcat-tools.rc
+if [ -x "$CDIR/tomcat-tools.rc" ]
+then
+  . "$CDIR/tomcat-tools.rc" $@
+else
+  echo "$THIS: ABORTED: 'tomcat-tools.rc' not found" 1>&2
+  exit 1
+fi
+
+# deploy & versions
+deploy_dir="$CATALINA_APPDIR"
+versiondir="${CATALINA_APPDIR%/*}/versions"
+
+# context name and versions
+context_name=""
+contest_vers=""
+
+# war file name
+warfile_name=""
+
+# Usage
+usage() {
+  cat <<_USAGE_
+Usage: $THIS context-name war-version
+   or  $THIS war-file-name
+_USAGE_
+  exit 1
+}
+
+# parsing options
+while [ $# -gt 0 ]
+do
+  case "$1" in
+  -h*|--he*)
+    usage
+    ;;
+  -*)
+    ;;
+  *)
+    if [ -z "$context_name" ]
+    then
+      context_name="$1"
+    elif [ -z "$context_vers" ]
+    then
+      context_vers="$1"
+    fi
+    ;;
+  esac
+  shift
+done
+
+# check
+[ -z "$context_name" ] &&
+[ -z "$context_vers" ] &&
+  usage
+
+# war file ?
+if [ -n "$context_name" ] &&
+   [ -n "$context_vers" ]
+then
+  warfile_name="${context_name}-${context_vers}.war"
+else
+  [ ! -r "$context_name" ] &&
+  [ ! -r "${versiondir}/${context_name}" ] && {
+    echo "$THIS: ERROR: war file '${context_name}' not found." 1>&2
+    exit 2
+  }
+  echo "${context_name}" |
+  grep -E '^.*\.war$' 1>/dev/null 2>&1 || {
+    echo "$THIS: ERROR: file '${context_name}' is not a war file." 1>&2
+    exit 3
+  }
+  warfile_name="${context_name##*/}"
+  context_name=$(echo "$warfile_name"|$SED -re 's#^([A-Za-z].*)(-([0-9]+.*))\.war$#\1#g' 2>/dev/null)
+  context_vers=$(echo "$warfile_name"|$SED -re 's#^([A-Za-z].*)(-([0-9]+.*))\.war$#\3#g' 2>/dev/null)
+fi
+
+# context name
+[ -r "${deploy_dir}/${context_name}.war" ] || {
+  echo "$THIS: ERROR: context name '$context_name' not found in $deploy_dir." 1>&2
+  exit 4
+}
+[ -r "${versiondir}/${warfile_name}" ] || {
+  echo "$THIS: ERROR: war file '${warfile_name}' not found in $versiondir." 1>&2
+  exit 5
+}
+
+# read link
+deploy_war="${deploy_dir}/${context_name}.war"
+deploy_war="$(readlink $deploy_war 2>/dev/null)"
+deploy_war="${deploy_war##*/}"
+
+# same war file
+[ "${deploy_war}" = "${warfile_name}" ] && {
+  echo "$THIS: context=$context_name link was not changed."
+  exit 0
+}
+
+# change link
+ln -sf "${versiondir}/${warfile_name}" "${deploy_dir}/${context_name}.war" 2>/dev/null
+RET=$?
+
+if [ $RET -eq 0 ]
+then
+  echo "$THIS: context=$context_name link changed. (${deploy_war} -> ${warfile_name})"
+else
+  echo "$THIS: ERROR:  context=$context_name link was not changed. (ret=$RET)"
+fi
+
+# end of script
+exit $RET

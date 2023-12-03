@@ -1,0 +1,39 @@
+# postgresql.service
+
+[Unit]
+Description=PostgreSQL database server
+After=network.target
+
+[Service]
+Type=forking
+
+# PID File
+PIDFile=/var/run/postgresql.pid
+
+# Exec Start,Stop,etc...
+ExecStart=/bin/su - ${PGUSER} -c "${PGROOT}/bin/pg_ctl start -D ${PGDATA} -o \"-p ${PGPORT}\" ${PGCTL_START_OPTS}"
+ExecStartPost=/bin/sh -c "head -n1 ${PGDATA}/postmaster.pid >/var/run/postgresql.pid"
+ExecStop=/bin/su - ${PGUSER} -c "${PGROOT}/bin/pg_ctl stop -D ${PGDATA} ${PGCTL_STOP_OPTS}"
+ExecStopPost=/bin/rm -f /var/run/postgresql.pid
+ExecReload=/bin/su - ${PGUSER} -c "${PGROOT}/bin/pg_ctl reload -D ${PGDATA} ${PGCTL_RELOAD_OPTS}"
+
+# Environment File
+EnvironmentFile=/etc/sysconfig/postgresql
+
+# Kill mode
+KillMode=process
+
+# Disable OOM kill on the postmaster
+OOMScoreAdjust=-1000
+
+# Give a reasonable amount of time for the server to start up/shut down
+TimeoutSec=300
+
+# Where to send early-startup messages from the server (before the logging
+# options of postgresql.conf take effect)
+# This is normally controlled by the global default set by systemd
+# StandardOutput=syslog
+
+[Install]
+WantedBy=multi-user.target
+
