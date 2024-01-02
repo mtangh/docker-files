@@ -31,7 +31,7 @@ LABEL \
  vendor="UGOOLE.ORG" \
  maintainer="MT" \
  license="" \
- docker.build.options="" \
- docker.run.options="-d -P -h centos6-upstart_with-ssh --privileged --expose=22" \
- docker.run.confirm-startup=""
+ org.ugoole.options.docker.build="" \
+ org.ugoole.options.docker.run="-d -P -h centos6-upstart_with-ssh --privileged --expose=22" \
+ org.ugoole.docker.run.confirm-startup=""
 

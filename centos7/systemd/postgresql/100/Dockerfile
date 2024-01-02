@@ -1,21 +1,24 @@
 #
-# centos7s-postgresql:100
+# centos7-systemd-postgresql:100
 #
+#@  DOCKER_IMAGEPATH="centos7-systemd-postgresql:100"
+#@  DOCKER_IMAGE_VER="v$(date +'%Y%m%d')"
 #@  DOCKER_CONTAINER=""
-#@  DOCKER_IMAGEPATH="centos7s-postgresql:100"
-#@  DOCKER_BUILDOPTS=""
-#@  DOCKER_BUILDOPTS="${DOCKER_BUILDOPTS} --build-arg PGSQLVER=10.15"
-#@  DOCKER_BUILDOPTS="${DOCKER_BUILDOPTS} --build-arg PGTAPVER=0.99.0"
+#@  DOCKER_LATEST_IS=""
+#@  DOCKER_BUILDOPTS="" # "--platform=linux/amd64"
 #@  DOCKER_BOOT_OPTS=""
-#@  DOCKER_PUBLISHED=""
+#@  DOCKER_PUBLISHED="${DOCKER_IMAGEPATH}"
 #
 
 # PostgreSQL Container Image Version
 ARG PGSQL_IMAGE_VER=100
 
+# PostgreSQL and pgTap Version
+ARG PGSQLVER="10.23" \
+    PGTAPVER="1.3.1"
 
-# PostgreSQL Server
-FROM centos7s-postgresql:0
+# Image from
+FROM centos7-systemd-postgresql:0
 
 # PostgreSQL Container Image Version
 ARG PGSQL_IMAGE_VER
@@ -29,8 +32,8 @@ LABEL \
  vendor="UGOOLE.ORG" \
  maintainer="MT" \
  license="" \
- docker.build.options="" \
- build-stage="true"
+ org.ugoole.build.template="true" \
+ org.ugoole.options.docker.build=""
 
 
 # PostgreSQL Server
@@ -51,9 +54,8 @@ LABEL \
  vendor="UGOOLE.ORG" \
  maintainer="MT" \
  license="" \
- docker.build.options="" \
- docker.run.options="-d -P -h centos7s-postgresql_${PGSQL_IMAGE_VER} --privileged" \
- docker.run.confirm-startup=". /etc/sysconfig/postgresql && su - ${PGUSER} -c 'psql -l'"
+ org.ugoole.options.docker.build="" \
+ org.ugoole.options.docker.run="-d -P -h centos7-systemd-postgresql${PGSQL_IMAGE_VER} --privileged"
 
 # STOP SIGNAL
 STOPSIGNAL SIGINT

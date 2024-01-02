@@ -1,5 +1,8 @@
 # /etc/sysconfig/postgresql
 
+# PostgreSQL Version
+PGSQLVER=
+
 # PostgreSQL Super user
 PGUSER=postgres
 

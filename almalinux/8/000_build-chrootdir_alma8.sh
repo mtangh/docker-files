@@ -164,12 +164,10 @@ dnf_config_update() {
   fi
 
   # Remove packages as much as possible.
-#  dnf -v -y remove --exclude=findutils --exclude=procps-ng \
   dnf -v -y remove --exclude=findutils \
     systemd-udev \
     || :
 
-#  dnf -v -y remove --exclude=findutils  --exclude=procps-ng \
   dnf -v -y remove --exclude=findutils \
     brotli \
     coreutils-common \
@@ -210,7 +208,6 @@ dnf_config_update() {
     which \
     || exit 1
 
-#  dnf -v -y remove --exclude=findutils --exclude=procps-ng \
   dnf -v -y remove --exclude=findutils \
     $(echo $(dnf -q repoquery --unneeded 2>/dev/null)) \
     || exit 1

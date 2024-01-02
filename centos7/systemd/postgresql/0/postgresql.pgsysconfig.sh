@@ -1,10 +1,13 @@
 #!/bin/bash
-THIS="${0##*/}"
-CDIR=$([ -n "${0%/*}" ] && cd "${0%/*}" 2>/dev/null; pwd)
-
-# Name
-THIS="${THIS:-pgsysconfig.sh}"
+THIS="${BASH_SOURCE##*/}"
 BASE="${THIS%.*}"
+CDIR=$([ -n "${BASH_SOURCE%/*}" ] && cd "${BASH_SOURCE%/*}" 2>/dev/null; pwd)
+# shell opts
+set -u -o errtrace -o functrace -o pipefail
+
+# LANG
+LANG=C
+export LANG
 
 # awk
 AWK="${AWK:-$(type -P gawk)}"
@@ -14,35 +17,52 @@ AWK="${AWK:-$(type -P awk)}"
 SED="${SED:-$(type -P gsed)}"
 SED="${SED:-$(type -P sed)}"
 
+# YUM or DNF
+YUM=""
+if [ -x "$(type -P dnf)" ]
+then YUM="dnf -v -y"
+elif [ -x "$(type -P yum)" ]
+then YUM="yum -v -y"
+fi
+
+# Functions
+. "${CDIR}/pgfunctions.sh" &>/dev/null || {
+  echo "${THIS}: ERROR: no such file or directory 'pgfunctions.sh'." 1>&2
+  exit 2
+}
+
 # postgresql sysconfig
-pgsyscfg="/etc/sysconfig/postgresql"
+PGSCFG="/etc/sysconfig/postgresql"
 
 # Temporary file
-pgsystmp="${TMPDIR:-/tmp}/postgresql.sysconfig.$(date +'%Y%m%d%H%M%S')"
+PGSTMP="${TMPDIR:-/tmp}/postgresql.sysconfig.$(date +'%Y%m%d%H%M%S')"
+
+# PG* Vars exports
+PG_VAR_EXPORTS=""
 
 # trap
 trap \
-  "rm -rf ${pgsystmp} &>/dev/null || :" \
+  "rm -rf ${PGSTMP} &>/dev/null || :" \
   EXIT SIGTERM SIGINT SIGQUIT
 
 # Parse options
 while [ $# -gt 0 ]
 do
-  case "$1" in
+  case "${1:-}" in
   PG*=*)
-    [ -n "${1%%=*}" -a -n "${1#*=}" ] && {
-      eval "${1}"; export "${1%%=*}"
-    }
+    [ -n "${1%%=*}" -a -n "${1#*=}" ] &&
+    PG_VAR_EXPORTS="${PG_VAR_EXPORTS}${1%%=*}='${1#*=}';export ${1%%=*};" || :
     ;;
   -f*)
-    if [ -n "${1##*-f}" ]
-    then pgsyscfg="${1##*-f}"
-    else shift; pgsyscfg="${1}"
+    if [ -n "${1##-f}" ]
+    then PGSCFG="${1##-f}"
+    elif [ -n "${2:-}" ]
+    then PGSCFG="${2}"; shift
     fi
     ;;
   -*)
     cat <<_USAGE_
-Usage: $THIS [-f /path/to/sysconfig] [PG*=VALUE ...]
+Usage: ${THIS} [-f /path/to/sysconfig] [PG*=VALUE ...]
 
 _USAGE_
     exit 1
@@ -54,123 +74,117 @@ _USAGE_
 done
 
 # Check
-[ -r "$pgsyscfg" ] || {
-  echo "$THIS: ERROR: no such file or directory '$pgsyscfg'." 1>&2
+[ -r "${PGSCFG}" ] || {
+  echo "${THIS}: ERROR: no such file or directory '${PGSCFG}'." 1>&2
   exit 2
 }
 
 # Make temp
-cat "${pgsyscfg}" >|"${pgsystmp}" 2>/dev/null || {
-  echo "$THIS: ERROR: no such file or directory '$pgsyscfg'." 1>&2
-  exit 3
+cat "${PGSCFG}" >|"${PGSTMP}" 2>/dev/null || {
+  echo "${THIS}: ERROR: no such file or directory '${PGSCFG}'." 1>&2
+  exit 2
 }
 
-# Each PG* Values
-for syscfg_key in PGUSER PGHOME PGROOT PGDATA PGPORT
-do
+# PG* Var Exports
+if [ -n "${PG_VAR_EXPORTS:-}" ]
+then
+  eval "${PG_VAR_EXPORTS}" &>/dev/null || {
+    echo "${THIS}: ERROR: failed to exports: '${PG_VAR_EXPORTS}'." 1>&2
+    exit 22
+  }
+fi
 
-  # New value
-  syscfg_val="${!syscfg_key}"
+# Exit state
+EXIT_STATE=0
 
-  # Old value
-  syscfg_old=$(
-    cat "${pgsystmp}" |
-    $SED -nre 's;^[ ]*'${syscfg_key}'=["]*([^ ][^"]*)["]*[ ]*$;\1;gp'; )
+# Main
+: "Main" && {
 
-  # Ignore
-  [ -n "${syscfg_val}" ] ||
-    continue
-  [ "${syscfg_val}" != "${syscfg_old}" ] ||
-    continue
+  # PGCTL_START_OPTS
+  [ -n "${PGSQLVER:-}" ] && {
 
-  # Print old, new
-  echo "$THIS: '${syscfg_key}' = '${syscfg_old}' to '${syscfg_val}'."
-
-  # Replace
-  $SED -ri \
-    's;^[ ]*'${syscfg_key}'=[^ ]+.*$;'${syscfg_key}'="'${syscfg_val}'";g' \
-    "${pgsystmp}" || continue
-
-  # Additional changes
-  case "${syscfg_key}" in
-  PGUSER)
-    [ -x "$(type -P usermod)" ] && {
-      usermod -l "${syscfg_val}" "${syscfg_old:-postgres}" ||
-      echo "$THIS: Failed to command 'usermod -l ${syscfg_val} ${syscfg_old:-postgres}'."
-      [ -x "$(type -P chpasswd)" ] && {
-        echo "${syscfg_val}:${PGPASSWORD:-$syscfg_val}" |chpasswd ||
-        echo "$THIS: Failed to command 'echo "${syscfg_val}:*" |chpasswd'."
+    case "${PGSQLVER:-}" in
+    8.[0-2]*)
+      echo "* PostgreSQL v${PGSQLVER}"
+      egrep '^[ ]*PGCTL_START_OPTS=[^ ].*-t[ ]*[0-9]+.*$' "${PGSTMP}" &>/dev/null && {
+        ${SED} -ri \
+        's/^[ ]*(PGCTL_START_OPTS)=([^ ].*)[ ]+-t[ ]*[0-9]+([^0-9].*)[ ]*$/\1=\2\3/g' \
+        "${PGSTMP}"
       }
-    }
-    [ -x "$(type -P groupmod)" ] && {
-      groupmod -n "${syscfg_val}" "${syscfg_old:-postgres}" ||
-      echo "$THIS: Failed to command 'groupmod -n ${syscfg_val} ${syscfg_old:-postgres}'." 1>&2
-    }
-    ;;
-  PGHOME)
-    dirowner=$(
-      stat -c '%U' "${syscfg_old:-/opt/postgresql}" \
-      2>/dev/null; )
-    [ -x "$(type -P usermod)" ] && {
-      usermod -d "${syscfg_val}" -m "${dirowner:-postgres}" ||
-      echo "$THIS: Failed to command 'usermod -d ${syscfg_val} -m ${dirowner:-postgres}'." 1>&2
-    }
-    ;;
-  PGROOT)
-    ( [ -d "${syscfg_val}" ] || {
-        mkdir -p "${syscfg_val}"
-      } 2>/dev/null
-      cd "${syscfg_val}" &>/dev/null && {
-        for childdir in $(ls -1d "${syscfg_old:-/opt/postgresql}"/*)
-        do
-          [ -e "${childdir##*/}" ] &&
-          rm -f "${childdir##*/}" &>/dev/null || :
-          ln -sf "${childdir}" .
-        done
-      } 2>/dev/null; )
-    ;;
-  *)
-    ;;
-  esac
+      ;;
+    *)
+      ;;
+    esac
 
-done
+  } || :
 
-# PGCTL_START_OPTS
-[ -n "${PGSQLVER}" ] && {
+  # Update sysconfig
+  : "Update sysconfig" && {
+cat - <<_EOF_ >|"${PGSTMP}" 2>/dev/null
+# ${PGSCFG}
 
-  case "${PGSQLVER}" in
-  8.[0-2]*)
-    egrep \
-    '^[ ]*PGCTL_START_OPTS=[^ ].*-t[ ]*[0-9]+.*$' \
-    "$pgsystmp" &>/dev/null && {
-      $SED -ri \
-      's/^[ ]*(PGCTL_START_OPTS)=([^ ].*)[ ]+-t[ ]*[0-9]+([^0-9].*)[ ]*$/\1=\2\3/g' \
-      "$pgsystmp"
-    }
-    ;;
-  *)
-    ;;
-  esac
+# PostgreSQL Version
+PGSQLVER=${PGSQLVER:-}
 
-} || :
+# PostgreSQL Super user
+PGUSER=${PGUSER:-postgres}
 
-# Update check
-[ -s "${pgsystmp}" ] && {
+# PostgreSQL Home directory
+PGHOME=${PGHOME:-/opt/postgresql}
 
-  diff "${pgsyscfg}" "${pgsystmp}" &>/dev/null || {
+# PostgreSQL Root directory
+PGROOT=${PGROOT:-/opt/postgresql}
 
-    echo
-    echo "$THIS: ${pgsyscfg} >>>"
+# PostgreSQL DATA directory
+PGDATA=${PGDATA:-/opt/postgresql/data}
 
-    diff "${pgsyscfg}" "${pgsystmp}" || {
-      cat "${pgsystmp}" >|"${pgsyscfg}"
-    } &>/dev/null
+# Port
+PGPORT=${PGPORT:-5432}
+
+# PG_CTL: Start Options
+PGCTL_START_OPTS="${PGCTL_START_OPTS:--s -w -t 300}"
+
+# PG_CTL: Stop Options
+PGCTL_STOP_OPTS="${PGCTL_STOP_OPTS:--s -m fast}"
+
+# PG_CTL: Start Options
+PGCTL_RELOAD_OPTS="${PGCTL_RELOAD_OPTS:--s}"
+
+_EOF_
+  }
+
+  # Update check
+  if [ -s "${PGSTMP}" ]
+  then
 
     echo
 
-  } # diff "${pgsyscfg}" "${pgsystmp}"
+    if [ -x "$(type -P diff)" ]
+    then
+      diff "${PGSCFG}" "${PGSTMP}" &>/dev/null || {
 
-}
+        echo "${THIS}: ${PGSCFG} >>>"
+
+        diff "${PGSCFG}" "${PGSTMP}" || {
+          cat "${PGSTMP}" >|"${PGSCFG}"
+        } &>/dev/null
+
+      } # diff "${PGSCFG}" "${PGSTMP}"
+    else
+
+      echo "${THIS}: ${PGSCFG} >>>"
+      cat "${PGSTMP}" >|"${PGSCFG}"
+      cat "${PGSCFG}"
+
+    fi
+
+    echo
+
+  else :
+  fi
+
+} 1> >(__stdout) 2> >(__stderr) 3>&1
+# : "Main" && { ...
 
 # end
-exit 0
+exit ${EXIT_STATE:-1}

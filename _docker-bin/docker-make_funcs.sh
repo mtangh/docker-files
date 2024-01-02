@@ -73,16 +73,17 @@ dmf_invoke() {
 # Wait
 dmf_wait() {
   local cpid="${1:-$!}"
+  [ -z "${cpid}" ] ||
   while :
   do
-    ps |${AWK} '{print($1);}' | egrep "${cpid}"
+    ps |${AWK} '{print($1);}' |egrep "${cpid}"
     if [ $? -eq 0 ]
     then sleep 1
     else break
     fi
   done 1>/dev/null 2>&1
   return 0
-}
+} &>/dev/null
 
 # echo start
 dmf_echo_start() {
@@ -101,7 +102,7 @@ dmf_echo_end() {
   else
     echo "}}} ERROR OCCURED - ret(${_exit_st})."
     echo
-	dmf_proc_exit ${_exit_st}
+	  dmf_proc_exit ${_exit_st}
   fi
   return 0
 }

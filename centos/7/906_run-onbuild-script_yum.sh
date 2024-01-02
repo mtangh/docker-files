@@ -6,8 +6,14 @@ build_script="${ONBUILD_SHELL_SCRIPT:-onbuild.sh}"
 
 : "Install additional RPM packages" && {
 
-  if [ -s "./${rpm_packages:-rpm_packages.txt}" ]
-  then rpm_packages=$(eval echo $(cat "./${rpm_packages:=rpm_packages.txt}"))
+  if [ -x "./${rpm_packages:-rpm_packages.sh}" ]
+  then
+    rpm_packages=$(eval echo $(
+      /bin/bash -ux "./${rpm_packages:=rpm_packages.sh}"))
+  elif [ -s "./${rpm_packages:-rpm_packages.txt}" ]
+  then
+    rpm_packages=$(eval echo $(
+      cat "./${rpm_packages:-rpm_packages.txt}"))
   else :
   fi || :
 
@@ -29,9 +35,13 @@ build_script="${ONBUILD_SHELL_SCRIPT:-onbuild.sh}"
   do
     if [ -s "${shellscr:-X}" ]
     then
+
       echo "{{{ Run the '${shellscr}'." &&
-      /bin/bash -ux -o errtrace -o functrace -o pipefail "./${shellscr}" &&
+      /bin/bash -ux \
+        -o errtrace -o functrace -o pipefail \
+        "./${shellscr}" &&
       echo "}}} End of '${shellscr}'."
+
     else : "noop"
     fi || exit 1
   done

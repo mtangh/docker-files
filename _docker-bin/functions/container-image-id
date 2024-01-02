@@ -199,34 +199,39 @@ container-image-get-property() {
 }
 
 container-image-property_BUILD_OPTS() {
-  container-image-get-property "docker.build.options" "$@"
-  return $?
-}
-
-container-image-property_CONTAINER_NAME() {
-  container-image-get-property "docker.run.container-name" "$@"
-  return $?
-}
-
-container-image-property_RUNNABLE() {
-  container-image-get-property "docker.run.runnable" "$@"
+  container-image-get-property "org.ugoole.options.docker.build" "$@"
   return $?
 }
 
 container-image-property_RUN_OPTS() {
-  container-image-get-property "docker.run.options" "$@"
+  container-image-get-property "org.ugoole.options.docker.run" "$@"
+  return $?
+}
+
+container-image-property_CONTAINER_NAME() {
+  container-image-get-property "org.ugoole.docker.run.container-name" "$@"
+  return $?
+}
+
+container-image-property_RUNNABLE() {
+  container-image-get-property "org.ugoole.docker.run.runnable" "$@"
   return $?
 }
 
 container-image-property_CONFIRM-STARTUP() {
-  container-image-get-property "docker.run.confirm-startup" "$@"
+  container-image-get-property "org.ugoole.docker.run.confirm-startup" "$@"
+  return $?
+}
+
+container-image-property_IS_TEMPLATE() {
+  container-image-get-property "org.ugoole.build.template" "$@"
   return $?
 }
 
 container-image-is-runnable() {
   [ -n "$(container-image-get-cmd "$@")" ] && {
-    container-image-property_RUNNABLE "$@" |
-    egrep -i '^true$'
+    container-image-property_IS_TEMPLATE "$@" |egrep -i '^true$' ||
+    container-image-property_RUNNABLE "$@" |egrep -i '^true$'
   } 1>/dev/null 2>&1
   return $?
 }

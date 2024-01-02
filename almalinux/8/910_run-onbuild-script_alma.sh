@@ -6,8 +6,14 @@ build_script="${ONBUILD_SHELL_SCRIPT:-onbuild.sh}"
 
 : "Install additional RPM packages" && {
 
-  if [ -s "./${rpm_packages:-rpm_packages.txt}" ]
-  then rpm_packages=$(eval echo $(cat "./${rpm_packages:=rpm_packages.txt}"))
+  if [ -x "./${rpm_packages:-rpm_packages.sh}" ]
+  then
+    rpm_packages=$(eval echo $(
+      /bin/bash -ux "./${rpm_packages:=rpm_packages.sh}"))
+  elif [ -s "./${rpm_packages:-rpm_packages.txt}" ]
+  then
+    rpm_packages=$(eval echo $(
+      cat "./${rpm_packages:-rpm_packages.txt}"))
   else :
   fi || :
 
@@ -16,7 +22,7 @@ build_script="${ONBUILD_SHELL_SCRIPT:-onbuild.sh}"
 
     dnf -v -y update &&
     dnf -v -y install ${rpm_packages} && {
-      dnf -v -y remove --exclude=procps-ng \
+      dnf -v -y remove --exclude=findutils \
         $(echo $(dnf -q repoquery --unneeded 2>/dev/null)) || :
     }
 

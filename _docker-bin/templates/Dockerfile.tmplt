@@ -23,9 +23,9 @@ LABEL \
  vendor="" \
  maintainer="" \
  license="" \
- docker.build.options="" \
- docker.run.options="-d -P -h $hostname" \
- docker.run.confirm-startup=""
+ org.ugoole.options.docker.build="" \
+ org.ugoole.options.docker.run="-d -P -h $hostname" \
+ org.ugoole.docker.run.confirm-startup=""
 
 ## Publish a container's port(s) to the host
 #EXPOSE

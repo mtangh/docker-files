@@ -3,6 +3,7 @@
 set -ux -o errtrace -o functrace -o pipefail
 
 work_dir=$(pwd)
+scrptdir="${scrptdir:-.}"
 
 [ -n "${CENTOS_VER:-}" ] ||
 if [ -r "/.onbuild/CENTOS_VER" ]
@@ -53,7 +54,7 @@ fi
     shellcmd="/bin/sh" || :
 
   [ -z "${shellcmd}" ] ||
-  for build_sh in ${scrptdir:-.}/[0-9][0-9][0-9]_*.sh
+  for build_sh in ${scrptdir}/[0-9][0-9][0-9]_*.sh
   do 
     ${shellcmd} "${build_sh}" || exit 1
   done
@@ -79,6 +80,11 @@ fi
   done || :
 
   rm -rf {,/var}/tmp/* "${work_dir:-X}" || :
+
+  if [ -d "${scrptdir}" ]
+  then
+    rm -rf "${scrptdir}" || :
+  fi
 
 } &&
 : "Done."

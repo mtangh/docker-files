@@ -1,0 +1,70 @@
+#
+# almalinux9-nodejs
+#
+#@  DOCKER_IMAGEPATH="almalinux9-nodejs"
+#@  DOCKER_IMAGE_VER="v$(date +'%Y%m%d')"
+#@  DOCKER_CONTAINER=""
+#@  DOCKER_LATEST_IS="${DOCKER_IMAGEPATH}:${DOCKER_IMAGE_VER}"
+#@  DOCKER_BUILDOPTS="" # "--platform=linux/amd64"
+#@  DOCKER_BOOT_OPTS=""
+#@  DOCKER_PUBLISHED="${DOCKER_IMAGEPATH}:${DOCKER_IMAGE_VER}"
+#@  DOCKER_PUBLISHED="${DOCKER_IMAGEPATH}:latest"
+#
+
+# Extra RPM Packages
+ARG ONBUILD_RPM_PACKAGES="nodejs npm"
+
+# OnBuild Script
+ARG ONBUILD_SHELL_SCRIPT="nodejs-node_modules.sh"
+
+# Image from
+FROM almalinux9:minimal-onbuild
+
+# Reset Workdir
+WORKDIR /
+
+# Labels
+LABEL \
+ name="Node.js on AlmaLinux9 Minimal" \
+ vendor="UGOOLE.ORG" \
+ maintainer="MT" \
+ license="" \
+ org.ugoole.options.docker.build="" \
+ org.ugoole.options.docker.run="-d -P -h almalinux9-nodejs --privileged" \
+ org.ugoole.docker.run.confirm-startup=""
+
+# ONBUILD: Change Workdir
+ONBUILD \
+WORKDIR /tmp/docker-container-image-build
+
+# ONBUILD: COPY files
+ONBUILD \
+COPY * ./
+
+# ONBUILD: SetUp
+ONBUILD \
+RUN \
+ set -ux; work_dir=$(pwd); \
+ [ -e "./onbuild.sh" ] || exit 0; \
+ : "ONBUILD: Run" && { \
+   /bin/bash -ux -o errtrace -o functrace -o pipefail \
+   "./onbuild.sh" || exit 1; \
+ } && \
+ : "ONBUILD: DNF Cleanup." && { \
+  dnf -v -y remove $(echo $( \
+   dnf -q repoquery --unneeded 2>/dev/null  )) || :;\
+  dnf -v -y clean all || :; \
+  [ -d "/var/cache/dnf/" ] && \
+  rm -rf /var/cache/dnf/* || :; \
+ } && \
+ : "ONBUILD: Cleanup" && { \
+  cd / && [ -d "/var/log" ] && for lf in /var/log/*; \
+  do [ -f "${lf}" -a -s "${lf}" ] && : >"${lf}"; \
+  done || :; rm -f /var/lib/rpm/__db.* || :; \
+  rm -rf {,/var}/tmp/* "${work_dir:-X}" || :; \
+ } && \
+ : "ONBUILD: Done.";
+
+# ONBUILD: Reset Workdir
+ONBUILD \
+WORKDIR /

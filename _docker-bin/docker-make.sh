@@ -56,7 +56,7 @@ _docker_rebuild_obj=0
 _docker_cleanuponly=0
 _docker_not_running=0
 _docker_run_command=""
-_confirm_start_cmnd=""
+_docker_helthchkcmd=""
 _logging_std_output=0
 
 # Flags
@@ -71,7 +71,6 @@ b|build-only=_docker_not_running
 |rebuild=_docker_rebuild_obj
 P|platform:=_docker_target_arch
 c|command:=_docker_run_command
-p|proc:=_confirm_start_cmnd
 |with-log=_logging_std_output
 "
 # Parsing an options
@@ -424,12 +423,13 @@ dmf_section "CHK" && {
     _docker_containerid=""
 
     # Confirm
-    _confirm_start_cmnd=""
+    _docker_helthchkcmd=""
 
     # retry
     retry_cnt=0
     retryover=1
-    dexec_ret=1
+    # Healthy ID
+    dpshchkid=""
 
     # Runnable ?
     [ -n "${_docker_c_image_ent}" ] ||
@@ -443,40 +443,41 @@ dmf_section "CHK" && {
     # Checking build only mode
     _docker_containerid=$(
       container-get-id-last -f "${__docker_build_path}" \
-      "${_docker_c_image_ent}")
-    _confirm_start_cmnd=$(
-      container-image-property_CONFIRM-STARTUP -f "${__docker_build_path}" \
-      "${_docker_c_image_ent}")
+      "${_docker_c_image_ent}" 2>/dev/null; )
+    [ -z "${_docker_containerid:-}" ] ||
+    _docker_helthchkcmd=$(
+      ${DOCKER_CMD} inspect --type=container "${_docker_containerid}" \
+      --format='{{ .Config.Healthcheck.Test }}' 2>/dev/null; ) || :
 
     # Check running process ?
     [ -n "${_docker_containerid}" -a \
-      -n "${_confirm_start_cmnd}" ] && {
+      -n "${_docker_helthchkcmd}" ] && {
 
       # Start
       dmf_echo_start
       # Print
-      echo "Check the status of the command '${_confirm_start_cmnd}'."
+      echo "Check the status of ID='${_docker_containerid}'."
       # Check
       while [ ${retry_cnt} -le ${_retrymax} ]
       do
-        eval $(
-        echo ${DOCKER_CMD} exec -it "${_docker_containerid}" ${_confirm_start_cmnd}
-        ) 1>/dev/null 2>&1
-        # Status of docker exec
-        dexec_ret=$?
+        dpshchkid=""
+        [ -z "${dpshchkid:-}" ] || {
+          dpshchkid=$( ${DOCKER_CMD} ps -q \
+            -f "ID=${_docker_containerid}" -f "status=running" -f "health=healthy"; )
+        } 2>/dev/null || :
         # Check the status of docker-exec
-        [ ${dexec_ret} -eq 0 ] && {
-          echo "SUCCESS; command=[${_confirm_start_cmnd}]"
+        [ -n "${dpshchkid:-}" ] && {
+          echo "SUCCESS; ID=[${dpshchkid}] is HEALTHY."
           retryover=0
           break
-        }
+        } || :
         # Decrement retry counter
         retry_cnt=$(expr ${retry_cnt} + 1 2>/dev/null)
         # Print
-        echo "FAILED(${retry_cnt}/${_retrymax}); command=[${_confirm_start_cmnd}], ret=[${dexec_ret}]"
+        echo "FAILED(${retry_cnt}/${_retrymax}); ID=[${_docker_containerid}] is not HEALTHY."
         # Retry count over ?
-        if [ ${retryover} -ne 0 ]
-        then echo "GIVE-UP; command=[${_confirm_start_cmnd}]"
+        if [ ${retryover:-1} -ne 0 ]
+        then echo "GIVE-UP; ID=[${_docker_containerid}]."
         else sleep ${_wait_for}
         fi
       done

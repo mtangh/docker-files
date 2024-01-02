@@ -3,6 +3,7 @@
 set -ux -o errtrace -o functrace -o pipefail
 
 work_dir=$(pwd)
+scrptdir="${scrptdir:-.}"
 
 [ -n "${CENTOS_VER:-}" ] ||
 if [ -r "/.onbuild/CENTOS_VER" ]
@@ -79,6 +80,11 @@ fi
   done || :
 
   rm -rf {,/var}/tmp/* "${work_dir:-X}" || :
+
+  if [ -d "${scrptdir}" ]
+  then
+    rm -rf "${scrptdir}" || :
+  fi
 
 } &&
 : "Done."

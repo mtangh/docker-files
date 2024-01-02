@@ -166,7 +166,7 @@ t|tag:=_imagepath
     then _imgtagent="${_imgtagent:+${_imgtagent} }-t ${_imgvertag%:*}"
     fi || :
     _labelopts=""
-    _labelopts="${_labelopts:+${_labelopts} }--label docker.build.options="'"'"${_buildopts}"'"'
+    _labelopts="${_labelopts:+${_labelopts} }--label org.ugoole.options.docker.build="'"'"${_buildopts}"'"'
     eval $(dockerfile-env-unset "${_buildpath}") || :
     __docker_invoke build --progress=plain \
       ${_buildopts} ${_imgtagent} ${_meta_opts} ${_labelopts} \

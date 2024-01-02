@@ -6,7 +6,6 @@ set -ux -o errtrace -o functrace -o pipefail
   dnf -v -y update &&
   dnf -v -y install systemd-container && {
     dnf -v -y remove \
-      --exclude=procps-ng \
       $(echo $(dnf -q repoquery --unneeded 2>/dev/null)) || :
   } &&
   dnf -v -y clean all && {

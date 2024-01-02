@@ -104,8 +104,8 @@ LABEL \
  vendor="UGOOLE.ORG" \
  maintainer="MT" \
  license="" \
- docker.build.options="" \
- build-stage="true"
+ org.ugoole.options.docker.build="" \
+ org.ugoole.build.template="true"
 
 
 # CentOS minimal
@@ -155,9 +155,9 @@ LABEL \
  vendor="UGOOLE.ORG" \
  maintainer="MT" \
  license="" \
- docker.build.options="" \
- docker.run.options="" \
- docker.run.confirm-startup=""
+ org.ugoole.options.docker.build="" \
+ org.ugoole.options.docker.run="" \
+ org.ugoole.docker.run.confirm-startup=""
 
 
 # CentOS 6 with upstart
@@ -194,9 +194,9 @@ LABEL \
  vendor="UGOOLE.ORG" \
  maintainer="MT" \
  license="" \
- docker.build.options="" \
- docker.run.options="-d -P -h centos${CENTOS_VER}-upstart --privileged" \
- docker.run.confirm-startup=""
+ org.ugoole.options.docker.build="" \
+ org.ugoole.options.docker.run="-d -P -h centos${CENTOS_VER}-upstart --privileged" \
+ org.ugoole.docker.run.confirm-startup=""
 
 # STOP SIGNAL
 STOPSIGNAL SIGINT
@@ -235,9 +235,9 @@ LABEL \
  vendor="UGOOLE.ORG" \
  maintainer="MT" \
  license="" \
- docker.build.options="" \
- docker.run.options="" \
- docker.run.confirm-startup=""
+ org.ugoole.options.docker.build="" \
+ org.ugoole.options.docker.run="" \
+ org.ugoole.docker.run.confirm-startup=""
 
 # ONBUILD: Parameters for localization
 ONBUILD \
@@ -268,13 +268,7 @@ ONBUILD \
 RUN \
  --mount=type=secret,id=ROOTPSWD \
  --mount=type=secret,id=DOCKER_USERS \
- set -ux; \
- : "ONBUILD: Run" && { \
-  scrptdir="/.onbuild"; \
-  . ${scrptdir:-X}/onbuild.sh || exit 1; \
-  rm -rf "${scrptdir:-X}/" || :; \
- } && \
- : "ONBUILD: Done.";
+ set -ux; scrptdir=/.onbuild && . ${scrptdir}/onbuild.sh || exit 1;
 
 # ONBUILD: Reset Workdir
 ONBUILD \
@@ -308,9 +302,9 @@ LABEL \
  vendor="UGOOLE.ORG" \
  maintainer="MT" \
  license="" \
- docker.build.options="" \
- docker.run.options="-d -P -h centos${CENTOS_VER}-upstart --privileged" \
- docker.run.confirm-startup=""
+ org.ugoole.options.docker.build="" \
+ org.ugoole.options.docker.run="-d -P -h centos${CENTOS_VER}-upstart --privileged" \
+ org.ugoole.docker.run.confirm-startup=""
 
 # ONBUILD: Parameters for localization
 ONBUILD \
@@ -353,13 +347,7 @@ ONBUILD \
 RUN \
  --mount=type=secret,id=ROOTPSWD \
  --mount=type=secret,id=DOCKER_USERS \
- set -ux; \
- : "ONBUILD: Run" && { \
-  scrptdir="/.onbuild"; \
-  . ${scrptdir:-X}/onbuild.sh || exit 1; \
-  rm -rf "${scrptdir:-X}/" || :; \
- } && \
- : "ONBUILD: Done.";
+ set -ux; scrptdir=/.onbuild && . ${scrptdir}/onbuild.sh || exit 1;
 
 # ONBUILD: Reset Workdir
 ONBUILD \

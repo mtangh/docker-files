@@ -3,6 +3,7 @@
 set -ux -o errtrace -o functrace -o pipefail
 
 work_dir=$(pwd)
+scrptdir="${scrptdir:-.}"
 
 [ -n "${ALMALINUX_VER:-}" ] ||
 if [ -r "/.onbuild/ALMALINUX_VER" ]
@@ -80,6 +81,11 @@ fi
 
   rm -f /var/lib/rpm/__db.* || :
   rm -rf {,/var}/tmp/* "${work_dir:-X}" || :
+
+  if [ -d "${scrptdir}" ]
+  then
+    rm -rf "${scrptdir}" || :
+  fi
 
 } &&
 : "Done."
