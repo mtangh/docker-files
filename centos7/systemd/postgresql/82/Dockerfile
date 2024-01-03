@@ -14,8 +14,10 @@
 ARG PGSQL_IMAGE_VER=82
 
 # PostgreSQL and pgTap Version
+#ARG PGSQLVER="8.2.23" \
+#    PGTAPVER="1.1.0"
 ARG PGSQLVER="8.2.23" \
-    PGTAPVER="1.1.0"
+    PGTAPVER=""
 
 # Compiler and configure opts
 ARG PG_GCC_PKG="compat-gcc-44" \

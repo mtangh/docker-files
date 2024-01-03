@@ -5,26 +5,21 @@
 #
 # chkconfig: - 64 36
 # description: PostgreSQL database server.
-# processname: postmaster
-# pidfile: /var/run/postmaster.PORT.pid
+#
+# config: /etc/sysconfig/postgresql
+#
+### BEGIN INIT INFO
+# Provides: postgresql
+# Required-Start: $network $syslog
+# Required-Stop: $network $syslog
+# Default-Start: 2 3 4 5
+# Default-Stop: 0 1 6
+# Description: Start, stop and restart postgresql
+# Short-Description: start and stop postgresql
+### END INIT INFO
 
 # This script is slightly unusual in that the name of the daemon (postmaster)
 # is not the same as the name of the subsystem (postgresql)
-
-# Source function library.
-funcload=0
-if [ -f "/etc/rc.d/init.d/functions" ]
-then
-  . /etc/rc.d/init.d/functions &&
-  funcload=1
-else :
-fi
-
-# Get network config.
-if [ -f "/etc/sysconfig/network" ]
-then . /etc/sysconfig/network
-else exit 6
-fi
 
 # Find the name of the script
 NAME="${0##*/}"
@@ -33,59 +28,20 @@ then
   NAME=${NAME:3}
 fi
 
-# For SELinux we need to use 'runuser' not 'su'
-if [ -x "/sbin/runuser" ]
-then SU=runuser
-else SU=su
+# Source function library.
+if [ -f "/etc/rc.d/init.d/functions" ]
+then . /etc/rc.d/init.d/functions
+else :
 fi
 
-# Set defaults for configuration variables
-PG_BIN="/opt/postgresql/bin"
-PGUSER="postgres"
-PGPORT="5432"
-PGDATA="/opt/postgresql/data"
-
-# Value to set as postmaster process's oom_adj
-PG_OOM_ADJ=-17
-
-# Get postgresql config.
-. "/etc/sysconfig/${NAME}"
-if [ $? -ne -0 ]
-then
-  echo "${NAME}: ERROR: no such file or directory '/etc/sysconfig/${NAME}'."
-  exit 2
+# Get network config.
+if [ -f "/etc/sysconfig/network" ]
+then . /etc/sysconfig/network
+else :
 fi
 
-# PGVERSION is the full package version, e.g., 8.4.0
-# Note: the specfile inserts the correct value during package build
-PGVERSION="${PGSQLVER}"
-# PGMAJORVERSION is major version, e.g., 8.4 (this should match PG_VERSION)
-PGMAJORVERSION=$(echo "${PGVERSION}" |sed 's/^\([0-9]*\.[0-9]*\).*$/\1/' 2>/dev/null)
-
-# Exports
-export PGDATA
-export PGPORT
-
-# boot log file
-boot_log="/var/log/${NAME}-boot.log"
-
-# PID file
-pid_file="/var/run/${NAME}.${PGPORT}.pid"
-
-# Script result
-_RET=0
-
-# Make sure startup-time log file is valid
-if [ ! -e "${boot_log}" -a ! -h "${boot_log}" ]
-then
-  touch "${boot_log}" || exit 4
-  chown "${PGUSER}:${PGUSER}" "${boot_log}" &&
-  chmod 0660 "${boot_log}" || :
-  [ -x "/sbin/restorecon" ] &&
-  /sbin/restorecon "${boot_log}" || :
-fi 1>/dev/null 2>&1
-
-if [ ${funcload:-0} -eq 0 ]
+# functions is not loaded.
+if [ -z "${BOOTUP:-}" ]
 then
 
 echo_success() {
@@ -102,86 +58,203 @@ echo_failure() {
   return 1
 }
 
+else :
+fi # if [ -z "${BOOTUP:-}" ]
+
+# For SELinux we need to use 'runuser' not 'su'
+if [ -x "/sbin/runuser" ]
+then SU=runuser
+else SU=su
 fi
 
+# Get postgresql config.
+. "/etc/sysconfig/${NAME}"
+if [ $? -ne -0 ]
+then
+  echo "${NAME}: ERROR: no such file or directory '/etc/sysconfig/${NAME}'."
+  exit 2
+else :
+fi
+
+# Set defaults for configuration variables
+PGHOME="${PGHOME:-/opt/postgresql}"
+PGROOT="${PGROOT:-/opt/postgresql}"
+PG_BIN="${PG_BIN:-/opt/postgresql/bin}"
+PGUSER="${PGUSER:-postgres}"
+PGPORT="${PGPORT:-5432}"
+PGDATA="${PGDATA:-/opt/postgresql/data}"
+
+# Value to set as postmaster process's oom_adj
+PG_OOM_ADJ="${PG_OOM_ADJ:--17}"
+
+# PGVERSION is the full package version, e.g., 8.4.0
+# Note: the specfile inserts the correct value during package build
+PGVERSION="${PGSQLVER:-}"
+# PGMAJORVERSION is major version, e.g., 8.4 (this should match PG_VERSION)
+PGMAJORVERSION=$(echo "${PGVERSION}" |sed 's/^\([0-9]*\.[0-9]*\).*$/\1/' 2>/dev/null)
+
+# Exports
+export PGDATA
+export PGPORT
+
+# boot log file
+boot_log="/var/log/${NAME}-boot.log"
+
+# PID file
+pid_file="${PGDATA}/postmaster.pid"
+
+# Timeout
+STARTUP_WAIT=60
+SHUTDOWNWAIT=120
+
+# Script result
+_RET=0
+
+# Make sure startup-time log file is valid
+if [ ! -e "${boot_log}" -a ! -h "${boot_log}" ]
+then
+  touch "${boot_log}" || exit 4
+  chown "${PGUSER}:${PGUSER}" "${boot_log}" &&
+  chmod 0660 "${boot_log}" || :
+  [ -x "/sbin/restorecon" ] &&
+  /sbin/restorecon "${boot_log}" || :
+fi 1>/dev/null 2>&1
+
+is_running() {
+  _pid=$(
+    [ -s "${pid_file}" ] &&
+    cat "${pid_file}" 2>/dev/null || :; )
+  [ -n "$(kill -0 ${_pid} 2>/dev/null)" ]
+  return $?
+}
+
 start() {
-  [ -x "${PG_BIN}/postmaster" ] || exit 5
+  [ -x "${PGROOT}/bin/postmaster" ] || exit 5
 
-  # Check for the PGDATA structure
-  if [ -f "${PGDATA}/PG_VERSION" -a -d "${PGDATA}/base" ]
+  if is_running
   then
-    # Check version of existing PGDATA
-    if [ -n "${PGMAJORVERSION}" ] &&
-       [ $(cat "${PGDATA}/PG_VERSION") != "${PGMAJORVERSION}" ]
-    then
-      echo
-      echo "An old version of the database format was found."
-      echo "You need to upgrade the data format before using PostgreSQL."
-      exit 1
-    fi
-  else
-    # No existing PGDATA! Warn the user to initdb it.
-    echo
-    echo "${PGDATA} is missing. Use '${PG_BIN}/initdb' to initialize the cluster first."
-    echo_failure
-    echo
-    exit 1
-  fi
-
-  [ "${PG_OOM_ADJ}" != "" ] &&
-  echo "${PG_OOM_ADJ}" 1>/proc/self/oom_adj || :
-
-  echo -n "Starting ${NAME} service: "
-
-  ${SU} -l "${PGUSER}" -c \
-  "${PG_BIN}/pg_crl start -D ${PGDATA} -o '-p ${PGPORT}' ${PGCTL_START_OPTS:--s -w}" \
-    </dev/null 1>>"${boot_log}" 2>&1
-  _RET=$?
-
-  _pid=""
-
-  if [ ${_RET:-1} -eq 0 ]
-	then
-    for _cnt in 1 2 3
-    do
-      [ -s "${PGDATA}/postmaster.pid" ] &&
-      _pid=$(cat "${PGDATA}/postmaster.pid" 2>/dev/null) || :
-      if [ -n "${_pid}" ]
-      then break
-      else sleep 1
-      fi
-    done
-  fi 1>/dev/null 2>&1
-
-  if [ -n "${_pid}" ]
-  then
-    echo_success
-    echo "${_pid}" 1>"${pid_file}"
-  else
-    echo_failure
-    [ ${script_reault} -eq 0 ] &&
+    echo "${NAME} is already running (pid: ${_pid:-???})"
     _RET=1
+  else
+
+    echo -n "Starting ${NAME} service: " && {
+
+      # Check for the PGDATA structure
+      if [ -f "${PGDATA}/PG_VERSION" -a -d "${PGDATA}/base" ]
+      then
+        # Check version of existing PGDATA
+        if [ -n "${PGMAJORVERSION}" ] &&
+           [ $(cat "${PGDATA}/PG_VERSION") != "${PGMAJORVERSION}" ]
+        then
+          echo
+          echo "An old version of the database format was found."
+          echo "You need to upgrade the data format before using PostgreSQL."
+          exit 1
+        fi
+      else
+        # No existing PGDATA! Warn the user to initdb it.
+        echo
+        echo "${PGDATA} is missing. Use '${PGROOT}/bin/initdb' to initialize the cluster first."
+        echo_failure
+        echo
+        exit 1
+      fi
+
+      [ "${PG_OOM_ADJ}" != "" ] &&
+      echo "${PG_OOM_ADJ}" 1>/proc/self/oom_adj || :
+
+      ${SU} -l "${PGUSER}" -c \
+      "${PGROOT}/bin/pg_crl start -D ${PGDATA} -o '-p ${PGPORT}' ${PGCTL_START_OPTS:--s -w}" \
+      </dev/null
+      _RET=$?
+
+      if [ ${_RET:-1} -eq 0 ]
+      then
+
+        _cnt=0
+
+        while [ ${_cnt} -gt ${STARTUP_WAIT} ]
+        do
+          is_running && break || :
+          echo "Waiting for processes to startup."
+          sleep 1; (( _cnt++ ))
+        done
+
+        if [ ${_cnt} -le ${STARTUP_WAIT} ]
+        then
+          echo "The startup was successful. pid=${_pid:-???}."
+        else
+          echo "Failed to startup for ${NAME}."
+          _RET=1
+        fi
+
+      fi
+
+    } 1>>"${boot_log}" 2>&1
+
+    if [ ${_RET:-1} -eq 0 ]
+    then
+      echo_success
+    else
+      echo_failure
+      [ ${_RET} -eq 0 ] && _RET=1
+    fi
+    echo
+
   fi
-  echo
 
   return ${_RET}
 }
 
 stop() {
-  echo -n  "Stopping ${NAME} service: "
+  if is_running
+  then
 
-  ${SU} -l "${PGUSER}" -c \
-  "${PG_BIN}/pg_ctl stop -D '${PGDATA}' ${PGCTL_STOP_OPTS:--s -m fast}" \
-    </dev/null 1>>"${boot_log}" 2>&1
-  _RET=$?
+    echo -n  "Stopping ${NAME} service: " && {
 
-  if [ ${_RET} -eq 0 ]
-  then echo_success
-  else echo_failure
+      ${SU} -l "${PGUSER}" -c \
+      "${PGROOT}/bin/pg_ctl stop -D '${PGDATA}' ${PGCTL_STOP_OPTS:--s -m fast}" \
+      </dev/null
+      _RET=$?
+
+      if [ ${_RET:-1} -eq 0 ]
+      then
+
+        _cnt=0
+
+        while [ ${_cnt} -gt ${SHUTDOWNWAIT} ]
+        do
+          is_running || break
+          echo "Waiting for processes (pid:${_pid:-???}) to exit."
+          sleep 1 && (( _cnt++ ))
+        done
+
+        if [ ${_cnt} -le ${SHUTDOWNWAIT} ]
+        then
+          echo "The shutdown was successful."
+        else
+          echo "Killing processes (pid:${_pid:-???}) which didn't stop after ${SHUTDOWNWAIT} seconds."
+          [ -n "${_pid:-}" ] && kill -9 ${_pid:-} || :
+          _RET=1
+        fi 
+
+      fi 
+
+    } 1>>"${boot_log}" 2>&1
+
+    if [ ${_RET} -eq 0 ]
+    then
+      echo_success
+    else
+      echo_failure
+      [ ${_RET:-1} -eq 0 ] && _RET=1
+    fi
+    echo
+  
+  else
+    echo "${NAME} is not running"
+    _RET=1
   fi
-  echo
-
-  rm -f "${pid_file}" 1>/dev/null 2>&1
 
   return ${_RET}
 }
@@ -193,7 +266,7 @@ restart() {
 }
 
 condrestart() {
-  if [ -e "${pid_file}" ]
+  if is_running
   then restart
   else start
   fi
@@ -202,14 +275,14 @@ condrestart() {
 
 reload() {
   ${SU} -l "${PGUSER}" -c \
-  "${PG_BIN}/pg_ctl reload -D '${PGDATA}' ${PGCTL_RELOAD_OPTS:--s}" \
+  "${PGROOT}/bin/pg_ctl reload -D '${PGDATA}' ${PGCTL_RELOAD_OPTS:--s}" \
   </dev/null
   return $?
 }
 
 status() {
   ${SU} -l "${PGUSER}" -c \
-  "${PG_BIN}/pg_ctl status -D '${PGDATA}'" \
+  "${PGROOT}/bin/pg_ctl status -D '${PGDATA}'" \
   </dev/null
   return $?
 }
@@ -226,7 +299,7 @@ force-reload)
   restart
   ;;
 *)
-  echo "Usage: $0 {start|stop|status|restart|condrestart|try-restart|reload|force-reload}"
+  echo "Usage: ${NAME} {start|stop|status|restart|condrestart|try-restart|reload|force-reload}"
   exit 2
 esac
 

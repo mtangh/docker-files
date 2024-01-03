@@ -137,8 +137,8 @@ RUN \
   export PG_GCC_PKG PG_GCC_CMD PG_CONFIGURE_OPTS; \
   export PG_INITDB_OPTS; \
  } && \
- : "ONBUILD: Install PostgreSQL v${PSQLVER} (and pgTAP ${PGTAPVER})" && { \
-  onbuilddir="/usr/local/postgresql/.onbuild"; && \
+ : "ONBUILD: Install PostgreSQL v${PGSQLVER} (and pgTAP ${PGTAPVER})" && { \
+  onbuilddir="/usr/local/postgresql/.onbuild" && \
   [ ! -s "${work_dir}/onbuild.sh" ] || { \
    mv -fv {${work_dir},${onbuilddir}}"/onbuild.sh"; } && \
   [ ! -d "${work_dir}/onbuild" ] || { \

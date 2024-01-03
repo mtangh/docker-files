@@ -14,8 +14,10 @@
 ARG PGSQL_IMAGE_VER=110
 
 # PostgreSQL and pgTap Version
+#ARG PGSQLVER="11.22" \
+#    PGTAPVER="1.3.1"
 ARG PGSQLVER="11.22" \
-    PGTAPVER="1.3.1"
+    PGTAPVER=""
 
 # Image from
 FROM centos7-systemd-postgresql:0
