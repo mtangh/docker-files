@@ -3,15 +3,24 @@
 # Where your java installation lives
 JAVA_HOME=/usr/lib/jvm/java
 
-# Tomcat Home directory
-TOMCAT_HOME=/opt/tomcat
-
 # What user should run tomcat
 TOMCAT_USER=tomcat
+
+## Specify the group of Tomcat user
+#TOMCAT_GROUP=tomcat
+
+# Tomcat Home directory
+TOMCAT_HOME=/opt/tomcat
 
 # Where your tomcat installation lives
 CATALINA_HOME=/opt/tomcat/default
 CATALINA_BASE=/opt/tomcat/instances/tomcat
+
+# Ports
+TCPORT_HTTP=8080
+TCPORT_HTTPS=8443
+TCPORT_AJP=8009
+TCPORT_HALT=8005
 
 # For tomcat-cleanup-logs.service
 TCLOG_ARCHIVEDAYS=3

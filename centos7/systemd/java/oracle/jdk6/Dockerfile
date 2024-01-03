@@ -22,7 +22,7 @@ LABEL \
  vendor="UGOOLE.ORG" \
  maintainer="MT" \
  license="" \
- docker.build.options="" \
- docker.run.options="-d -P -h centos7s-java-oracle-${JAVA_JDK_VER} --privileged" \
- docker.run.confirm-startup=""
+ org.ugoole.options.docker.build="" \
+ org.ugoole.options.docker.run="-d -P -h centos7s-java-oracle-${JAVA_JDK_VER} --privileged" \
+ org.ugoole.docker.run.confirm-startup=""
 

@@ -1,7 +1,7 @@
 #
-# centos7s-java:openjdk7
+# centos7-systemd-java:openjdk7
 #
-#@  DOCKER_IMAGEPATH="centos7-systemd-java:openjdk0"
+#@  DOCKER_IMAGEPATH="centos7-systemd-java:openjdk7"
 #@  DOCKER_IMAGE_VER="v$(date +'%Y%m%d')"
 #@  DOCKER_CONTAINER=""
 #@  DOCKER_LATEST_IS=""
@@ -14,8 +14,8 @@
 # Java-OpenJDK Version
 ARG JAVA_OPENJDK_VER=7
 
-# Build-Stage
-FROM centos7s-java:openjdk0
+# Image from
+FROM centos7-systemd-java:openjdk0
 
 # OpenJDK Version
 ARG JAVA_OPENJDK_VER
@@ -29,7 +29,7 @@ LABEL \
  vendor="UGOOLE.ORG" \
  maintainer="MT" \
  license="" \
- docker.build.options="" \
- docker.run.options="-d -P -h centos7-systemd-java_openjdk${JAVA_OPENJDK_VER} --privileged" \
- docker.run.confirm-startup=""
+ org.ugoole.options.docker.build="" \
+ org.ugoole.options.docker.run="-d -P -h centos7-systemd-java_openjdk${JAVA_OPENJDK_VER} --privileged" \
+ org.ugoole.docker.run.confirm-startup=""
 

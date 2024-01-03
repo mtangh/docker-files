@@ -20,7 +20,7 @@ LABEL \
  vendor="UGOOLE.ORG" \
  maintainer="MT" \
  license="" \
- docker.build.options="" \
- docker.run.options="-d -P -h centos7s-httpd-apache-php72 --privileged" \
- docker.run.confirm-startup=""
+ org.ugoole.options.docker.build="" \
+ org.ugoole.options.docker.run="-d -P -h centos7s-httpd-apache-php72 --privileged" \
+ org.ugoole.docker.run.confirm-startup=""
 

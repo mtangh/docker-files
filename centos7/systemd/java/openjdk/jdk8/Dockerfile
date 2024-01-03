@@ -14,8 +14,8 @@
 # Java-OpenJDK Version
 ARG JAVA_OPENJDK_VER=8
 
-# Java-OpenJDK
-FROM centos7s-java:openjdk0
+# Image from
+FROM centos7-systemd-java:openjdk0
 
 # OpenJDK Version
 ARG JAVA_OPENJDK_VER
@@ -29,7 +29,7 @@ LABEL \
  vendor="UGOOLE.ORG" \
  maintainer="MT" \
  license="" \
- docker.build.options="" \
- docker.run.options="-d -P -h centos7-systemd-java_openjdk${JAVA_OPENJDK_VER} --privileged" \
- docker.run.confirm-startup=""
+ org.ugoole.options.docker.build="" \
+ org.ugoole.options.docker.run="-d -P -h centos7-systemd-java_openjdk${JAVA_OPENJDK_VER} --privileged" \
+ org.ugoole.docker.run.confirm-startup=""
 

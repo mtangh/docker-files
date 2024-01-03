@@ -130,8 +130,8 @@ LABEL \
  vendor="UGOOLE.ORG" \
  maintainer="MT" \
  license="" \
- docker.build.options="" \
- build-stage="true"
+ org.ugoole.options.docker.build="" \
+ org.ugoole.build.template="true"
 
 
 # PHP enabled Apache HTTP Server on CentOS7 with Systemd
@@ -149,9 +149,9 @@ LABEL \
  vendor="UGOOLE.ORG" \
  maintainer="MT" \
  license="" \
- docker.build.options="" \
- docker.run.options="-d -P -h centos7s-httpd-apache-php --privileged" \
- docker.run.confirm-startup=""
+ org.ugoole.options.docker.build="" \
+ org.ugoole.options.docker.run="-d -P -h centos7s-httpd-apache-php --privileged" \
+ org.ugoole.docker.run.confirm-startup=""
 
 # STOP SIGNAL
 STOPSIGNAL SIGINT
@@ -181,9 +181,9 @@ LABEL \
  vendor="UGOOLE.ORG" \
  maintainer="MT" \
  license="" \
- docker.build.options="" \
- docker.run.options="-d -P -h centos7s-httpd-apache-php --privileged" \
- docker.run.confirm-startup=""
+ org.ugoole.options.docker.build="" \
+ org.ugoole.options.docker.run="-d -P -h centos7s-httpd-apache-php --privileged" \
+ org.ugoole.docker.run.confirm-startup=""
 
 # ONBUILD: Set Workdir
 ONBUILD \

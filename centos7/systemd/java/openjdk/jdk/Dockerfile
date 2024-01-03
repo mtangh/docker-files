@@ -2,16 +2,28 @@
 # centos7-systemd-java:openjdk0
 #
 #@  DOCKER_IMAGEPATH="centos7-systemd-java-openjdk:0"
-#@  DOCKER_IMAGE_VER="v$(date +'%Y%m%d')"
+#@  DOCKER_IMAGE_VER=""
 #@  DOCKER_CONTAINER=""
 #@  DOCKER_LATEST_IS=""
 #@  DOCKER_BUILDOPTS="" # "--platform=linux/amd64"
 #@  DOCKER_BOOT_OPTS=""
-#@  DOCKER_PUBLISHED="${DOCKER_IMAGEPATH}-${DOCKER_IMAGE_VER}"
 #@  DOCKER_PUBLISHED="${DOCKER_IMAGEPATH}"
 #
 
-FROM centos7-systemd_with-ssh
+# Logrotate
+ARG LOGROTATION="YES"
+
+# Enable SUDO
+ARG ENABLE_SUDO="YES"
+
+# SSH Login
+ARG ENABLE_SSHD="YES"
+
+# Install the OpenJDK packages
+ARG OPENJDK_PACKAGES="java-openjdk_packages.txt"
+
+# Image from
+FROM centos7:systemd-onbuild
 
 # Reset Workdir
 WORKDIR /
@@ -22,15 +34,12 @@ LABEL \
  vendor="UGOOLE.ORG" \
  maintainer="MT" \
  license="" \
- docker.build.options="" \
- docker.run.options="" \
- docker.run.confirm-startup=""
+ org.ugoole.options.docker.build="" \
+ org.ugoole.build.template="true"
 
-# Install the OpenJDK package
+# Install the OpenJDK packages
 ONBUILD \
-ARG OPENJDK_PKG_LIST=""
-ONBUILD \
-ARG OPENJDK_PKG_FILE="packages.txt"
+ARG OPENJDK_PACKAGES
 
 # ONBUILD: Set Workdir
 ONBUILD \
@@ -43,32 +52,31 @@ COPY * ./
 # ONBUILD: SetUp
 ONBUILD \
 RUN \
- set -ux; \
- work_dir=$(pwd); \
+ set -ux; work_dir=$(pwd); \
  packages=""; \
- if [ -n "${OPENJDK_PKG_LIST:-}" ]; \
- then packages="${OPENJDK_PKG_LIST}"; \
- elif [ -f "${OPENJDK_PKG_FILE:-}" -a -s "${OPENJDK_PKG_FILE:-}" ]; \
+ if [ -s "${OPENJDK_PACKAGES:=packages.txt}" ]; \
  then packages=$(echo $(cat "${OPENJDK_PKG_FILE}")); \
+ elif [ -n "${OPENJDK_PACKAGES:-}" ]; \
+ then packages=$(echo ${OPENJDK_PACKAGES:-}); \
  fi; \
  [ -n "${packages}" ] || { \
   echo "The OpenJDK Package List is empty." 1>&2; \
   exit 1; }; \
  : "ONUILD: Install OpenJDK Packages" && { \
   yum -v -y update && \
-  yum -v -y install $(echo ${packages}) && \
-  yum -v -y remove $(echo $(package-cleanup --leaves)); \
+  yum -v -y install ${packages}; \
  } &&\
  : "ONUILD: YUM Cleanup." && { \
+  yum -v -y remove $(echo $( \
+   package-cleanup --leaves )) || :; \
   yum -v -y clean all || :; \
   [ -d "/var/cache/yum/" ] && \
   rm -rf /var/cache/yum/* || :; \
  } && \
  : "ONUILD: Cleanup." && { \
-  cd /; 
-  [ -d "/var/log" ] && for lf in /var/log/*; \
+  cd / && [ -d "/var/log" ] && for lf in /var/log/*; \
   do [ -f "${lf}" -a -s "${lf}" ] && : >"${lf}"; \
-  done || :; \
+  done || :; rm -f /var/lib/rpm/__db.* || :; \
   rm -rf {,/var}/tmp/* "${work_dir:-X}" || :; \
  } && \
  : "ONUILD: Done.";

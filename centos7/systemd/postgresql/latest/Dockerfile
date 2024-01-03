@@ -21,19 +21,33 @@ ARG ENABLE_SUDO="YES"
 ARG ENABLE_SSHD="YES"
 
 # Extra RPM Packages
-ARG ONBUILD_RPM_PACKAGES="postgresql postgresql-server postgresql-libs postgresql-contrib postgresql-devel postgresql-test"
+ARG ONBUILD_RPM_PACKAGES="postgresql postgresql-server postgresql-libs postgresql-contrib postgresql-devel"
 
 # OnBuild Script
 ARG ONBUILD_SHELL_SCRIPT="postgresql_onbuild.sh"
 
-# Image fromp
+# PostgreSQL data directory and port
+ARG PGDATA="/var/lib/pgsql/data" \
+    PGPORT="5432"
+
+# initdb command options
+ARG PG_INITDB_OPTS="-E UTF-8 --locale=C"
+
+# Image from
 FROM centos7:systemd-onbuild
+
+# PostgreSQL data directory and port
+ARG PGDATA \
+    PGPORT
 
 # SetUp
 RUN \
  set -ux; work_dir=$(pwd); \
- [ -c "$(type -P psql)" ] || { \
+ [ -x "$(type -P psql)" ] || { \
   echo "command 'psql' not found"; \
+  exit 1; }; \
+ [ -f "${PGDATA}/PG_VERSION" -a -d "${PGDATA}/base" ] || { \
+  echo "pgdata '${PGDATA}' is missing."; \
   exit 1; }; \
  systemctl enable postgresql
 
@@ -47,7 +61,7 @@ LABEL \
  maintainer="MT" \
  license="" \
  org.ugoole.options.docker.build="" \
- org.ugoole.options.docker.run="-d -P -h centos7-systemd-postgresql --privileged --expose=5432" \
+ org.ugoole.options.docker.run="-d -P -h centos7-systemd-postgresql --privileged --expose=${PGPORT}" \
  org.ugoole.docker.run.confirm-startup=""
 
 # STOP SIGNAL

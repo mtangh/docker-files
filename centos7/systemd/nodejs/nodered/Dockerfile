@@ -8,13 +8,13 @@
 #@  DOCKER_PUBLISHED=""
 #
 
-# Node-RED on CentOS7 with Systemd
-FROM centos7s-nodejs:stable AS latest
+# Image from
+FROM centos7-systemd-nodejs:16
 
 # Sysconfig parameters
 ARG NODEREDOWNER="node-red"
-ARG NODEREDGROUP="${NODEREDOWNER:-node-red}"
-ARG NODERED_HOME="/home/${NODEREDOWNER:-node-red}"
+ARG NODEREDGROUP="${NODEREDOWNER:-nodered}"
+ARG NODERED_HOME="/home/${NODEREDOWNER:-nodered}"
 ARG NODERED_PORT=1880
 ARG NODERED_OPTS=
 
@@ -125,9 +125,9 @@ LABEL \
  vendor="UGOOLE.ORG" \
  maintainer="MT" \
  license="" \
- docker.build.options="" \
- docker.run.options="-d -P -h centos7s-nodejs-nodered --privileged" \
- docker.run.confirm-startup=""
+ org.ugoole.options.docker.build="" \
+ org.ugoole.options.docker.run="-d -P -h centos7s-nodejs-nodered --privileged" \
+ org.ugoole.docker.run.confirm-startup=""
 
 # Health check
 HEALTHCHECK \
@@ -149,9 +149,9 @@ LABEL \
  vendor="UGOOLE.ORG" \
  maintainer="MT" \
  license="" \
- docker.build.options="" \
- docker.run.options="-d -P -h centos7s-nodejs-nodered --privileged" \
- docker.run.confirm-startup=""
+ org.ugoole.options.docker.build="" \
+ org.ugoole.options.docker.run="-d -P -h centos7s-nodejs-nodered --privileged" \
+ org.ugoole.docker.run.confirm-startup=""
 
 # ONBUILD: Set Workdir
 ONBUILD \

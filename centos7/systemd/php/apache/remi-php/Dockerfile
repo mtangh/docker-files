@@ -49,8 +49,8 @@ LABEL \
  vendor="UGOOLE.ORG" \
  maintainer="MT" \
  license="" \
- docker.build.options="" \
- build-stage="true"
+ org.ugoole.options.docker.build="" \
+ org.ugoole.build.template="true"
 
 
 # REMI enabled Apache HTTP Server on CentOS7 with Systemd (onbuild)
@@ -65,8 +65,8 @@ LABEL \
  vendor="UGOOLE.ORG" \
  maintainer="MT" \
  license="" \
- docker.build.options="" \
- build-stage="true"
+ org.ugoole.options.docker.build="" \
+ org.ugoole.build.template="true"
 
 # REMI-PHP Version
 ONBUILD \

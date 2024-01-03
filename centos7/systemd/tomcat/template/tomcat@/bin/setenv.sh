@@ -10,7 +10,7 @@ INSTANCENAME="${INSTANCENAME:-tomcat}"
 . "/etc/sysconfig/tomcat@${INSTANCENAME}"
 
 # Catalina base
-[ -z "$CATALINA_BASE" ] &&
+[ -z "${CATALINA_BASE}" ] &&
 CATALINA_BASE="${CATALINA_HOME}"
 
 # Catalina directories

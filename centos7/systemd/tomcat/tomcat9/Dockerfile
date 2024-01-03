@@ -35,6 +35,6 @@ WORKDIR \
 
 # Labels for run
 LABEL \
- docker.run.options="-d -P -h centos7-tomcat9 --privileged" \
- docker.run.confirm-startup=""
+ org.ugoole.options.docker.run="-d -P -h centos7-tomcat9 --privileged" \
+ org.ugoole.docker.run.confirm-startup=""
 

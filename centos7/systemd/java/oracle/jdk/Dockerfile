@@ -17,9 +17,9 @@ LABEL \
  vendor="UGOOLE.ORG" \
  maintainer="MT" \
  license="" \
- docker.build.options="" \
- docker.run.options="" \
- docker.run.confirm-startup=""
+ org.ugoole.options.docker.build="" \
+ org.ugoole.options.docker.run="" \
+ org.ugoole.docker.run.confirm-startup=""
 
 ## JAVA JDK Version, etc...
 #ONBUILD \
