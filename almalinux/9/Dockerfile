@@ -138,6 +138,9 @@ LABEL \
  org.ugoole.options.docker.run="" \
  org.ugoole.docker.run.confirm-startup=""
 
+# Start /bin/bash
+CMD [ "/bin/bash" ]
+
 
 # AlmaLinux with systemd
 FROM scratch AS systemd

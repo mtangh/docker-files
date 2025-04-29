@@ -73,7 +73,7 @@ dnf_config_update() {
       --initdb &&
     rpm -v \
       --root ${ALMALINUXROOT} \
-      --nodeps -ivh almalinux-*.rpm &&
+      --nodeps --excludedocs -ivh almalinux-*.rpm &&
     rpm -v \
       --root ${ALMALINUXROOT} \
       --import "${ALMALINUXROOT}${rpm_gpgkey}" &&
@@ -213,8 +213,8 @@ dnf_config_update() {
 #    hardlink \
 #    libevent \
 #    libgomp \
-#    openssl \
 #    openssl-pkcs11 \
+#    openssl \
 #    || exit 1
 
   dnf -v -y remove --exclude=binutils \
@@ -259,7 +259,7 @@ dnf_config_update() {
   set +x && {
     rootpswd_tmp=$(dd status=none if=/dev/urandom count=50 |md5sum)
     rootpswd_tmp="${rootpswd_tmp%% *}"
-  } &&  
+  } &&
   if [ -x "$(type -P passwd)" ]
   then
     echo "Set a root password and lock."
@@ -291,6 +291,7 @@ dnf_config_update() {
     /usr/lib/locale/locale-archive \
     /usr/share/mime/* \
     /root/* \
+    /root/.bash_history \
     || :
 
   rm -rfv \
@@ -310,6 +311,10 @@ dnf_config_update() {
   do
     [ -s "${lf}" ] && : 1>"${lf}" || :
   done
+
+  # Cleanup /var/lib/dnf/*
+  rm -f /var/lib/dnf/modulefailsafe/* || :
+  rm -rf /var/lib/dnf/repos || :
 
   # Cleanup /var/lib/rpm/__db.*
   rm -f /var/lib/rpm/__db.* || :
