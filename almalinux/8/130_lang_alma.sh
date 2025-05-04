@@ -5,7 +5,7 @@ language="${LANGUAGE:-}"
 
 [ -n "${language}" ] ||
   exit 0
-[ "${language}" != "en_US.UTF-8" ] ||
+[ "${language}" != "C.UTF-8" ] ||
   exit 0
 
 : "SetUp system LANG=${language}" && {
@@ -24,7 +24,7 @@ _EOD_
     exit 0
 
   locale=$(echo "${language}"|cut -d. -f1)
-  locale="${locale:-en_US}"
+  locale="${locale:-C}"
 
   chrmap=$(echo "${language}"|cut -d. -f2)
   chrmap="${chrmap:-UTF-8}"

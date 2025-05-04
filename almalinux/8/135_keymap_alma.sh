@@ -22,8 +22,8 @@ fi 1>/dev/null 2>&1
   [ -s "${vconconf}" ] || {
     : && {
 cat <<_EOD_
-KEYMAP=""
-FONT=""
+KEYMAP="us"
+FONT="eurlatgr"
 _EOD_
     } 1>"${vconconf}"
   }

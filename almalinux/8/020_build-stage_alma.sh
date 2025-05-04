@@ -2,9 +2,16 @@
 # Script to build a stage
 set -ux -o errtrace -o functrace -o pipefail
 
-work_dir=$(pwd)
-scrptdir="${scrptdir:-.}"
+work_dir="$(pwd)"
+scrptdir="${scrptdir:-$work_dir}"
 
+if [ -z "${ALMALINUX_VER:-}" ] &&
+   [ -r "/etc/os-release" ]
+then
+  ALMALINUX_VER=$(
+    . /etc/os-release &&
+    echo "${VERSION_ID:-}" |awk -F. '{print($1);}' 2>/dev/null; )
+fi
 [ -n "${ALMALINUX_VER:-}" ] ||
 if [ -r "/.onbuild/ALMALINUX_VER" ]
 then
@@ -21,6 +28,7 @@ fi
   export TIMEZONE
   export KEYBOARD
   export KBDTABLE
+  export INSTALLEPEL
   export LOGROTATION
   export ENABLE_SUDO
   export ENABLE_SSHD
@@ -55,7 +63,7 @@ fi
 
   [ -z "${shellcmd}" ] ||
   for build_sh in ${scrptdir:-.}/[0-9][0-9][0-9]_*.sh
-  do 
+  do
     ${shellcmd} "${build_sh}" || exit 1
   done
 
@@ -75,20 +83,18 @@ fi
   [ -d "/var/log" ] &&
   for lf in /var/log/*
   do
-    [ -f "${lf}" -a -s "${lf}" ] &&
-    : >"${lf}"
+    [ -f "${lf}" -a -s "${lf}" ] && : 1>"${lf}"
+    [ -d "${lf}" ] && rm -f "${lf}"/*
   done || :
 
-  rm -f /var/lib/rpm/__db.* || :
-  rm -rf {,/var}/tmp/* "${work_dir:-X}" || :
+  rm -rf /var/lib/dnf/repos \
+         /var/lib/dnf/modulefailsafe/* \
+         /var/lib/dnf/history.* \
+         /var/lib/rpm/__db.* || :
 
-  if [ -d "${scrptdir}" ]
-  then
-    rm -rf "${scrptdir}" || :
-  fi
+  rm -rf {,/var}/tmp/* "${work_dir:-X}" || :
 
 } &&
 : "Done."
 
 exit $?
- 
