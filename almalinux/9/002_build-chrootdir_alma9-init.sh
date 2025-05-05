@@ -1,5 +1,5 @@
 #!/bin/bash
-# 002_build-chrootdir_alma8-init.sh
+# 002_build-chrootdir_alma9-init.sh
 THIS="${BASH_SOURCE}"
 NAME="${THIS##*/}"
 BASE="${NAME%.*}"
@@ -41,7 +41,7 @@ chroot "${ALMALINUXROOT}" /bin/bash -ux <<'_EOF_'
     systemd-udev \
     || :
 
-  dnf -v -y remove --exclude=findutils \
+  dnf -v -y remove \
     $(echo $(dnf -q repoquery --unneeded 2>/dev/null)) \
     || exit 1
 
@@ -99,6 +99,13 @@ chroot "${ALMALINUXROOT}" /bin/bash -ux <<'_EOF_'
       || :
   }; )|| :
 
+  # AL9 specific hacks.
+  mkdir -p /run/cryptsetup &&
+  chmod 700 /run/cryptsetup || :
+  mkdir -p \
+    /run/{lock/subsys,log,user} \
+    /run/systemd/{ask-password,machines,seats,sessions,shutdown,users} || :
+
 } &&
 : "Set Default runlevel." && {
 
@@ -149,6 +156,7 @@ chroot "${ALMALINUXROOT}" /bin/bash -ux <<'_EOF_'
 
   # Cleanup /var/cache/dnf, /var/lib/{dnf,rpm}/*
   rm -rf /var/cache/dnf/* \
+         /var/cache/dnf/.gpgkeyschecked.yum \
          /var/lib/dnf/repos \
          /var/lib/dnf/modulefailsafe/* \
          /var/lib/dnf/history.* \

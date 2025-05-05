@@ -1,5 +1,5 @@
 #!/bin/bash
-# 002_build-chrootdir_alma8-init.sh
+# 001_build-chrootdir_alma9-minimal.sh
 THIS="${BASH_SOURCE}"
 NAME="${THIS##*/}"
 BASE="${NAME%.*}"
@@ -21,27 +21,12 @@ chroot "${ALMALINUXROOT}" /bin/bash -ux <<'_EOF_'
 
   # Install packages.
   dnf -v -y install \
-    findutils \
-    iputils \
-    procps-ng \
-    rootfiles \
-    tar \
+    bash \
+    hostname \
+    vim-minimal \
     || exit 1
 
-  # Unprotected
-  if [ -s "${dnf_protect_conf:=/etc/dnf/protected.d/systemd.conf}" ]
-  then
-    cat "${dnf_protect_conf}" |
-    egrep -v '^systemd-udev$' >"${dnf_protect_conf}.tmp" &&
-    mv -f "${dnf_protect_conf}"{.tmp,}
-  fi
-
-  # Remove packages as much as possible.
   dnf -v -y remove \
-    systemd-udev \
-    || :
-
-  dnf -v -y remove --exclude=findutils \
     $(echo $(dnf -q repoquery --unneeded 2>/dev/null)) \
     || exit 1
 
@@ -50,54 +35,6 @@ chroot "${ALMALINUXROOT}" /bin/bash -ux <<'_EOF_'
     dnf -v -y clean all &&
     rm -rf /var/cache/dnf/* || :
   }
-
-  # Fix /run/lock breakage since it's not tmpfs in docker
-  mount 2>/dev/null |
-  egrep '[[:space:]]/run[[:space:]]' 2>&1 1>/dev/null && {
-    umount /run || :
-    systemd-tmpfiles --create --boot || :
-  }
-
-  # mask mounts and login bits
-  systemctl mask \
-    console-getty.service \
-    dev-hugepages.mount \
-    getty.target \
-    sys-fs-fuse-connections.mount \
-    systemd-logind.service \
-    systemd-machine-id-commit.service \
-    systemd-random-seed.service \
-    systemd-remount-fs.service \
-    systemd-udev-trigger.service \
-    systemd-udevd.service \
-    || :
-
-  # Install systemd-container
-  : || {
-    dnf -v -y update &&
-    dnf -v -y install systemd-container && {
-      dnf -v -y remove \
-        $(echo $(dnf -q repoquery --unneeded 2>/dev/null)) || :
-    } &&
-    dnf -v -y clean all &&
-    rm -rf /var/cache/dnf/* || :
-  } || :
-
-  # Remove systemd files (/etc)
-  ( cd "${etc_sysd_dir:=/etc/systemd/system}/" && {
-    :
-  }; ) || :
-
-  # Remove systemd files (/usr/lib)
-  ( cd "${lib_sysd_dir:=/usr/lib/systemd/system}/" && {
-    rm -frv \
-      anaconda.target.wants/* \
-      basic.target.wants/* \
-      initrd.target.wants/ \
-      local-fs.target.wants/* \
-      system-update.target.wants/ \
-      || :
-  }; )|| :
 
 } &&
 : "Set Default runlevel." && {
@@ -147,8 +84,9 @@ chroot "${ALMALINUXROOT}" /bin/bash -ux <<'_EOF_'
     [ -d "${lf}" ] && rm -f "${lf}"/*
   done
 
-  # Cleanup /var/cache/dnf, /var/lib/{dnf,rpm}/*
+  # Cleanup /var/lib/{dnf,rpm}/*
   rm -rf /var/cache/dnf/* \
+         /var/cache/dnf/.gpgkeyschecked.yum \
          /var/lib/dnf/repos \
          /var/lib/dnf/modulefailsafe/* \
          /var/lib/dnf/history.* \
@@ -188,7 +126,7 @@ _EOF_
       [ -f "${lf}" -a -s "${lf}" ] && : 1>"${lf}"
       [ -d "${lf}" ] && rm -f "${lf}"/*
     done
-    rm -f  {,/var}/tmp/* /tmp/.[A-Za-z]*
+    rm -f {,/var}/tmp/* /tmp/.[A-Za-z]*
     rm -rf /var/lib/dnf/repos
     rm -f  /var/lib/dnf/modulefailsafe/* \
            /var/lib/dnf/history.*

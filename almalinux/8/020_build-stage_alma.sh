@@ -1,5 +1,10 @@
 #!/bin/bash
 # Script to build a stage
+THIS="${BASH_SOURCE}"
+NAME="${THIS##*/}"
+BASE="${NAME%.*}"
+CDIR=$([ -n "${THIS%/*}" ] && cd "${THIS%/*}" &>/dev/null; pwd)
+
 set -ux -o errtrace -o functrace -o pipefail
 
 work_dir="$(pwd)"
@@ -24,11 +29,11 @@ fi
 : "Export Args." && {
 
   export ALMALINUX_VER
+  export INSTALLEPEL
   export LANGUAGE
   export TIMEZONE
   export KEYBOARD
   export KBDTABLE
-  export INSTALLEPEL
   export LOGROTATION
   export ENABLE_SUDO
   export ENABLE_SSHD
@@ -87,12 +92,13 @@ fi
     [ -d "${lf}" ] && rm -f "${lf}"/*
   done || :
 
-  rm -rf /var/lib/dnf/repos \
+  rm -rf /var/cache/dnf/* \
+         /var/lib/dnf/repos \
          /var/lib/dnf/modulefailsafe/* \
          /var/lib/dnf/history.* \
          /var/lib/rpm/__db.* || :
 
-  rm -rf {,/var}/tmp/* "${work_dir:-X}" || :
+  rm -rf {,/var}/tmp/* /tmp/.[A-Za-z]* || :
 
 } &&
 : "Done."

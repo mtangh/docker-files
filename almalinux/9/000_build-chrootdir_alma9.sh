@@ -1,17 +1,36 @@
 #!/bin/bash
+# AlmaLinux built "build-stage_base" image
+THIS="${BASH_SOURCE}"
+NAME="${THIS##*/}"
+BASE="${NAME%.*}"
+CDIR=$([ -n "${THIS%/*}" ] && cd "${THIS%/*}" &>/dev/null; pwd)
+
 set -ux -o errtrace -o functrace -o pipefail
-# AlmaLinux built rootfs image
-THIS="${BASH_SOURCE##*/}"
-BASE="${THIS%.*}"
-CDIR=$([ -n "${BASH_SOURCE%/*}" ] && cd "${BASH_SOURCE%/*}"; pwd)
 
 [ -n "${ALMALINUX_VER:-}" ] || exit 1
 [ -n "${ALMALINUXROOT:-}" ] || exit 1
 
+# DNF
+dnf=""
+[ -x "${dnf:-}" ] || dnf="$(type -P dnf)"
+[ -x "${dnf:-}" ] || dnf="$(type -P microdnf)"
+[ -x "${dnf:-}" ] || exit 1
+case "${dnf:-}" in
+*/microdnf)
+  ;;
+*)
+  dnf="${dnf} -v"
+  ;;
+esac
+
 cat <<_EOD_
 #*
-#* ALMALINUX_VER${ALMALINUX_VER:-}
-#* ALMALINUXROOT${ALMALINUXROOT:-}
+#* ALMALINUX_VER=${ALMALINUX_VER:-}
+#* ALMALINUXROOT=${ALMALINUXROOT:-}
+#*
+#* INSTALLEPEL=${INSTALLEPEL:-}
+#*
+#* Using dnf: ${dnf}
 #*
 _EOD_
 
@@ -28,9 +47,13 @@ dnf_config_update() {
   then sed -re 's/^[#[:space:]]*(debuglevel)=.*$/\1=8/g'
   else sed -re '/^errorlevel=.*/a debuglevel=8'
   fi |
+  if egrep '^install_weak_deps=' "${dnf_config}" 1>/dev/null 2>&1
+  then sed -re 's/^[#[:space:]]*(install_weak_deps)=.*$/\1=False/g'
+  else sed -re '/^best=.*/a install_weak_deps=False'
+  fi |
   if egrep '^tsflags=' "${dnf_config}" 1>/dev/null 2>&1
   then sed -re 's/^[#[:space:]]*(tsflags)=.*$/\1=nodocs/g'
-  else sed -re '/^best=.*/a tsflags=nodocs'
+  else sed -re '/^install_weak_deps=.*/a tsflags=nodocs'
   fi |
   if egrep '^fastestmirror=' "${dnf_config}" 1>/dev/null 2>&1
   then sed -re 's/^[#[:space:]]*(fastestmirror)=.*$/\1=True/g'
@@ -39,7 +62,12 @@ dnf_config_update() {
   cat 1>"${dnf_config}.tmp" && {
     echo
     echo "[${dnf_config}]"
-    diff "${dnf_config}"{,.tmp} || :
+    if [ -x "$(type -P diff)" ]
+    then
+      diff "${dnf_config}"{,.tmp}
+    else
+      cat "${dnf_config}.tmp"
+    fi || :
     echo
   } &&
   mv -f "${dnf_config}"{.tmp,} ||
@@ -50,24 +78,57 @@ dnf_config_update() {
 
 : "Change the config of DNF" && {
 
-  dnf_config_update \
-    "/etc/dnf/dnf.conf" \
-    || exit 1
+  case "${dnf}" in
+  */microdnf)
+    ${dnf} -y install --nodocs dnf-data
+    ${dnf} -y clean all
+    ;;
+  *)
+    ;;
+  esac || :
+
+  if [ -s "/etc/dnf/dnf.conf" ]
+  then
+    dnf_config_update \
+      "/etc/dnf/dnf.conf" \
+      || exit 1
+  fi
 
 } &&
 : "Initialize Chroot Dir." && {
 
-  rpm_gpgkey="/etc/pki/rpm-gpg/RPM-GPG-KEY-AlmaLinux-${ALMALINUX_VER}"
+  ${dnf} -y update
+
+  rpm_gpgkey=""
+  if [ -f "/etc/pki/rpm-gpg/RPM-GPG-KEY-AlmaLinux-${ALMALINUX_VER}" ]
+  then rpm_gpgkey="/etc/pki/rpm-gpg/RPM-GPG-KEY-AlmaLinux-${ALMALINUX_VER}"
+  elif [ -f "/etc/pki/rpm-gpg/RPM-GPG-KEY-AlmaLinux" ]
+  then rpm_gpgkey="/etc/pki/rpm-gpg/RPM-GPG-KEY-AlmaLinux"
+  fi
 
   mkdir -p "${ALMALINUXROOT}" && {
 
-    dnf -v -y \
+    ${dnf} -y \
       clean all &&
-    dnf -v -y \
+    ${dnf} -y \
+      --nodocs \
       update &&
-    dnf -v -y \
-      reinstall --downloadonly --downloaddir . \
-      almalinux-release almalinux-gpg-keys almalinux-repos &&
+    case "${dnf}" in
+    */microdnf)
+      ${dnf} -y \
+        download \
+        almalinux-gpg-keys \
+        almalinux-release \
+        almalinux-repos
+      ;;
+    *)
+      ${dnf} -y \
+        reinstall --downloadonly --downloaddir . \
+        almalinux-gpg-keys \
+        almalinux-release \
+        almalinux-repos
+      ;;
+    esac &&
     rpm -v \
       --root ${ALMALINUXROOT} \
       --initdb &&
@@ -77,15 +138,35 @@ dnf_config_update() {
     rpm -v \
       --root ${ALMALINUXROOT} \
       --import "${ALMALINUXROOT}${rpm_gpgkey}" &&
-    dnf -v -y \
-      --installroot=${ALMALINUXROOT} \
-      --setopt=tsflags=nodocs \
-      --setopt=fastestmirror=True \
-      install dnf dnf-data
+    case "${dnf}" in
+    */microdnf)
+      ${dnf} -y \
+        --releasever=${ALMALINUX_VER} \
+        --installroot=${ALMALINUXROOT} \
+        --config=/etc/dnf/dnf.conf --nodocs --noplugins \
+        --setopt=cachedir=${ALMALINUXROOT}/var/cache/dnf \
+        --setopt=reposdir=/etc/yum.repos.d \
+        --setopt=varsdir=${ALMALINUXROOT}/etc/dnf/vars/ \
+        --setopt=install_weak_deps=0 \
+        --setopt=tsflags=nodocs \
+        install dnf dnf-data
+      ;;
+    *)
+      ${dnf} -y \
+        --releasever=${ALMALINUX_VER} \
+        --installroot=${ALMALINUXROOT} \
+        --nodocs \
+        --setopt=install_weak_deps=0 \
+        --setopt=tsflags=nodocs \
+        install dnf dnf-data
+      ;;
+    esac
 
   } || exit 1
 
   rm -f almalinux-*.rpm || :
+
+  ${dnf} -y clean all
 
 } &&
 : "Change the config of DNF under ALMALINUXROOT." && {
@@ -100,8 +181,8 @@ dnf_config_update() {
 } &&
 : "Chroot Setup." && {
 
-  cp -pf {,"${ALMALINUXROOT}"}/etc/resolv.conf &&
-  chroot "${ALMALINUXROOT}" /bin/bash -ux <<'_EOD_'
+cp -pf {,"${ALMALINUXROOT}"}/etc/resolv.conf &&
+chroot "${ALMALINUXROOT}" /bin/bash -ux <<'_EOF_'
 : "Make /dev files." && {
 
   [ -e "/dev/null" ]    || mknod -m 666 /dev/null c 1 3
@@ -119,12 +200,6 @@ dnf_config_update() {
   # Install packages.
   dnf -v -y install \
     bash \
-    binutils \
-    findutils \
-    hostname \
-    iputils \
-    rootfiles \
-    tar \
     vim-minimal \
     || exit 1
 
@@ -138,9 +213,12 @@ dnf_config_update() {
     || exit 1
 
   # Install EPEL.
-  dnf -v -y install \
-    epel-release \
-    || exit 1
+  if [ "${INSTALLEPEL:-}" = "YES" ]
+  then
+    dnf -v -y install \
+      epel-release \
+      || exit 1
+  fi
 
   # remove stuff we don't need that anaconda insists on
   # kernel needs to be removed by rpm, because of grubby.
@@ -148,13 +226,13 @@ dnf_config_update() {
     kernel \
     || :
 
-#  # No boot loader needed.
-#  rpm -v -e \
-#    grub2-common \
-#    grub2-tools \
-#    grub2-tools-minimal \
-#    grubby \
-#    || : exit 1
+  # No boot loader needed.
+  rpm -v -e \
+    grub2-common \
+    grub2-tools \
+    grub2-tools-minimal \
+    grubby \
+    || :
 
   # Unprotected
   if [ -s "${dnf_protect_conf:=/etc/dnf/protected.d/systemd.conf}" ]
@@ -164,12 +242,12 @@ dnf_config_update() {
     mv -f "${dnf_protect_conf}"{.tmp,}
   fi
 
-#  # Remove packages as much as possible.
-#  dnf -v -y remove --exclude=binutils \
-#    systemd-udev \
-#    || :
+  # Remove packages as much as possible.
+  dnf -v -y remove \
+    systemd-udev \
+    || :
 
-#  dnf -v -y remove --exclude=binutils \
+#  dnf -v -y remove \
 #    brotli \
 #    crypto-policies-scripts \
 #    diffutils \
@@ -194,9 +272,9 @@ dnf_config_update() {
 #    trousers \
 #    trousers-lib \
 #    which \
-#    || exit 1
+#    || :
 
-  dnf -v -y remove --exclude=binutils \
+  dnf -v -y remove \
     coreutils-common \
     dnf-plugins-core \
     gawk-all-langpacks \
@@ -206,18 +284,18 @@ dnf_config_update() {
     libssh-config \
     python-unversioned-command \
     rpm-plugin-systemd-inhibit \
-    || exit 1
+    || :
 
-#  dnf -v -y remove --exclude=binutils \
+#  dnf -v -y remove \
 #    elfutils-debuginfod-client \
 #    hardlink \
 #    libevent \
 #    libgomp \
-#    openssl-pkcs11 \
 #    openssl \
-#    || exit 1
+#    openssl-pkcs11 \
+#    || :
 
-  dnf -v -y remove --exclude=binutils \
+  dnf -v -y remove \
     $(echo $(dnf -q repoquery --unneeded 2>/dev/null)) \
     || exit 1
 
@@ -228,29 +306,23 @@ dnf_config_update() {
   }
 
 } &&
-: "Systemd fixes" && {
+: "AL9 specific hacks." && {
 
-  # no machine-id by default.
-  :> /etc/machine-id
+  mkdir -p /var/{cache,lib}/private /var/lib/systemd/coredump &&
+  chmod 700 /var/{cache,lib}/private || :
 
-  # Fix /run/lock breakage since it's not tmpfs in docker
-  mount 2>/dev/null |
-  egrep '[[:space:]]/run[[:space:]]' 2>&1 1>/dev/null &&
-  umount /run || :
-  systemd-tmpfiles --create --boot || :
-
-  # mask mounts and login bits
-  systemctl mask \
-    systemd-logind.service \
-    getty.target \
-    console-getty.service \
-    sys-fs-fuse-connections.mount \
-    systemd-remount-fs.service \
-    dev-hugepages.mount \
-    || :
-
-  # Default runlevel
-  systemctl set-default multi-user.target
+  egrep '^sgx:' &>/dev/null || {
+    groupadd -r -p '!*' -g996 sgx
+  } &&
+  egrep '^systemd-oom:' &>/dev/null || {
+    groupadd -r -p '!*' -g995 systemd-oom
+  } &&
+  egrep '^systemd-oom:' /etc/passwd &>/dev/null || {
+    useradd -Mr -c 'systemd Userspace OOM Killer' -g995 -u995 -s/usr/sbin/nologin -d/ systemd-oom
+  } && {
+    sed -i "/sgx/d" /mnt/sys-root/etc/group- || :
+    sed -i "/sgx/d" /mnt/sys-root/etc/gshadow- || :
+  } || :
 
 } &&
 : "Initialize the root user password." && {
@@ -275,11 +347,45 @@ dnf_config_update() {
 } &&
 : "Default Language." && {
 
-  if [ -s "${langfile:=/etc/locale.conf}" ] &&
-     egrep '^LANG=' "${langfile}" 1>/dev/null 2>&1
-  then sed -ri 's/^LANG=.*$/LANG=en_US.UTF-8/g' "${langfile}"
-  else echo 'LANG=en_US.UTF-8' 1>>"${langfile}"
+  LANG="C.UTF-8"
+
+  [ -s "${langfile:=/etc/locale.conf}" ] ||
+  touch "${langfile}" || :
+
+  if egrep '^LANG=' "${langfile}" 1>/dev/null 2>&1
+  then sed -ri 's/^LANG=.*$/LANG='"${LANG}"'/g' "${langfile}"
+  else echo "LANG=${LANG}" 1>>"${langfile}"
   fi || :
+
+  echo '%_install_langs C.utf8' 1>"/etc/rpm/macros.image-language-conf"
+
+} &&
+: "Default virtual console configuration." && {
+
+  [ -s "${vcnsfile:=/etc/vconsole.conf}" ] ||
+  touch "${vcnsfile}" || :
+
+  if egrep '^KEYMAP=' "${vcnsfile}" 1>/dev/null 2>&1
+  then sed -ri 's/^KEYMAP=.*$/KEYMAP="us"/g' "${vcnsfile}"
+  else echo 'KEYMAP="us"' 1>>"${vcnsfile}"
+  fi || :
+
+  if egrep '^FONT=' "${vcnsfile}" 1>/dev/null 2>&1
+  then sed -ri 's/^FONT=.*$/FONT="eurlatgr"/g' "${vcnsfile}"
+  else echo 'FONT="eurlatgr"' 1>>"${vcnsfile}"
+  fi || :
+
+} &&
+: "Default timezone." && {
+
+  ( cd /etc && {
+    ln -sf ../usr/share/zoneinfo/UTC ./localtime;
+    : "adjtime" && {
+      echo "0.0 0 0.0"
+      echo "0"
+      echo "UTC"
+    } 1> ./adjtime
+  }; )
 
 } &&
 : "Remove some things we don't need." && {
@@ -288,8 +394,12 @@ dnf_config_update() {
     /boot/* \
     /etc/firewalld \
     /etc/sysconfig/network-scripts/ifcfg-* \
+    /run/* \
     /usr/lib/locale/locale-archive \
     /usr/share/mime/* \
+    || :
+
+  rm -rfv \
     /root/* \
     /root/.bash_history \
     || :
@@ -297,10 +407,11 @@ dnf_config_update() {
   rm -rfv \
     /etc/udev/hwdb.bin \
     /usr/lib/udev/hwdb.d/* \
-    /var/lib/dnf/history.* \
+    /var/log/hawkey.log \
     || :
 
-  for lc in $(ls -1d /usr/share/locale/* |egrep -v '/(en|locale\.alias$)');
+  # Cleanup locales
+  for lc in $(ls -1d /usr/share/locale/* |egrep -v '/(C|locale\.alias$)');
   do
     echo "${lc}" && rm -rf "${lc}"
   done
@@ -309,21 +420,33 @@ dnf_config_update() {
   [ -d "/var/log/" ] &&
   for lf in /var/log/*
   do
-    [ -s "${lf}" ] && : 1>"${lf}" || :
+    [ -f "${lf}" -a -s "${lf}" ] && : 1>"${lf}"
+    [ -d "${lf}" ] && rm -f "${lf}"/*
   done
 
-  # Cleanup /var/lib/dnf/*
-  rm -f /var/lib/dnf/modulefailsafe/* || :
-  rm -rf /var/lib/dnf/repos || :
-
-  # Cleanup /var/lib/rpm/__db.*
-  rm -f /var/lib/rpm/__db.* || :
+  # Cleanup /var/lib/{dnf,rpm}/*
+  rm -rf /var/cache/dnf/* \
+         /var/cache/dnf/.gpgkeyschecked.yum \
+         /var/lib/dnf/repos \
+         /var/lib/dnf/modulefailsafe/* \
+         /var/lib/dnf/history.* \
+         /var/lib/rpm/__db.* || :
 
   # Cleanup /tmp/*.
-  rm -rf {,/var}/tmp/* || :
+  rm -rf {,/var}/tmp/* /tmp/.[A-Za-z]* || :
 
   # Make sure login works.
-  rm -f {/var,}/run/nologin || :
+  rm -f /var/run/nologin || :
+
+} &&
+: "Initialize automatically generated files." && {
+
+  # no machine-id by default.
+  [ -s "/etc/machine-id" ]  && : > /etc/machine-id || :
+
+  # Initializing 'resolv.conf' and 'hostname'
+  [ -s "/etc/resolv.conf" ] && : > /etc/resolv.conf || :
+  [ -s "/etc/hostname" ]    && : > /etc/hostname || :
 
 } &&
 : "Generate installtime file record." && {
@@ -331,13 +454,8 @@ dnf_config_update() {
   date +'%Y%m%dT%H%M%S%:z' 1>/etc/BUILDTIME || :
 
 } &&
-: "Remove 'resolv.conf'." && {
-
-  rm -f /etc/resolv.conf || :
-
-} &&
 [ $? -eq 0 ]
-_EOD_
+_EOF_
 
 } &&
 : "Cleanup." && {
@@ -345,12 +463,14 @@ _EOD_
   cd / && {
     for lf in /var/log/*
     do
-      [ -f "${lf}" ] && : 1>"${lf}"
+      [ -f "${lf}" -a -s "${lf}" ] && : 1>"${lf}"
+      [ -d "${lf}" ] && rm -f "${lf}"/*
     done
-    rm -f {,/var}/tmp/*
-    dnf -v -y clean all
-    rm -rf /var/cache/dnf/*
-    rm -f /var/lib/rpm/__db.*
+    rm -f {,/var}/tmp/* /tmp/.[A-Za-z]*
+    rm -rf /var/lib/dnf/repos
+    rm -f  /var/lib/dnf/modulefailsafe/* \
+           /var/lib/dnf/history.*
+    rm -f  /var/lib/rpm/__db.*
   } 2>/dev/null || :
 } &&
 : "Done."

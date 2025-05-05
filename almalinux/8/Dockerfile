@@ -1,7 +1,7 @@
 #
 # almalinux8:*
 #
-#@  DOCKER_IMAGEPATH="almalinux8"
+#@  DOCKER_IMAGEPATH="almalinux8x"
 #@  DOCKER_IMAGE_VER="v$(date +'%Y%m%d')"
 #@  DOCKER_CONTAINER=""
 #@  DOCKER_LATEST_IS="${DOCKER_IMAGEPATH}:minimal"
@@ -50,13 +50,13 @@ ARG ONBUILD_SHELL_SCRIPT=""
 
 
 # AlmaLinux minimal-builder
-FROM almalinux:${ALMALINUX_VER}-minimal AS minimal-builder
+FROM almalinux:${ALMALINUX_VER}-minimal AS build-stage_base
 
 # AlmaLinux Version / Image Dir / EPEL
 ARG \
-  ALMALINUX_VER \
-  ALMALINUXROOT \
-  INSTALLEPEL
+ ALMALINUX_VER \
+ ALMALINUXROOT \
+ INSTALLEPEL
 
 # Build env
 ENV \
@@ -68,20 +68,19 @@ ENV \
 WORKDIR /.docker-container-image-build
 
 # COPY shell scripts to Workdir
-COPY "000_build-chrootdir_alma${ALMALINUX_VER}.sh" ./build-chrootdir.sh
-COPY "001_build-chrootdir_alma${ALMALINUX_VER}-minimal.sh" ./build-chrootdir-chroot.sh
+COPY "000_build-chrootdir_alma${ALMALINUX_VER}.sh" ./build-chrootdir_base.sh
 COPY 020_build-stage_alma.sh ./build-stage.sh
 COPY \[1-5\]\[0-9\]\[0-9\]_*.sh ./
 
 # Setup
 RUN \
  : "Execute Build Script." && { \
-   set -ux; work_dir="$(pwd)"; \
-   /bin/bash -ux ./build-chrootdir.sh || exit $?; \
-   mkdir -p "${ALMALINUXROOT}/.onbuild" || exit $?; \
-   mv -f ./build-stage.sh ${ALMALINUXROOT}/.onbuild || :; \
-   mv -f [1-5][0-9][0-9]_*.sh ${ALMALINUXROOT}/.onbuild || :; \
-   cd /; rm -rf "${work_dir}" || :; \
+  set -ux; work_dir="$(pwd)"; \
+  /bin/bash -ux ./build-chrootdir_base.sh || exit $?; \
+  mkdir -p "${ALMALINUXROOT}/.onbuild" || exit $?; \
+  mv -f ./build-stage.sh ${ALMALINUXROOT}/.onbuild || :; \
+  mv -f [1-5][0-9][0-9]_*.sh ${ALMALINUXROOT}/.onbuild || :; \
+  cd /; rm -rf "${work_dir}" || :; \
  } && \
  : "Done.";
 
@@ -90,7 +89,99 @@ WORKDIR /
 
 # Labels
 LABEL \
- name="AlmaLinux ${ALMALINUX_VER} Minilmal-Builder" \
+ name="AlmaLinux ${ALMALINUX_VER} Builder-Base" \
+ vendor="UGOOLE.ORG" \
+ maintainer="MT" \
+ license="" \
+ org.ugoole.options.docker.build="" \
+ org.ugoole.build.template="true"
+
+
+# AlmaLinux minimal-builder
+FROM scratch AS build-stage_minimal
+
+# AlmaLinux Version / Image Dir / EPEL
+ARG \
+ ALMALINUX_VER \
+ ALMALINUXROOT \
+ INSTALLEPEL
+
+# Build env
+ENV \
+ ALMALINUX_VER="${ALMALINUX_VER:-}" \
+ ALMALINUXROOT="${ALMALINUXROOT:-}" \
+ INSTALLEPEL="${INSTALLEPEL:-}"
+
+# COPY From base image
+COPY --from=build-stage_base / /
+
+# Set Workdir
+WORKDIR /.docker-container-image-build
+
+# COPY shell scripts to Workdir
+COPY "001_build-chrootdir_alma${ALMALINUX_VER}-minimal.sh" ./build-chrootdir_stage.sh
+
+# Setup
+RUN \
+ : "Execute Build Script." && { \
+  set -ux; work_dir="$(pwd)"; \
+  /bin/bash -ux ./build-chrootdir_stage.sh || exit $?; \
+  cd /; rm -rf "${work_dir}" || :; \
+ } && \
+ : "Done.";
+
+# Reset Workdir
+WORKDIR /
+
+# Labels
+LABEL \
+ name="AlmaLinux ${ALMALINUX_VER} Base-image for building Minilmal." \
+ vendor="UGOOLE.ORG" \
+ maintainer="MT" \
+ license="" \
+ org.ugoole.options.docker.build="" \
+ org.ugoole.build.template="true"
+
+
+# AlmaLinux minimal-builder
+FROM scratch AS build-stage_init
+
+# AlmaLinux Version / Image Dir / EPEL
+ARG \
+ ALMALINUX_VER \
+ ALMALINUXROOT \
+ INSTALLEPEL
+
+# Build env
+ENV \
+ ALMALINUX_VER="${ALMALINUX_VER:-}" \
+ ALMALINUXROOT="${ALMALINUXROOT:-}" \
+ INSTALLEPEL="${INSTALLEPEL:-}"
+
+# COPY From base image
+COPY --from=build-stage_minimal / /
+
+# Set Workdir
+WORKDIR /.docker-container-image-build
+
+# COPY shell scripts to Workdir
+COPY "002_build-chrootdir_alma${ALMALINUX_VER}-init.sh" ./build-chrootdir_stage.sh
+
+# Setup
+RUN \
+ : "Execute Build Script." && { \
+  set -ux; work_dir="$(pwd)"; \
+  /bin/bash -ux ./build-chrootdir_stage.sh || exit $?; \
+  cd /; rm -rf "${work_dir}" || :; \
+ } && \
+ : "Done.";
+
+# Reset Workdir
+WORKDIR /
+
+# Labels
+LABEL \
+ name="AlmaLinux ${ALMALINUX_VER} Base-image for building Init." \
  vendor="UGOOLE.ORG" \
  maintainer="MT" \
  license="" \
@@ -118,7 +209,7 @@ ARG \
  KBDTABLE
 
 # COPY From root-image
-COPY --from=minimal-builder "${ALMALINUXROOT}"/ /
+COPY --from=build-stage_minimal "${ALMALINUXROOT}"/ /
 
 # Set Workdir
 WORKDIR /.onbuild
@@ -185,8 +276,8 @@ ARG \
 # ONBUILD: RPM Packages and Shell Scripts for ONBUILD
 ONBUILD \
 ARG \
-  ONBUILD_RPM_PACKAGES \
-  ONBUILD_SHELL_SCRIPT
+ ONBUILD_RPM_PACKAGES \
+ ONBUILD_SHELL_SCRIPT
 
 # ONBUILD: Set Workdir
 ONBUILD \
@@ -202,61 +293,12 @@ RUN \
  --mount=type=secret,id=ROOTPSWD \
  --mount=type=secret,id=DOCKER_USERS \
  set -ux; work_dir="$(pwd)"; \
- . ${work_dir}/onbuild.sh || exit 1; \
+ . ${work_dir}/onbuild.sh || exit $?; \
  cd /; rm -rf "${work_dir}" || :;
 
 # ONBUILD: Reset Workdir
 ONBUILD \
 WORKDIR /
-
-
-# AlmaLinux init-builder
-FROM almalinux:${ALMALINUX_VER}-minimal AS init-builder
-
-# AlmaLinux Version / Image Dir / EPEL
-ARG \
- ALMALINUX_VER \
- ALMALINUXROOT \
- INSTALLEPEL
-
-# Build env
-ENV \
- ALMALINUX_VER="${ALMALINUX_VER:-}" \
- ALMALINUXROOT="${ALMALINUXROOT:-}" \
- INSTALLEPEL="${INSTALLEPEL:-}"
-
-# Set Workdir
-WORKDIR /.docker-container-image-build
-
-# COPY shell scripts to Workdir
-COPY "000_build-chrootdir_alma${ALMALINUX_VER}.sh" ./build-chrootdir.sh
-COPY "002_build-chrootdir_alma${ALMALINUX_VER}-init.sh" ./build-chrootdir-chroot.sh
-COPY 020_build-stage_alma.sh ./build-stage.sh
-COPY \[1-5\]\[0-9\]\[0-9\]_*.sh ./
-
-# Setup
-RUN \
- : "Execute Build Script." && { \
-   set -ux; work_dir="$(pwd)"; \
-   /bin/bash -ux ./build-chrootdir.sh || exit $?; \
-   mkdir -p "${ALMALINUXROOT}/.onbuild" || exit $?; \
-   mv -f ./build-stage.sh ${ALMALINUXROOT}/.onbuild || :; \
-   mv -f [1-5][0-9][0-9]_*.sh ${ALMALINUXROOT}/.onbuild || :; \
-   cd /; rm -rf "${work_dir}" || :; \
- } && \
- : "Done.";
-
-# Reset Workdir
-WORKDIR /
-
-# Labels
-LABEL \
- name="AlmaLinux ${ALMALINUX_VER} Init-Builder" \
- vendor="UGOOLE.ORG" \
- maintainer="MT" \
- license="" \
- org.ugoole.options.docker.build="" \
- org.ugoole.build.template="true"
 
 
 # AlmaLinux with init
@@ -267,9 +309,9 @@ ENV container="docker"
 
 # AlmaLinux Version / Image Dir / EPEL
 ARG \
-  ALMALINUX_VER \
-  ALMALINUXROOT \
-  INSTALLEPEL
+ ALMALINUX_VER \
+ ALMALINUXROOT \
+ INSTALLEPEL
 
 # Parameters for localization
 ARG \
@@ -279,7 +321,7 @@ ARG \
  KBDTABLE
 
 # COPY From minimal image
-COPY --from=init-builder "${ALMALINUXROOT}"/ /
+COPY --from=build-stage_init "${ALMALINUXROOT}"/ /
 
 # Set Workdir
 WORKDIR /.onbuild
@@ -352,15 +394,15 @@ ARG \
 # Enable logrotate / SUDO / Sshd
 ONBUILD \
 ARG \
-  LOGROTATION \
-  ENABLE_SUDO \
-  ENABLE_SSHD
+ LOGROTATION \
+ ENABLE_SUDO \
+ ENABLE_SSHD
 
 # ONBUILD: RPM Packages and Shell Scripts for ONBUILD
 ONBUILD \
 ARG \
-  ONBUILD_RPM_PACKAGES \
-  ONBUILD_SHELL_SCRIPT
+ ONBUILD_RPM_PACKAGES \
+ ONBUILD_SHELL_SCRIPT
 
 # ONBUILD: Set Workdir
 ONBUILD \
@@ -376,7 +418,7 @@ RUN \
  --mount=type=secret,id=ROOTPSWD \
  --mount=type=secret,id=DOCKER_USERS \
  set -ux; work_dir="$(pwd)"; \
- . ${work_dir}/onbuild.sh || exit 1; \
+ . ${work_dir}/onbuild.sh || exit $?; \
  cd /; rm -rf "${work_dir}" || :;
 
 # ONBUILD: Reset Workdir
