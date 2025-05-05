@@ -67,7 +67,7 @@ fi
     shellcmd="/bin/sh" || :
 
   [ -z "${shellcmd}" ] ||
-  for build_sh in ${scrptdir:-.}/[0-9][0-9][0-9]_*.sh
+  for build_sh in ${scrptdir:-$work_dir}/[0-9][0-9][0-9]_*.sh
   do
     ${shellcmd} "${build_sh}" || exit 1
   done
@@ -99,6 +99,8 @@ fi
          /var/lib/rpm/__db.* || :
 
   rm -rf {,/var}/tmp/* /tmp/.[A-Za-z]* || :
+
+  rm -rf "${work_dir}" "${scrptdir}" || :
 
 } &&
 : "Done."

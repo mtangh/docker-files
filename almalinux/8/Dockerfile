@@ -1,7 +1,7 @@
 #
 # almalinux8:*
 #
-#@  DOCKER_IMAGEPATH="almalinux8x"
+#@  DOCKER_IMAGEPATH="almalinux8"
 #@  DOCKER_IMAGE_VER="v$(date +'%Y%m%d')"
 #@  DOCKER_CONTAINER=""
 #@  DOCKER_LATEST_IS="${DOCKER_IMAGEPATH}:minimal"
@@ -69,17 +69,13 @@ WORKDIR /.docker-container-image-build
 
 # COPY shell scripts to Workdir
 COPY "000_build-chrootdir_alma${ALMALINUX_VER}.sh" ./build-chrootdir_base.sh
-COPY 020_build-stage_alma.sh ./build-stage.sh
-COPY \[1-5\]\[0-9\]\[0-9\]_*.sh ./
 
 # Setup
 RUN \
  : "Execute Build Script." && { \
-  set -ux; work_dir="$(pwd)"; \
+  set -ux -o errtrace -o functrace -o pipefail; \
+  work_dir="$(pwd)"; \
   /bin/bash -ux ./build-chrootdir_base.sh || exit $?; \
-  mkdir -p "${ALMALINUXROOT}/.onbuild" || exit $?; \
-  mv -f ./build-stage.sh ${ALMALINUXROOT}/.onbuild || :; \
-  mv -f [1-5][0-9][0-9]_*.sh ${ALMALINUXROOT}/.onbuild || :; \
   cd /; rm -rf "${work_dir}" || :; \
  } && \
  : "Done.";
@@ -124,7 +120,8 @@ COPY "001_build-chrootdir_alma${ALMALINUX_VER}-minimal.sh" ./build-chrootdir_sta
 # Setup
 RUN \
  : "Execute Build Script." && { \
-  set -ux; work_dir="$(pwd)"; \
+  set -ux -o errtrace -o functrace -o pipefail; \
+  work_dir="$(pwd)"; \
   /bin/bash -ux ./build-chrootdir_stage.sh || exit $?; \
   cd /; rm -rf "${work_dir}" || :; \
  } && \
@@ -170,7 +167,8 @@ COPY "002_build-chrootdir_alma${ALMALINUX_VER}-init.sh" ./build-chrootdir_stage.
 # Setup
 RUN \
  : "Execute Build Script." && { \
-  set -ux; work_dir="$(pwd)"; \
+  set -ux -o errtrace -o functrace -o pipefail; \
+  work_dir="$(pwd)"; \
   /bin/bash -ux ./build-chrootdir_stage.sh || exit $?; \
   cd /; rm -rf "${work_dir}" || :; \
  } && \
@@ -214,13 +212,15 @@ COPY --from=build-stage_minimal "${ALMALINUXROOT}"/ /
 # Set Workdir
 WORKDIR /.onbuild
 
+# COPY shell scripts to Workdir
+COPY 020_build-stage_alma.sh ./build-stage.sh
+COPY \[1-5\]\[0-9\]\[0-9\]_*.sh ./
+
 # SetUp
 RUN \
  --mount=type=secret,id=ROOTPSWD \
  --mount=type=secret,id=DOCKER_USERS \
- set -ux; work_dir="$(pwd)"; \
- . ./build-stage.sh || exit $?; \
- cd / && rm -rf "${work_dir}" || :;
+ set -ux -o errtrace -o functrace -o pipefail; . ./build-stage.sh || exit $?;
 
 # Reset Workdir
 WORKDIR /
@@ -249,8 +249,8 @@ ARG ALMALINUX_VER
 WORKDIR /.onbuild
 
 # Copy onbuild scripts to Workdir
-COPY 020_build-stage_alma.sh ./onbuild.sh
-COPY \[19\]\[0-9\]\[0-9\]_*.sh ./
+COPY 020_build-stage_alma.sh ./onbuild-stage.sh
+COPY \[1-59\]\[0-9\]\[0-9\]_*.sh ./
 
 # Reset Workdir
 WORKDIR /
@@ -292,9 +292,7 @@ ONBUILD \
 RUN \
  --mount=type=secret,id=ROOTPSWD \
  --mount=type=secret,id=DOCKER_USERS \
- set -ux; work_dir="$(pwd)"; \
- . ${work_dir}/onbuild.sh || exit $?; \
- cd /; rm -rf "${work_dir}" || :;
+ set -ux -o errtrace -o functrace -o pipefail; . ./onbuild-stage.sh || exit $?;
 
 # ONBUILD: Reset Workdir
 ONBUILD \
@@ -326,13 +324,15 @@ COPY --from=build-stage_init "${ALMALINUXROOT}"/ /
 # Set Workdir
 WORKDIR /.onbuild
 
+# COPY shell scripts to Workdir
+COPY 020_build-stage_alma.sh ./build-stage.sh
+COPY \[1-5\]\[0-9\]\[0-9\]_*.sh ./
+
 # SetUp
 RUN \
  --mount=type=secret,id=ROOTPSWD \
  --mount=type=secret,id=DOCKER_USERS \
- set -ux; work_dir="$(pwd)"; \
- . ./build-stage.sh || exit $?; \
- cd / && rm -rf "${work_dir}" || :;
+ set -ux -o errtrace -o functrace -o pipefail; . ./build-stage.sh || exit $?;
 
 # Reset Workdir
 WORKDIR /
@@ -367,7 +367,7 @@ ARG ALMALINUX_VER
 WORKDIR /.onbuild
 
 # Copy onbuild scripts to Workdir
-COPY 020_build-stage_alma.sh ./onbuild.sh
+COPY 020_build-stage_alma.sh ./onbuild-stage.sh
 COPY \[1-9\]\[0-9\]\[0-9\]_*.sh ./
 
 # Reset Workdir
@@ -417,9 +417,7 @@ ONBUILD \
 RUN \
  --mount=type=secret,id=ROOTPSWD \
  --mount=type=secret,id=DOCKER_USERS \
- set -ux; work_dir="$(pwd)"; \
- . ${work_dir}/onbuild.sh || exit $?; \
- cd /; rm -rf "${work_dir}" || :;
+ set -ux -o errtrace -o functrace -o pipefail; . ./onbuild-stage.sh || exit $?;
 
 # ONBUILD: Reset Workdir
 ONBUILD \

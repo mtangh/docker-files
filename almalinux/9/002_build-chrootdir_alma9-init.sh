@@ -25,6 +25,7 @@ chroot "${ALMALINUXROOT}" /bin/bash -ux <<'_EOF_'
     iputils \
     procps-ng \
     rootfiles \
+    systemd \
     tar \
     || exit 1
 
