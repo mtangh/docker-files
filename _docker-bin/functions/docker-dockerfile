@@ -92,7 +92,7 @@ dockerfile-cat-ARG() {
   dockerfile-cat "$@" |
   egrep -i '^[[:space:]]*(ARG)[[:space:]]+' |
   ${SED} -r -e 's/^[[:space:]]+//gi' -e 's/[[:space:]]+$//gi' |${SED} -nre \
-  's/^ARG[[:space:]]+([^=[:space:]]+)(=|[[:space:]]+)([^=[:space:]].*$|$)/\1=\3;/gip' |
+  's/^ARG[[:space:]]+([^=[:space:]]+)(=)([^=[:space:]].*$|$)/\1=\3;/gip' |
   ${SED} -re 's/=;$/=''""''/g' 2>/dev/null
   return $?
 }
@@ -101,7 +101,7 @@ dockerfile-cat-ENV() {
   dockerfile-cat "$@" |
   egrep -i '^[[:space:]]*(ENV)[[:space:]]+' |
   ${SED} -r -e 's/^[[:space:]]+//gi' -e 's/[[:space:]]+$//gi' |${SED} -nre \
-  's/^ENV[[:space:]]+([^=[:space:]]+)(=|[[:space:]]+)([^=[:space:]].*$|$)/\1=\3;/gip' \
+  's/^ENV[[:space:]]+([^=[:space:]]+)(=)([^=[:space:]].*$|$)/\1=\3;/gip' \
   2>/dev/null
   return $?
 }
